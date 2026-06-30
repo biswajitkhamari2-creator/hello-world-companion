@@ -11,7 +11,7 @@ import { BrandMark } from "@/components/brand-mark";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/mentor")({
+export const Route = createFileRoute("/_authenticated/mentor")({
   validateSearch: (s: Record<string, unknown>) => ({ seed: typeof s.seed === "string" ? s.seed : undefined }),
   head: () => ({
     meta: [

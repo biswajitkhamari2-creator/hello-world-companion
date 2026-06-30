@@ -36,7 +36,7 @@ import {
 import { extractDocument } from "@/lib/documents.functions";
 import type { OutputType } from "@/lib/generations.functions";
 
-export const Route = createFileRoute("/inbox")({
+export const Route = createFileRoute("/_authenticated/inbox")({
   head: () => ({
     meta: [{ title: "Telegram Inbox — UPSC Mitra" }],
   }),
@@ -56,14 +56,7 @@ function InboxPage() {
   const [dateFilterOn, setDateFilterOn] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        const { error } = await supabase.auth.signInAnonymously();
-        if (error) toast.error(error.message);
-      }
-      setReady(true);
-    })();
+    setReady(true);
   }, []);
 
   const list = useServerFn(listInbox);

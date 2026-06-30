@@ -1,5 +1,8 @@
 import type { ComponentType, ReactNode } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { LogOut } from "lucide-react";
 import {
   LayoutDashboard,
   Sparkles,
@@ -181,10 +184,31 @@ function AppSidebar() {
         ))}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border/60 px-3 py-3 text-[11px] text-muted-foreground">
-        <span className="font-medium text-foreground/80">UPSC Genius AI</span>
+        <SignOutButton />
+        <span className="mt-2 font-medium text-foreground/80">UPSC Genius AI</span>
         <span className="opacity-70">by Sidheswar Enterprises</span>
       </SidebarFooter>
     </Sidebar>
+  );
+}
+
+function SignOutButton() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  async function handleSignOut() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  }
+  return (
+    <button
+      type="button"
+      onClick={handleSignOut}
+      className="inline-flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
+    >
+      <LogOut className="h-3.5 w-3.5" /> Sign out
+    </button>
   );
 }
 

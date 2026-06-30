@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FileEdit, Sparkles, Loader2, Upload, ListChecks, Lightbulb, Target, BookOpen, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -11,12 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { analyseEditorial, type EditorialAnalysis } from "@/lib/editorial.functions";
 import { createUploadSession, finalizeUpload, extractDocument, getDocument } from "@/lib/documents.functions";
 import { uploadFileResumable } from "@/lib/drive-upload";
 
-export const Route = createFileRoute("/editorial")({
+export const Route = createFileRoute("/_authenticated/editorial")({
   head: () => ({
     meta: [
       { title: "Editorial Analyser — UPSC Genius AI" },
@@ -36,12 +35,7 @@ function EditorialPage() {
   const extractFn = useServerFn(extractDocument);
   const getDocFn = useServerFn(getDocument);
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) await supabase.auth.signInAnonymously();
-    })();
-  }, []);
+  // Auth gate guarantees a session exists.
 
   const analyse = useMutation({
     mutationFn: async () => analyseFn({ data: { text: text.trim(), source: source.trim() || undefined } }),
