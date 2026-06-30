@@ -290,6 +290,49 @@ export async function getDriveFileMetadata(fileId: string): Promise<{
   };
 }
 
+export async function findLatestDriveFileByUpload(opts: {
+  userId: string;
+  fileName: string;
+  size: number;
+  mime?: string;
+}): Promise<{
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  webViewLink: string | null;
+} | null> {
+  const parentId = await getUserFolderId(opts.userId);
+  const escapedName = opts.fileName.replace(/'/g, "\\'");
+  const q = encodeURIComponent(
+    `'${parentId}' in parents and name='${escapedName}' and trashed=false`,
+  );
+  const fields = encodeURIComponent("files(id,name,size,mimeType,webViewLink,createdTime,modifiedTime)");
+  const res = await gw(
+    `${DRIVE_API}/files?q=${q}&fields=${fields}&pageSize=10&orderBy=createdTime desc`,
+  );
+  if (!res.ok) await throwDriveError("metadata recovery", res);
+  const body = (await res.json()) as {
+    files?: Array<{
+      id: string;
+      name: string;
+      size?: string;
+      mimeType?: string;
+      webViewLink?: string;
+    }>;
+  };
+  const files = body.files ?? [];
+  const exact = files.find((f) => Number(f.size ?? 0) === opts.size);
+  if (!exact) return null;
+  return {
+    id: exact.id,
+    name: exact.name,
+    size: Number(exact.size ?? 0),
+    mimeType: exact.mimeType ?? opts.mime ?? "application/octet-stream",
+    webViewLink: exact.webViewLink ?? null,
+  };
+}
+
 // List every non-folder, non-trashed file inside a Drive folder. Pages through results.
 export async function listFolderFiles(folderId: string): Promise<Array<{
   id: string;

@@ -398,14 +398,34 @@ export const finalizeUpload = createServerFn({ method: "POST" })
     z
       .object({
         documentId: z.string().uuid(),
-        driveFileId: z.string().min(1).max(200),
+        driveFileId: z.string().min(1).max(200).nullable().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { getDriveFileMetadata } = await import("./gdrive.server");
-    const meta = await getDriveFileMetadata(data.driveFileId);
+    const { data: doc, error: docErr } = await supabase
+      .from("documents")
+      .select("id,file_name,size_bytes,mime")
+      .eq("id", data.documentId)
+      .eq("user_id", userId)
+      .single();
+    if (docErr || !doc) throw docErr || new Error("Document not found");
+
+    const { getDriveFileMetadata, findLatestDriveFileByUpload } = await import("./gdrive.server");
+    const meta = data.driveFileId
+      ? await getDriveFileMetadata(data.driveFileId)
+      : await findLatestDriveFileByUpload({
+          userId,
+          fileName: doc.file_name || doc.id,
+          size: Number(doc.size_bytes || 0),
+          mime: doc.mime || undefined,
+        });
+    if (!meta) {
+      throw new Error(
+        "Upload reached Google Drive but the final response was not readable. Please click Sync from Drive or retry once; the file may already be in your Drive folder.",
+      );
+    }
     const { data: row, error } = await supabase
       .from("documents")
       .update({
