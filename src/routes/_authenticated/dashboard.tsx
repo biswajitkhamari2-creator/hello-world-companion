@@ -479,9 +479,9 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
       setProgress({ done: 0, total: totalChunks, failed: 0, retrying: 0 });
       const parts: any[] = new Array(totalChunks).fill(null);
       const MAX_RETRIES = 5;
-      // Gemini free tier ≈ 10 RPM. Keep concurrency at 1 and pace requests.
-      const CONCURRENCY = 1;
-      const MIN_GAP_MS = 6500; // ~9 RPM, safely under the free-tier limit
+      // Groq free tier ≈ 30 RPM and is fast. Run chunks in parallel with a light gap.
+      const CONCURRENCY = 4;
+      const MIN_GAP_MS = 400;
       let lastStartedAt = 0;
 
       let aborted: string | null = null;
