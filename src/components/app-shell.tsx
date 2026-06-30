@@ -114,6 +114,11 @@ const NAV_GROUPS: NavGroup[] = [
 
 function SidebarNavLink({ item, active }: { item: NavItem; active: boolean }) {
   const { isMobile, setOpenMobile } = useSidebar();
+  const [path, query] = item.url.split("?");
+  const search: Record<string, string> = {};
+  if (query) {
+    for (const [k, v] of new URLSearchParams(query)) search[k] = v;
+  }
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -127,8 +132,9 @@ function SidebarNavLink({ item, active }: { item: NavItem; active: boolean }) {
             "bg-gradient-to-r from-indigo-500/15 via-fuchsia-500/10 to-amber-400/10 text-foreground shadow-sm",
         )}
       >
-        <a
-          href={item.url}
+        <Link
+          to={path}
+          search={query ? search : undefined}
           onClick={() => { if (isMobile) setOpenMobile(false); }}
           className="flex w-full items-center gap-2.5"
         >
@@ -148,7 +154,7 @@ function SidebarNavLink({ item, active }: { item: NavItem; active: boolean }) {
               {item.badge}
             </span>
           ) : null}
-        </a>
+        </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
