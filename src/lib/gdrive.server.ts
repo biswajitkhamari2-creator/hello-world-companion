@@ -1,11 +1,11 @@
 // Google Drive storage adapter for UPSC Genius AI.
 // Talks directly to https://www.googleapis.com using your own OAuth refresh token.
 // Required env vars (set in Vercel):
-//   GOOGLE_OAUTH_CLIENT_ID
-//   GOOGLE_OAUTH_CLIENT_SECRET
-//   GOOGLE_OAUTH_REFRESH_TOKEN
+//   GOOGLE_CLIENT_ID
+//   GOOGLE_CLIENT_SECRET
+//   GOOGLE_REFRESH_TOKEN
 //   GOOGLE_DRIVE_ROOT_FOLDER_ID  (optional — defaults to a folder named UPSC-Genius-AI in My Drive)
-// See docs/google-oauth-setup.md for how to generate these.
+// Generate GOOGLE_REFRESH_TOKEN by visiting /api/oauth/google/start on your deployed site.
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
@@ -19,12 +19,12 @@ async function getAccessToken(): Promise<string> {
   const now = Date.now();
   if (tokenCache && tokenCache.expiresAt - 60_000 > now) return tokenCache.token;
 
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
-  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN?.trim();
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN?.trim();
   if (!clientId || !clientSecret || !refreshToken) {
     throw new Error(
-      "Google Drive is not configured. Set GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, and GOOGLE_OAUTH_REFRESH_TOKEN. See docs/google-oauth-setup.md.",
+      "Google Drive is not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in Vercel. Visit /api/oauth/google/start on your deployed site to mint a refresh token.",
     );
   }
 
