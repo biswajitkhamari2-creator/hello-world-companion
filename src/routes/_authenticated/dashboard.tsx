@@ -13,6 +13,7 @@ import {
   listDocuments,
   createUploadSession,
   finalizeUpload,
+  completeUploadFinalChunk,
   extractDocument,
   deleteDocument,
   uploadDocument,
@@ -93,6 +94,7 @@ function Dashboard() {
 
   const startUploadSession = useServerFn(createUploadSession);
   const finalize = useServerFn(finalizeUpload);
+  const completeFinalChunk = useServerFn(completeUploadFinalChunk);
   const syncDrive = useServerFn(syncFromDrive);
   const [syncing, setSyncing] = useState(false);
   const [showDriveAccessInfo, setShowDriveAccessInfo] = useState(false);
@@ -198,15 +200,28 @@ function Dashboard() {
           data: { fileName: file.name, mime, size: file.size, title: file.name },
         });
         console.log("[Drive] Resumable session created", { documentId: session.documentId });
+        let completedRow: any = null;
         const { driveFileId } = await uploadFileResumable({
           file,
           uploadUrl: session.uploadUrl,
           onProgress: (loaded, total) => {
             setUploadProgress(total ? Math.round((loaded / total) * 100) : 0);
           },
+          uploadFinalChunk: async ({ blob, start, end, total }) => {
+            const fd = new FormData();
+            fd.set("documentId", session.documentId);
+            fd.set("uploadUrl", session.uploadUrl);
+            fd.set("start", String(start));
+            fd.set("end", String(end));
+            fd.set("total", String(total));
+            fd.set("chunk", new File([blob], file.name, { type: mime }));
+            completedRow = await completeFinalChunk({ data: fd });
+            setUploadProgress(100);
+            return { driveFileId: completedRow?.drive_file_id ?? null };
+          },
         });
         console.log("[Drive] Upload complete", { driveFileId, recoveredByServer: !driveFileId });
-        row = await finalize({ data: { documentId: session.documentId, driveFileId } });
+        row = completedRow ?? await finalize({ data: { documentId: session.documentId, driveFileId } });
         console.log("[Drive] Finalised", { driveFileId: row?.drive_file_id, viewLink: row?.drive_view_link });
       }
       try {

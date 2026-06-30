@@ -8,6 +8,12 @@ export interface ResumableUploadOptions {
   uploadUrl: string;
   chunkSize?: number; // bytes; default 4 MiB
   onProgress?: (loaded: number, total: number) => void;
+  uploadFinalChunk?: (chunk: {
+    blob: Blob;
+    start: number;
+    end: number;
+    total: number;
+  }) => Promise<ResumableUploadResult>;
   signal?: AbortSignal;
 }
 
@@ -16,7 +22,7 @@ export interface ResumableUploadResult {
   completedWithoutMetadata?: boolean;
 }
 
-const DEFAULT_CHUNK = 4 * 1024 * 1024;
+const DEFAULT_CHUNK = 2 * 1024 * 1024;
 const MAX_RETRIES = 8;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -65,6 +71,15 @@ export async function uploadFileResumable(
     const end = Math.min(offset + chunkSize, total);
     const chunk = opts.file.slice(offset, end);
     let attempt = 0;
+
+    // Google Drive's final resumable-upload response is the flaky part in
+    // browsers. It can complete the upload but leave fetch hanging/rejected
+    // because the final metadata response is not readable by CORS. Send only
+    // the small final chunk through our authenticated server function instead.
+    if (end >= total && opts.uploadFinalChunk) {
+      opts.onProgress?.(Math.max(offset, total - 1), total);
+      return opts.uploadFinalChunk({ blob: chunk, start: offset, end, total });
+    }
 
     // Per-chunk retry loop
     // eslint-disable-next-line no-constant-condition
