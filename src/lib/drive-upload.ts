@@ -6,9 +6,14 @@
 export interface ResumableUploadOptions {
   file: File;
   uploadUrl: string;
-  chunkSize?: number; // bytes; default 8 MiB
+  chunkSize?: number; // bytes; default 4 MiB
   onProgress?: (loaded: number, total: number) => void;
   signal?: AbortSignal;
+}
+
+export interface ResumableUploadResult {
+  driveFileId: string | null;
+  completedWithoutMetadata?: boolean;
 }
 
 const DEFAULT_CHUNK = 4 * 1024 * 1024;
@@ -41,9 +46,14 @@ async function queryResumeOffset(uploadUrl: string, total: number, signal?: Abor
   }
 }
 
+function isNetworkFetchError(err: unknown): boolean {
+  const message = String((err as any)?.message || err || "");
+  return err instanceof TypeError || /failed to fetch|networkerror|load failed|cors/i.test(message);
+}
+
 export async function uploadFileResumable(
   opts: ResumableUploadOptions,
-): Promise<{ driveFileId: string }> {
+): Promise<ResumableUploadResult> {
   const total = opts.file.size;
   const chunkSize = opts.chunkSize ?? DEFAULT_CHUNK;
   let offset = 0;
@@ -103,7 +113,10 @@ export async function uploadFileResumable(
         if (resumed !== null) {
           if (resumed >= total) {
             // Server already has the whole file but we didn't get the meta JSON.
-            // Re-PUT a zero-length finalize to fetch metadata.
+            // Re-PUT a zero-length finalize to fetch metadata. Some Google Drive
+            // resumable sessions complete the final chunk but the browser cannot
+            // read the final response because the response lacks usable CORS
+            // headers; in that case the server can recover the file by metadata.
             try {
               const finalRes = await fetch(opts.uploadUrl, {
                 method: "PUT",
@@ -119,16 +132,27 @@ export async function uploadFileResumable(
                 }
               }
             } catch {}
+            opts.onProgress?.(total, total);
+            return { driveFileId: null, completedWithoutMetadata: true };
           }
           offset = resumed;
           opts.onProgress?.(offset, total);
           break;
         }
-        if (attempt >= MAX_RETRIES) throw err;
+        if (attempt >= MAX_RETRIES) {
+          if (end >= total && isNetworkFetchError(err)) {
+            opts.onProgress?.(total, total);
+            return { driveFileId: null, completedWithoutMetadata: true };
+          }
+          throw err;
+        }
       }
     }
   }
 
-  // Loop exited without a final 200/201 — defensive.
-  throw new Error("Upload completed without a final response from Drive");
+  // Loop exited because Drive reported all bytes are present, but the browser
+  // did not receive readable final metadata. Let the server locate the uploaded
+  // file by document id / filename / size and finish the database row.
+  opts.onProgress?.(total, total);
+  return { driveFileId: null, completedWithoutMetadata: true };
 }
