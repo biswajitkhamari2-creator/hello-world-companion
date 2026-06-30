@@ -336,7 +336,7 @@ function InboxPage() {
                             variant="outline"
                             onClick={() => doImport(it, "newspaper")}
                             disabled={busyId === it.id}
-                            className="border-rose-300 text-rose-700 hover:bg-rose-50"
+                            className="border-green-400 text-green-700 hover:bg-green-50 animate-pulse"
                           >
                             <Newspaper className="h-3.5 w-3.5 mr-1.5" /> Analyse as Newspaper
                           </Button>
