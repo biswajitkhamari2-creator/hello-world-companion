@@ -73,7 +73,7 @@ function friendlyMentorError(message?: string): string {
 type Attachment = { id: string; name: string; mediaType: string; url: string; size: number };
 
 const ACCEPTED_TYPES = "application/pdf,image/png,image/jpeg,image/webp,image/gif";
-const MAX_FILE_BYTES = 15 * 1024 * 1024; // 15MB per file
+const MAX_FILE_BYTES = 200 * 1024 * 1024; // 200MB per file
 const MAX_FILES = 4;
 
 function readFileAsDataUrl(file: File): Promise<string> {
