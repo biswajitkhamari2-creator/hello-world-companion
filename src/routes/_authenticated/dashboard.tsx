@@ -181,7 +181,9 @@ function Dashboard() {
       // browser→googleapis.com CORS issues seen with direct resumable PUTs.
       // Larger files use direct-to-Drive resumable upload to bypass body-size limits.
       const mime = file.type || "application/pdf";
-      const SMALL_MAX = 90 * 1024 * 1024;
+      // Vercel serverless functions cap request bodies at ~4.5 MB.
+      // Anything above ~4 MB must go through the direct-to-Drive resumable path.
+      const SMALL_MAX = 4 * 1024 * 1024;
       let row: any;
       if (file.size <= SMALL_MAX) {
         const fd = new FormData();
