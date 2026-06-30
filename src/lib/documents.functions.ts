@@ -136,8 +136,20 @@ export const extractDocument = createServerFn({ method: "POST" })
       let text = await extractTextFromBuffer(buffer, doc.mime || "", doc.title);
       const isImage = (doc.mime || "").startsWith("image/");
 
-      if (!text && isImage) text = "";
-      if (!text && !isImage) {
+      // Newspaper / scanned PDFs often return little-to-no native text.
+      // Fall back to Gemini Vision OCR for PDFs and images.
+      const looksScanned = text.length < 200 || (text.match(/[a-zA-Z]/g) || []).length < 50;
+      const isPdf = (doc.mime || "").includes("pdf") || (doc.title || "").toLowerCase().endsWith(".pdf");
+      if (looksScanned && (isImage || isPdf)) {
+        try {
+          const ocr = await ocrWithGemini(buffer, doc.mime || (isPdf ? "application/pdf" : ""));
+          if (ocr && ocr.length > text.length) text = ocr;
+        } catch (e) {
+          console.error("ocr fallback failed", e);
+        }
+      }
+
+      if (!text) {
         await supabase.from("documents").update({
           status: "failed",
           error_message: "Could not extract any text from this file.",
