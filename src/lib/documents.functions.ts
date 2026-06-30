@@ -29,6 +29,39 @@ async function extractTextFromBuffer(buf: ArrayBuffer, mime: string, filename: s
   return "";
 }
 
+function bufferToBase64(buf: ArrayBuffer): string {
+  return Buffer.from(buf).toString("base64");
+}
+
+// OCR fallback via Gemini Vision for scanned PDFs / images / poor-text PDFs.
+async function ocrWithGemini(buf: ArrayBuffer, mime: string): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
+  const sendMime = mime?.startsWith("image/") || mime === "application/pdf" ? mime : "application/pdf";
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: "Extract ALL readable text from this document (newspaper / scanned pages). Return only the plain text, preserving paragraph order. Do not summarise." },
+            { inline_data: { mime_type: sendMime, data: bufferToBase64(buf) } },
+          ],
+        }],
+      }),
+    },
+  );
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Gemini OCR failed: ${res.status} ${body.slice(0, 200)}`);
+  }
+  const json: any = await res.json();
+  const parts = json?.candidates?.[0]?.content?.parts ?? [];
+  return parts.map((p: any) => p?.text || "").join("\n").trim();
+}
+
 // New: Upload directly to Google Drive and create the document row in one server-side call.
 // Accepts a multipart/form-data body with a `file` field.
 export const uploadDocument = createServerFn({ method: "POST" })
@@ -103,8 +136,20 @@ export const extractDocument = createServerFn({ method: "POST" })
       let text = await extractTextFromBuffer(buffer, doc.mime || "", doc.title);
       const isImage = (doc.mime || "").startsWith("image/");
 
-      if (!text && isImage) text = "";
-      if (!text && !isImage) {
+      // Newspaper / scanned PDFs often return little-to-no native text.
+      // Fall back to Gemini Vision OCR for PDFs and images.
+      const looksScanned = text.length < 200 || (text.match(/[a-zA-Z]/g) || []).length < 50;
+      const isPdf = (doc.mime || "").includes("pdf") || (doc.title || "").toLowerCase().endsWith(".pdf");
+      if (looksScanned && (isImage || isPdf)) {
+        try {
+          const ocr = await ocrWithGemini(buffer, doc.mime || (isPdf ? "application/pdf" : ""));
+          if (ocr && ocr.length > text.length) text = ocr;
+        } catch (e) {
+          console.error("ocr fallback failed", e);
+        }
+      }
+
+      if (!text) {
         await supabase.from("documents").update({
           status: "failed",
           error_message: "Could not extract any text from this file.",
