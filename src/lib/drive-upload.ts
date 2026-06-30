@@ -22,7 +22,9 @@ export interface ResumableUploadResult {
   completedWithoutMetadata?: boolean;
 }
 
-const DEFAULT_CHUNK = 2 * 1024 * 1024;
+// 8 MiB chunks: fewer round-trips → much faster on typical broadband
+// while still resumable on flaky networks.
+const DEFAULT_CHUNK = 8 * 1024 * 1024;
 const MAX_RETRIES = 8;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
