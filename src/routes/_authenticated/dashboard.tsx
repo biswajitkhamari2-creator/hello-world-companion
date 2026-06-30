@@ -146,24 +146,36 @@ function Dashboard() {
       const userId = sess.session?.user.id;
       if (!userId) throw new Error("Not signed in");
 
-      // Direct-to-Drive resumable upload — bypasses Vercel/Cloudflare body-size limits.
+      // Small files (≤90 MB) go through the server in a single request — avoids
+      // browser→googleapis.com CORS issues seen with direct resumable PUTs.
+      // Larger files use direct-to-Drive resumable upload to bypass body-size limits.
       const mime = file.type || "application/pdf";
-      const session = await startUploadSession({
-        data: { fileName: file.name, mime, size: file.size, title: file.name },
-      });
-      console.log("[Drive] Resumable session created", { documentId: session.documentId });
-
-      const { driveFileId } = await uploadFileResumable({
-        file,
-        uploadUrl: session.uploadUrl,
-        onProgress: (loaded, total) => {
-          setUploadProgress(total ? Math.round((loaded / total) * 100) : 0);
-        },
-      });
-      console.log("[Drive] Upload complete", { driveFileId });
-
-      const row: any = await finalize({ data: { documentId: session.documentId, driveFileId } });
-      console.log("[Drive] Finalised", { driveFileId: row?.drive_file_id, viewLink: row?.drive_view_link });
+      const SMALL_MAX = 90 * 1024 * 1024;
+      let row: any;
+      if (file.size <= SMALL_MAX) {
+        const fd = new FormData();
+        fd.set("file", file);
+        fd.set("title", file.name);
+        setUploadProgress(10);
+        row = await uploadSmall({ data: fd });
+        setUploadProgress(100);
+        console.log("[Drive] Server-side upload complete", { id: row?.id });
+      } else {
+        const session = await startUploadSession({
+          data: { fileName: file.name, mime, size: file.size, title: file.name },
+        });
+        console.log("[Drive] Resumable session created", { documentId: session.documentId });
+        const { driveFileId } = await uploadFileResumable({
+          file,
+          uploadUrl: session.uploadUrl,
+          onProgress: (loaded, total) => {
+            setUploadProgress(total ? Math.round((loaded / total) * 100) : 0);
+          },
+        });
+        console.log("[Drive] Upload complete", { driveFileId });
+        row = await finalize({ data: { documentId: session.documentId, driveFileId } });
+        console.log("[Drive] Finalised", { driveFileId: row?.drive_file_id, viewLink: row?.drive_view_link });
+      }
       try {
         sessionStorage.setItem("active_doc_id", row.id);
       } catch {}
