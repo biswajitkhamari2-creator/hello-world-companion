@@ -47,6 +47,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { BrandMark } from "@/components/brand-mark";
+import { AiQuotaBanner } from "@/components/ai-quota-banner";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -244,6 +245,7 @@ export function AppShell({
       <div className="relative min-h-dvh flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
+          <AiQuotaBanner />
           <div className="sticky top-0 z-30 flex h-12 items-center gap-2 border-b border-border/60 bg-background/70 px-3 backdrop-blur-xl">
             <HamburgerTrigger />
             <Link to="/" className="ml-1 block min-w-0">
