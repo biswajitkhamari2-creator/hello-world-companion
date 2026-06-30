@@ -15,6 +15,7 @@ import {
   finalizeUpload,
   extractDocument,
   deleteDocument,
+  uploadDocument,
 } from "@/lib/documents.functions";
 import { uploadFileResumable } from "@/lib/drive-upload";
 import {
