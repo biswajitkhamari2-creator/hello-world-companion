@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Download, FileText, Loader2, Newspaper, Sparkles, Trash2, Upload, LayoutDashboard, History, ChevronDown, ChevronUp, Eye, FileCheck2, X, RefreshCw } from "lucide-react";
+import { BookOpen, Download, FileText, Loader2, Newspaper, Sparkles, Trash2, Upload, LayoutDashboard, History, ChevronDown, ChevronUp, Eye, FileCheck2, X, RefreshCw, FolderSync } from "lucide-react";
 
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ import {
   extractDocument,
   deleteDocument,
   uploadDocument,
+  syncFromDrive,
 } from "@/lib/documents.functions";
 import { uploadFileResumable } from "@/lib/drive-upload";
 import {
@@ -84,6 +85,27 @@ function Dashboard() {
 
   const startUploadSession = useServerFn(createUploadSession);
   const finalize = useServerFn(finalizeUpload);
+  const syncDrive = useServerFn(syncFromDrive);
+  const [syncing, setSyncing] = useState(false);
+
+  async function onSyncFromDrive() {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const res = (await syncDrive()) as { imported: number; alreadyPresent: number; scanned: number };
+      if (res.imported > 0) {
+        toast.success(`Imported ${res.imported} file${res.imported === 1 ? "" : "s"} from Drive`);
+        await qc.invalidateQueries({ queryKey: ["documents"] });
+        await qc.invalidateQueries({ queryKey: ["all-documents"] });
+      } else {
+        toast.message(`No new files. ${res.scanned} already in your library.`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }
   const uploadSmall = useServerFn(uploadDocument);
   const extract = useServerFn(extractDocument);
   const del = useServerFn(deleteDocument);
@@ -281,6 +303,22 @@ function Dashboard() {
             />
             <Button asChild variant="outline" className="min-h-11 shrink-0 border-rose-300 text-rose-700 hover:bg-rose-50">
               <Link to="/inbox">📅 Pick newspaper date</Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onSyncFromDrive}
+              disabled={syncing || uploading}
+              className="min-h-11 shrink-0"
+              title="Scan your Google Drive folder for files not yet in your library"
+            >
+              {syncing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <FolderSync className="mr-2 h-4 w-4" aria-hidden="true" />
+              )}
+              <span className="hidden sm:inline">{syncing ? "Syncing…" : "Sync from Drive"}</span>
+              <span className="sm:hidden">{syncing ? "…" : "Sync"}</span>
             </Button>
             <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="min-h-11 shrink-0">
               {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="mr-2 h-4 w-4" aria-hidden="true" />}

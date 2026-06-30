@@ -301,6 +301,54 @@ export const getDriveQuota = createServerFn({ method: "GET" })
     return getDriveStorageQuota();
   });
 
+// Scan the user's Drive folder (UPSC-Genius-AI/<userId>/) and import any
+// files that are not yet in the documents table. drive.file scope means we
+// only ever see files this app created, so this is bounded.
+export const syncFromDrive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { getUserFolderId, listFolderFiles } = await import("./gdrive.server");
+
+    const folderId = await getUserFolderId(userId);
+    const driveFiles = await listFolderFiles(folderId);
+
+    const { data: existing, error: exErr } = await supabase
+      .from("documents")
+      .select("drive_file_id")
+      .eq("user_id", userId)
+      .not("drive_file_id", "is", null);
+    if (exErr) throw exErr;
+    const known = new Set((existing ?? []).map((r: any) => r.drive_file_id as string));
+
+    const toImport = driveFiles.filter((f) => !known.has(f.id));
+    if (toImport.length === 0) {
+      return { imported: 0, alreadyPresent: driveFiles.length, scanned: driveFiles.length };
+    }
+
+    const rows = toImport.map((f) => ({
+      user_id: userId,
+      title: f.name,
+      file_name: f.name,
+      mime: f.mimeType,
+      size_bytes: f.size,
+      source_type: "upload",
+      status: "uploaded",
+      storage_provider: "google_drive",
+      drive_file_id: f.id,
+      drive_view_link: f.webViewLink,
+    }));
+
+    const { error: insErr } = await supabase.from("documents").insert(rows);
+    if (insErr) throw insErr;
+
+    return {
+      imported: toImport.length,
+      alreadyPresent: driveFiles.length - toImport.length,
+      scanned: driveFiles.length,
+    };
+  });
+
 // --- Direct-to-Drive resumable upload (supports very large files) ---
 
 // Step 1: client asks for a resumable upload URL + creates a placeholder document row.
