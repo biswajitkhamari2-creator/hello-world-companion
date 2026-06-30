@@ -550,6 +550,109 @@ function extractJsonCandidate(text: string): unknown {
   }
 }
 
+function compactWhitespace(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function sentenceLimit(text: string, maxChars: number): string {
+  const compact = compactWhitespace(text);
+  if (compact.length <= maxChars) return compact;
+  const cut = compact.slice(0, maxChars);
+  const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("? "), cut.lastIndexOf("! "));
+  return `${cut.slice(0, end > 120 ? end + 1 : maxChars).trim()}…`;
+}
+
+function inferNewspaperSubject(text: string) {
+  const lower = text.toLowerCase();
+  if (/climate|forest|pollution|wildlife|environment|biodiversity/.test(lower)) return { subject: "Environment", gs: ["GS3"] };
+  if (/economy|inflation|rbi|bank|tax|gdp|trade|budget|market/.test(lower)) return { subject: "Economy", gs: ["GS3"] };
+  if (/court|constitution|parliament|bill|election|governance|policy|rights/.test(lower)) return { subject: "Polity", gs: ["GS2"] };
+  if (/china|pakistan|united nations|foreign|global|diplomat|war|treaty/.test(lower)) return { subject: "International Relations", gs: ["GS2"] };
+  if (/science|technology|space|ai|digital|isro|health|vaccine/.test(lower)) return { subject: "Science & Technology", gs: ["GS3"] };
+  if (/security|terror|defence|border|cyber|insurgency/.test(lower)) return { subject: "Security", gs: ["GS3"] };
+  if (/society|women|education|poverty|caste|tribal|migration/.test(lower)) return { subject: "Society", gs: ["GS1", "GS2"] };
+  return { subject: "Current Affairs", gs: ["GS2"] };
+}
+
+function localNewspaperFallback(sourceText: string): any {
+  const lines = sourceText
+    .split(/\n+/)
+    .map((line) => compactWhitespace(line))
+    .filter((line) => line.length > 0 && !/^\d+$/.test(line));
+
+  const headlineIndexes = new Set<number>();
+  lines.forEach((line, index) => {
+    const next = lines[index + 1] || "";
+    const letters = (line.match(/[A-Za-z]/g) || []).length;
+    const words = line.split(/\s+/).length;
+    const isMostlyTitle = line === line.toUpperCase() || /^[A-Z][\w'’:-]+(?:\s+[A-Z0-9][\w'’:-]+){2,}/.test(line);
+    const bad = /^(page|continued|advertisement|classifieds?|weather|sports|business|www\.|©)/i.test(line);
+    if (!bad && letters >= 8 && words >= 3 && words <= 18 && line.length <= 140 && next.length >= 60 && isMostlyTitle) {
+      headlineIndexes.add(index);
+    }
+  });
+
+  const sections: Array<{ title: string; body: string }> = [];
+  const sorted = Array.from(headlineIndexes).sort((a, b) => a - b);
+  for (let i = 0; i < sorted.length; i++) {
+    const start = sorted[i];
+    const end = sorted[i + 1] ?? Math.min(lines.length, start + 18);
+    const title = lines[start];
+    const body = lines.slice(start + 1, end).join(" ");
+    if (body.length >= 120) sections.push({ title, body });
+    if (sections.length >= 10) break;
+  }
+
+  if (sections.length === 0) {
+    const paragraphs = sourceText
+      .split(/\n\s*\n+/)
+      .map((p) => compactWhitespace(p))
+      .filter((p) => p.length >= 180);
+    for (const paragraph of paragraphs.slice(0, 8)) {
+      const title = sentenceLimit(paragraph, 90).replace(/[.…]+$/, "");
+      sections.push({ title, body: paragraph });
+    }
+  }
+
+  const articles = sections.map(({ title, body }) => {
+    const inferred = inferNewspaperSubject(`${title} ${body}`);
+    const summary = sentenceLimit(body, 180);
+    return {
+      title,
+      source_page: "",
+      gs_papers: inferred.gs,
+      subject: inferred.subject,
+      syllabus_path: inferred.subject === "Economy" ? ["GS-III", "Economy", "Current Affairs"] : inferred.subject === "Environment" ? ["GS-III", "Environment", "Current Affairs"] : ["GS-II", inferred.subject, "Current Affairs"],
+      prelims_priority: "medium",
+      mains_priority: "medium",
+      importance: 3,
+      tags: [inferred.subject],
+      summary_30s: summary,
+      summary_2min: sentenceLimit(body, 650),
+      keywords: Array.from(new Set(`${title} ${body}`.match(/\b[A-Z][A-Za-z&.-]{3,}\b/g) || [])).slice(0, 8),
+      facts: body.split(/(?<=[.!?])\s+/).map((s) => compactWhitespace(s)).filter((s) => s.length > 40).slice(0, 5),
+      stats: Array.from(new Set(body.match(/\b\d+(?:\.\d+)?\s*(?:%|per cent|crore|lakh|million|billion|years?|km|GW|MW)?\b/gi) || [])).slice(0, 6),
+      quotes: [],
+      constitutional_articles: Array.from(new Set(body.match(/Article\s+\d+[A-Z]?/gi) || [])).slice(0, 5),
+      pyqs: [],
+      short_notes: body.split(/(?<=[.!?])\s+/).map((s) => sentenceLimit(s, 140)).filter((s) => s.length > 30).slice(0, 6),
+      one_pager: sentenceLimit(body, 520),
+      handwritten_outline: [
+        { heading: "Context", body: summary },
+        { heading: "UPSC relevance", body: `Relevant for ${inferred.gs.join("/")} under ${inferred.subject}.` },
+      ],
+      mind_map: [{ branch: inferred.subject, leaves: [title, "Current affairs", "Mains linkage"] }],
+      flashcards: [{ q: `Why is ${title} important?`, a: summary }],
+      prelims_mcqs: [],
+      mains_questions: [{ gs_paper: inferred.gs[0] || "GS2", marks: 10, question: `Discuss the UPSC relevance of ${title}.`, outline: [summary] }],
+      interview_questions: [`What is your view on ${title}?`],
+      related: { articles: [], current_affairs: [title], constitution: [], sc_cases: [], committees: [], reports: [], schemes: [], intl_orgs: [], static_topic: [inferred.subject], ncert: [], laxmikanth: [], spectrum: [] },
+    };
+  });
+
+  return { title: "Newspaper Analysis", source: "Other", date: "", edition: "", articles };
+}
+
 function jsonShapeFor(outputType: OutputType): string {
   switch (outputType) {
     case "handwritten_notes":
@@ -777,7 +880,7 @@ async function runOne(
   chunk: string,
   generateText: any,
   options: PromptOptions = {},
-  retryTuning: { maxAttempts?: number; initialRateDelayMs?: number } = {},
+  retryTuning: { maxAttempts?: number; initialRateDelayMs?: number; maxOutputTokens?: number } = {},
 ): Promise<any> {
   const prompt = `${promptFor(outputType, subject, chunk, options)}\n\nReturn JSON only in this exact shape (no markdown, no explanation):\n${jsonShapeFor(outputType)}`;
   // Retry on 429 / transient 5xx. Longer waits on rate limits since Gemini free tier is ~10 RPM.
@@ -791,10 +894,15 @@ async function runOne(
         system: `${system}\nReturn only valid JSON for the requested output. Do not wrap it in markdown, code fences, arrays, or a content object.`,
         prompt,
         temperature: 0.2,
+        maxOutputTokens: retryTuning.maxOutputTokens,
         maxRetries: 0, // we own backoff — let outer layer handle 429s
       });
       return normalizeOutput(outputType, extractJsonCandidate(text));
     } catch (err: any) {
+      if (outputType === "newspaper" && !/Payment Required|402|credits|401|403|unauthori[sz]ed|forbidden/i.test(String(err?.message || err))) {
+        const fallback = localNewspaperFallback(chunk);
+        if (fallback.articles.length > 0) return fallback;
+      }
       lastErr = err;
       const msg = String(err?.message || err);
       const status = err?.statusCode ?? err?.status ?? (msg.match(/\b(4\d\d|5\d\d)\b/)?.[1] ? Number(msg.match(/\b(4\d\d|5\d\d)\b/)![1]) : 0);
