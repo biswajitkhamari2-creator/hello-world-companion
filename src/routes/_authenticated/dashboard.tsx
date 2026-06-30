@@ -480,8 +480,8 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
       const parts: any[] = new Array(totalChunks).fill(null);
       const MAX_RETRIES = 5;
       // Groq free tier ≈ 30 RPM and is fast. Run chunks in parallel with a light gap.
-      const CONCURRENCY = 4;
-      const MIN_GAP_MS = 400;
+      const CONCURRENCY = 2;
+      const MIN_GAP_MS = 1500;
       let lastStartedAt = 0;
 
       let aborted: string | null = null;

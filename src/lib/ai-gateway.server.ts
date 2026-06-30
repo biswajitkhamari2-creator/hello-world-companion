@@ -66,7 +66,7 @@ export async function withLovableAiGatewayRunIdHeader(
 // Default model — Groq's Llama 3.3 70B (free tier, high RPM) when GROQ_API_KEY is set,
 // otherwise falls back to Gemini.
 export const DEFAULT_MODEL = process.env.GROQ_API_KEY?.trim()
-  ? "llama-3.3-70b-versatile"
+  ? "llama-3.1-8b-instant"
   : "gemini-2.0-flash";
 
 
