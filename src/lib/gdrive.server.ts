@@ -213,3 +213,42 @@ export async function getDriveFileMetadata(fileId: string): Promise<{
     webViewLink: body.webViewLink ?? null,
   };
 }
+
+// List every non-folder, non-trashed file inside a Drive folder. Pages through results.
+export async function listFolderFiles(folderId: string): Promise<Array<{
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  webViewLink: string | null;
+  modifiedTime: string | null;
+}>> {
+  const out: Array<{ id: string; name: string; size: number; mimeType: string; webViewLink: string | null; modifiedTime: string | null }> = [];
+  const q = encodeURIComponent(
+    `'${folderId}' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false`,
+  );
+  const fields = encodeURIComponent("nextPageToken,files(id,name,size,mimeType,webViewLink,modifiedTime)");
+  let pageToken: string | undefined;
+  for (let i = 0; i < 20; i++) {
+    const tokenPart = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+    const res = await gw(`/drive/v3/files?q=${q}&fields=${fields}&pageSize=200${tokenPart}`);
+    if (!res.ok) await throwDriveError("folder list", res);
+    const body = (await res.json()) as {
+      nextPageToken?: string;
+      files?: Array<{ id: string; name: string; size?: string; mimeType?: string; webViewLink?: string; modifiedTime?: string }>;
+    };
+    for (const f of body.files ?? []) {
+      out.push({
+        id: f.id,
+        name: f.name,
+        size: Number(f.size ?? 0),
+        mimeType: f.mimeType ?? "application/octet-stream",
+        webViewLink: f.webViewLink ?? null,
+        modifiedTime: f.modifiedTime ?? null,
+      });
+    }
+    if (!body.nextPageToken) break;
+    pageToken = body.nextPageToken;
+  }
+  return out;
+}
