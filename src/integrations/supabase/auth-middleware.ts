@@ -12,6 +12,30 @@ function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
 
+function cleanEnvValue(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  let cleaned = value.trim().replace(/^['"]|['"]$/g, '');
+  const assignment = cleaned.match(/^[A-Z0-9_]+\s*=\s*(.+)$/i);
+  if (assignment?.[1]) cleaned = assignment[1].trim().replace(/^['"]|['"]$/g, '');
+  return cleaned || undefined;
+}
+
+function normalizeSupabaseUrl(value: string | undefined): string | undefined {
+  const cleaned = cleanEnvValue(value);
+  if (!cleaned) return undefined;
+  const candidates = [cleaned];
+  if (/^[a-z0-9-]{15,}\.supabase\.co$/i.test(cleaned)) candidates.push(`https://${cleaned}`);
+  if (/^[a-z0-9-]{15,}$/i.test(cleaned)) candidates.push(`https://${cleaned}.supabase.co`);
+  for (const candidate of candidates) {
+    try {
+      const url = new URL(candidate);
+      if ((url.protocol === 'https:' || url.protocol === 'http:') && url.hostname.includes('supabase.co')) return url.origin;
+    } catch {}
+  }
+  console.warn('[Supabase] Ignoring invalid SUPABASE_URL/VITE_SUPABASE_URL. Using configured fallback.');
+  return undefined;
+}
+
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
   return (input, init) => {
     const headers = new Headers(
@@ -35,10 +59,10 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
     
-    const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || FALLBACK_SUPABASE_URL;
+    const SUPABASE_URL = normalizeSupabaseUrl(process.env.SUPABASE_URL) || normalizeSupabaseUrl(process.env.VITE_SUPABASE_URL) || FALLBACK_SUPABASE_URL;
     const SUPABASE_PUBLISHABLE_KEY =
-      process.env.SUPABASE_PUBLISHABLE_KEY ||
-      process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+      cleanEnvValue(process.env.SUPABASE_PUBLISHABLE_KEY) ||
+      cleanEnvValue(process.env.VITE_SUPABASE_PUBLISHABLE_KEY) ||
       FALLBACK_SUPABASE_PUBLISHABLE_KEY;
     
     const request = getRequest();
