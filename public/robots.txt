@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /auth
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /mentor
+Disallow: /inbox
+Disallow: /editorial
+
+Sitemap: https://open-hello-bloom.lovable.app/sitemap.xml
