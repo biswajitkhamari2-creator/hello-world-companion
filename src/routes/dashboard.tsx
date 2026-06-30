@@ -275,10 +275,22 @@ function Dashboard() {
             </Button>
             <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="min-h-11 shrink-0">
               {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="mr-2 h-4 w-4" aria-hidden="true" />}
-              <span className="hidden sm:inline">{activeDoc ? "Replace PDF" : "Upload material"}</span>
-              <span className="sm:hidden">{activeDoc ? "Replace" : "Upload"}</span>
+              <span className="hidden sm:inline">
+                {uploading ? `Uploading… ${uploadProgress}%` : activeDoc ? "Replace PDF" : "Upload material"}
+              </span>
+              <span className="sm:hidden">
+                {uploading ? `${uploadProgress}%` : activeDoc ? "Replace" : "Upload"}
+              </span>
             </Button>
           </div>
+          {uploading && (
+            <div className="mt-3">
+              <Progress value={uploadProgress} className="h-2" />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Uploading directly to Google Drive — {uploadProgress}% complete. Resumes automatically on network drops.
+              </p>
+            </div>
+          )}
 
         </div>
 
