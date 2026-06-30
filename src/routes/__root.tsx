@@ -93,6 +93,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "AI-powered UPSC prep: turn any PDF, editorial or newspaper into syllabus-mapped notes, MCQs, infographics and Mains answers — PYQ-aligned." },
       { name: "theme-color", content: "#1a1f3a" },
       { name: "author", content: "Sidheswar Enterprises" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "UPSC Genius" },
+      { name: "mobile-web-app-capable", content: "yes" },
       { property: "og:site_name", content: "UPSC" },
       { property: "og:locale", content: "en_IN" },
       { property: "og:title", content: "UPSC — AI Notes, MCQs & Current Affairs" },
@@ -106,7 +110,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:image:height", content: "640" },
       { name: "twitter:image", content: `https://open-hello-bloom.lovable.app${ogCover}` },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+    ],
     scripts: [
       {
         type: "application/ld+json",
