@@ -6,7 +6,7 @@
 export interface ResumableUploadOptions {
   file: File;
   uploadUrl: string;
-  chunkSize?: number; // bytes; default 4 MiB
+  chunkSize?: number; // bytes; optional override
   onProgress?: (loaded: number, total: number) => void;
   uploadFinalChunk?: (chunk: {
     blob: Blob;
@@ -22,9 +22,12 @@ export interface ResumableUploadResult {
   completedWithoutMetadata?: boolean;
 }
 
-// 8 MiB chunks: fewer round-trips → much faster on typical broadband
-// while still resumable on flaky networks.
-const DEFAULT_CHUNK = 8 * 1024 * 1024;
+// Larger direct-to-Drive chunks mean far fewer sequential HTTP round trips.
+// The last chunk is still capped because it is sent through our server to avoid
+// Google's flaky final browser/CORS response.
+const MIB = 1024 * 1024;
+const DEFAULT_CHUNK = 32 * MIB;
+const FINAL_SERVER_CHUNK = 4 * MIB;
 const MAX_RETRIES = 8;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -59,18 +62,38 @@ function isNetworkFetchError(err: unknown): boolean {
   return err instanceof TypeError || /failed to fetch|networkerror|load failed|cors/i.test(message);
 }
 
+function getChunkSize(total: number, override?: number): number {
+  if (override) return override;
+  if (total >= 512 * MIB) return 64 * MIB;
+  if (total >= 96 * MIB) return DEFAULT_CHUNK;
+  return 16 * MIB;
+}
+
 export async function uploadFileResumable(
   opts: ResumableUploadOptions,
 ): Promise<ResumableUploadResult> {
   const total = opts.file.size;
-  const chunkSize = opts.chunkSize ?? DEFAULT_CHUNK;
+  const chunkSize = getChunkSize(total, opts.chunkSize);
   let offset = 0;
 
   opts.onProgress?.(0, total);
 
   while (offset < total) {
     if (opts.signal?.aborted) throw new Error("Upload aborted");
-    const end = Math.min(offset + chunkSize, total);
+    const remaining = total - offset;
+
+    // If finalization goes through the server, reserve a <=4 MiB final chunk.
+    // This keeps large regular chunks fast without tripping server body limits.
+    if (opts.uploadFinalChunk && remaining <= FINAL_SERVER_CHUNK) {
+      const chunk = opts.file.slice(offset, total);
+      opts.onProgress?.(Math.max(offset, total - 1), total);
+      return opts.uploadFinalChunk({ blob: chunk, start: offset, end: total, total });
+    }
+
+    const directChunkSize = opts.uploadFinalChunk
+      ? Math.min(chunkSize, Math.max(FINAL_SERVER_CHUNK, remaining - FINAL_SERVER_CHUNK))
+      : chunkSize;
+    const end = Math.min(offset + directChunkSize, total);
     const chunk = opts.file.slice(offset, end);
     let attempt = 0;
 
