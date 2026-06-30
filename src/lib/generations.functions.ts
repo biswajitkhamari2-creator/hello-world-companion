@@ -1085,6 +1085,7 @@ export const planGeneration = createServerFn({ method: "POST" })
       title: doc.title ?? null,
       recommendedConcurrency: profile.recommendedConcurrency,
       minGapMs: profile.minGapMs,
+      chunkSize: profile.chunkSize,
     };
   });
 
