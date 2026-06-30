@@ -9,6 +9,25 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function cleanEnvValue(value: string | undefined): string {
+  const cleaned = (value ?? "").trim();
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    return cleaned.slice(1, -1).trim();
+  }
+  return cleaned;
+}
+
+function getClientId(): string {
+  return cleanEnvValue(process.env.GOOGLE_CLIENT_ID) || cleanEnvValue(process.env.GOOGLE_OAUTH_CLIENT_ID);
+}
+
+function getClientSecret(): string {
+  return cleanEnvValue(process.env.GOOGLE_CLIENT_SECRET) || cleanEnvValue(process.env.GOOGLE_OAUTH_CLIENT_SECRET);
+}
+
 export const Route = createFileRoute("/api/oauth/google/callback")({
   server: {
     handlers: {
@@ -19,8 +38,8 @@ export const Route = createFileRoute("/api/oauth/google/callback")({
         if (error) return new Response(`Google OAuth error: ${error}`, { status: 400 });
         if (!code) return new Response("Missing ?code in callback", { status: 400 });
 
-        const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
-        const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+        const clientId = getClientId();
+        const clientSecret = getClientSecret();
         if (!clientId || !clientSecret) {
           return new Response(
             "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not configured on this deployment.",
@@ -47,8 +66,11 @@ export const Route = createFileRoute("/api/oauth/google/callback")({
           error_description?: string;
         };
         if (!tokenRes.ok) {
+          const hint = tokenJson.error === "invalid_client"
+            ? " The OAuth client secret in Vercel is present but invalid/mismatched for this GOOGLE_CLIENT_ID. Re-copy the secret from Google Cloud → Credentials → same OAuth Web client."
+            : "";
           return new Response(
-            `Token exchange failed (${tokenRes.status}): ${tokenJson.error ?? ""} ${tokenJson.error_description ?? ""}`,
+            `Token exchange failed (${tokenRes.status}): ${tokenJson.error ?? ""} ${tokenJson.error_description ?? ""}.${hint}`,
             { status: 500 },
           );
         }
