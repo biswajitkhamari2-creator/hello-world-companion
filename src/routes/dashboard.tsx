@@ -11,10 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import {
   listDocuments,
-  uploadDocument,
+  createUploadSession,
+  finalizeUpload,
   extractDocument,
   deleteDocument,
 } from "@/lib/documents.functions";
+import { uploadFileResumable } from "@/lib/drive-upload";
 import {
   generateOutput,
   planGeneration,
@@ -87,12 +89,14 @@ function Dashboard() {
   });
 
 
-  const upload = useServerFn(uploadDocument);
+  const startUploadSession = useServerFn(createUploadSession);
+  const finalize = useServerFn(finalizeUpload);
   const extract = useServerFn(extractDocument);
   const del = useServerFn(deleteDocument);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0); // 0..100
 
   async function clearActive(opts: { silent?: boolean } = {}) {
     const prevId = typeof window !== "undefined" ? sessionStorage.getItem("active_doc_id") : null;
@@ -122,6 +126,7 @@ function Dashboard() {
 
   async function onPick(file: File) {
     setUploading(true);
+    setUploadProgress(0);
     try {
       const prevId = typeof window !== "undefined" ? sessionStorage.getItem("active_doc_id") : null;
       console.log("[ActivePDF] New upload starting", { previousDocumentId: prevId, fileName: file.name });
@@ -147,12 +152,24 @@ function Dashboard() {
       const userId = sess.session?.user.id;
       if (!userId) throw new Error("Not signed in");
 
-      // Stream upload directly to Google Drive via the server function (multipart/form-data).
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("title", file.name);
-      const row: any = await upload({ data: fd });
-      console.log("[Drive] Uploaded", { driveFileId: row?.drive_file_id, viewLink: row?.drive_view_link });
+      // Direct-to-Drive resumable upload — bypasses Vercel/Cloudflare body-size limits.
+      const mime = file.type || "application/pdf";
+      const session = await startUploadSession({
+        data: { fileName: file.name, mime, size: file.size, title: file.name },
+      });
+      console.log("[Drive] Resumable session created", { documentId: session.documentId });
+
+      const { driveFileId } = await uploadFileResumable({
+        file,
+        uploadUrl: session.uploadUrl,
+        onProgress: (loaded, total) => {
+          setUploadProgress(total ? Math.round((loaded / total) * 100) : 0);
+        },
+      });
+      console.log("[Drive] Upload complete", { driveFileId });
+
+      const row: any = await finalize({ data: { documentId: session.documentId, driveFileId } });
+      console.log("[Drive] Finalised", { driveFileId: row?.drive_file_id, viewLink: row?.drive_view_link });
       try {
         sessionStorage.setItem("active_doc_id", row.id);
       } catch {}
@@ -177,6 +194,7 @@ function Dashboard() {
       toast.error(e?.message || "Upload failed");
     } finally {
       setUploading(false);
+      setUploadProgress(0);
       if (fileRef.current) fileRef.current.value = "";
     }
   }
@@ -257,10 +275,22 @@ function Dashboard() {
             </Button>
             <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="min-h-11 shrink-0">
               {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="mr-2 h-4 w-4" aria-hidden="true" />}
-              <span className="hidden sm:inline">{activeDoc ? "Replace PDF" : "Upload material"}</span>
-              <span className="sm:hidden">{activeDoc ? "Replace" : "Upload"}</span>
+              <span className="hidden sm:inline">
+                {uploading ? `Uploading… ${uploadProgress}%` : activeDoc ? "Replace PDF" : "Upload material"}
+              </span>
+              <span className="sm:hidden">
+                {uploading ? `${uploadProgress}%` : activeDoc ? "Replace" : "Upload"}
+              </span>
             </Button>
           </div>
+          {uploading && (
+            <div className="mt-3">
+              <Progress value={uploadProgress} className="h-2" />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Uploading directly to Google Drive — {uploadProgress}% complete. Resumes automatically on network drops.
+              </p>
+            </div>
+          )}
 
         </div>
 

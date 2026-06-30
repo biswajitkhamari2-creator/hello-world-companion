@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { analyseEditorial, type EditorialAnalysis } from "@/lib/editorial.functions";
-import { uploadDocument, extractDocument, getDocument } from "@/lib/documents.functions";
+import { createUploadSession, finalizeUpload, extractDocument, getDocument } from "@/lib/documents.functions";
+import { uploadFileResumable } from "@/lib/drive-upload";
 
 export const Route = createFileRoute("/editorial")({
   head: () => ({
@@ -30,7 +31,8 @@ function EditorialPage() {
   const [source, setSource] = useState("");
   const [result, setResult] = useState<EditorialAnalysis | null>(null);
   const analyseFn = useServerFn(analyseEditorial);
-  const uploadFn = useServerFn(uploadDocument);
+  const startUploadSession = useServerFn(createUploadSession);
+  const finalize = useServerFn(finalizeUpload);
   const extractFn = useServerFn(extractDocument);
   const getDocFn = useServerFn(getDocument);
 
@@ -49,11 +51,21 @@ function EditorialPage() {
 
   const onFile = async (file: File) => {
     try {
+      toast.loading("Uploading editorial to Drive…", { id: "ext" });
+      const mime = file.type || "application/pdf";
+      const session = await startUploadSession({
+        data: { fileName: file.name, mime, size: file.size, title: file.name },
+      });
+      const { driveFileId } = await uploadFileResumable({
+        file,
+        uploadUrl: session.uploadUrl,
+        onProgress: (loaded, total) => {
+          const pct = total ? Math.round((loaded / total) * 100) : 0;
+          toast.loading(`Uploading editorial… ${pct}%`, { id: "ext" });
+        },
+      });
+      const uploaded = await finalize({ data: { documentId: session.documentId, driveFileId } });
       toast.loading("Extracting editorial from PDF…", { id: "ext" });
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("title", file.name);
-      const uploaded = await uploadFn({ data: fd });
       const ext = await extractFn({ data: { documentId: uploaded.id } });
       if (!ext.ok) throw new Error("Could not extract text from this PDF");
       const doc = await getDocFn({ data: { id: uploaded.id } });

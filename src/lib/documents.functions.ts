@@ -234,3 +234,77 @@ export const getDriveQuota = createServerFn({ method: "GET" })
     const { getDriveStorageQuota } = await import("./gdrive.server");
     return getDriveStorageQuota();
   });
+
+// --- Direct-to-Drive resumable upload (supports very large files) ---
+
+// Step 1: client asks for a resumable upload URL + creates a placeholder document row.
+export const createUploadSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        fileName: z.string().min(1).max(255),
+        mime: z.string().min(1).max(200),
+        size: z.number().int().positive().max(5 * 1024 * 1024 * 1024),
+        title: z.string().min(1).max(255).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { createResumableUploadSession } = await import("./gdrive.server");
+    const { uploadUrl } = await createResumableUploadSession({
+      userId,
+      fileName: data.fileName,
+      mime: data.mime,
+      size: data.size,
+    });
+    const { data: row, error } = await supabase
+      .from("documents")
+      .insert({
+        user_id: userId,
+        title: data.title || data.fileName,
+        file_name: data.fileName,
+        mime: data.mime,
+        size_bytes: data.size,
+        source_type: "upload",
+        status: "uploaded",
+        storage_provider: "google_drive",
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return { documentId: row.id, uploadUrl };
+  });
+
+// Step 2: after browser finishes the resumable PUTs, confirm and link the Drive file to the row.
+export const finalizeUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        documentId: z.string().uuid(),
+        driveFileId: z.string().min(1).max(200),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { getDriveFileMetadata } = await import("./gdrive.server");
+    const meta = await getDriveFileMetadata(data.driveFileId);
+    const { data: row, error } = await supabase
+      .from("documents")
+      .update({
+        status: "uploaded",
+        drive_file_id: meta.id,
+        drive_view_link: meta.webViewLink,
+        size_bytes: meta.size,
+        mime: meta.mimeType,
+      })
+      .eq("id", data.documentId)
+      .eq("user_id", userId)
+      .select()
+      .single();
+    if (error) throw error;
+    return row;
+  });
