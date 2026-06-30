@@ -333,6 +333,48 @@ export async function findLatestDriveFileByUpload(opts: {
   };
 }
 
+export async function uploadFinalResumableChunk(opts: {
+  uploadUrl: string;
+  start: number;
+  end: number;
+  total: number;
+  chunk: ArrayBuffer | Uint8Array;
+}): Promise<{
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  webViewLink: string | null;
+}> {
+  const bytes = opts.chunk instanceof Uint8Array ? opts.chunk : new Uint8Array(opts.chunk);
+  const token = await getAccessToken();
+  const res = await fetch(opts.uploadUrl, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Length": String(bytes.byteLength),
+      "Content-Range": `bytes ${opts.start}-${opts.end - 1}/${opts.total}`,
+    },
+    body: bytes,
+  });
+  if (!res.ok) await throwDriveError("final upload chunk", res);
+  const body = (await res.json()) as {
+    id: string;
+    name?: string;
+    size?: string;
+    mimeType?: string;
+    webViewLink?: string;
+  };
+  if (!body.id) throw new Error("Drive accepted final chunk but did not return a file id.");
+  return {
+    id: body.id,
+    name: body.name ?? "uploaded-file",
+    size: Number(body.size ?? opts.total),
+    mimeType: body.mimeType ?? "application/octet-stream",
+    webViewLink: body.webViewLink ?? null,
+  };
+}
+
 // List every non-folder, non-trashed file inside a Drive folder. Pages through results.
 export async function listFolderFiles(folderId: string): Promise<Array<{
   id: string;
