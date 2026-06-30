@@ -11,8 +11,8 @@ export interface ResumableUploadOptions {
   signal?: AbortSignal;
 }
 
-const DEFAULT_CHUNK = 8 * 1024 * 1024;
-const MAX_RETRIES = 6;
+const DEFAULT_CHUNK = 4 * 1024 * 1024;
+const MAX_RETRIES = 8;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -69,7 +69,9 @@ export async function uploadFileResumable(
 
         if (res.status === 200 || res.status === 201) {
           // Final chunk accepted; body contains the file metadata JSON.
-          const meta = (await res.json()) as { id: string };
+          const text = await res.text();
+          let meta: { id?: string } = {};
+          try { meta = JSON.parse(text) as { id?: string }; } catch {}
           opts.onProgress?.(total, total);
           if (!meta?.id) throw new Error("Drive did not return a file id");
           return { driveFileId: meta.id };
@@ -89,20 +91,40 @@ export async function uploadFileResumable(
           continue;
         }
 
-        const text = await res.text().catch(() => "");
-        throw new Error(`Drive upload failed (${res.status}): ${text.slice(0, 300)}`);
+        const errText = await res.text().catch(() => "");
+        throw new Error(`Drive upload failed (${res.status}): ${errText.slice(0, 300)}`);
       } catch (err) {
         if (opts.signal?.aborted) throw err;
-        if (attempt >= MAX_RETRIES) {
-          // Last-ditch: query the server for the true offset and resume.
-          const resumed = await queryResumeOffset(opts.uploadUrl, total, opts.signal);
-          if (resumed === null) throw err;
+        // Network-level error (TypeError: Failed to fetch). Wait, ask Google
+        // how many bytes it actually received, then resume from there.
+        await sleep(Math.min(1000 * 2 ** attempt, 15000));
+        attempt++;
+        const resumed = await queryResumeOffset(opts.uploadUrl, total, opts.signal);
+        if (resumed !== null) {
+          if (resumed >= total) {
+            // Server already has the whole file but we didn't get the meta JSON.
+            // Re-PUT a zero-length finalize to fetch metadata.
+            try {
+              const finalRes = await fetch(opts.uploadUrl, {
+                method: "PUT",
+                headers: { "Content-Range": `bytes */${total}` },
+                signal: opts.signal,
+              });
+              if (finalRes.status === 200 || finalRes.status === 201) {
+                const t = await finalRes.text();
+                const m = (() => { try { return JSON.parse(t) as { id?: string }; } catch { return {}; } })();
+                if (m?.id) {
+                  opts.onProgress?.(total, total);
+                  return { driveFileId: m.id };
+                }
+              }
+            } catch {}
+          }
           offset = resumed;
           opts.onProgress?.(offset, total);
           break;
         }
-        await sleep(1000 * 2 ** attempt);
-        attempt++;
+        if (attempt >= MAX_RETRIES) throw err;
       }
     }
   }
