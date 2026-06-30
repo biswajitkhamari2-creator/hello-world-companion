@@ -304,6 +304,22 @@ function Dashboard() {
             <Button asChild variant="outline" className="min-h-11 shrink-0 border-rose-300 text-rose-700 hover:bg-rose-50">
               <Link to="/inbox">📅 Pick newspaper date</Link>
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onSyncFromDrive}
+              disabled={syncing || uploading}
+              className="min-h-11 shrink-0"
+              title="Scan your Google Drive folder for files not yet in your library"
+            >
+              {syncing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <FolderSync className="mr-2 h-4 w-4" aria-hidden="true" />
+              )}
+              <span className="hidden sm:inline">{syncing ? "Syncing…" : "Sync from Drive"}</span>
+              <span className="sm:hidden">{syncing ? "…" : "Sync"}</span>
+            </Button>
             <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="min-h-11 shrink-0">
               {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="mr-2 h-4 w-4" aria-hidden="true" />}
               <span className="hidden sm:inline">
