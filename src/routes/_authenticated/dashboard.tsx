@@ -85,6 +85,27 @@ function Dashboard() {
 
   const startUploadSession = useServerFn(createUploadSession);
   const finalize = useServerFn(finalizeUpload);
+  const syncDrive = useServerFn(syncFromDrive);
+  const [syncing, setSyncing] = useState(false);
+
+  async function onSyncFromDrive() {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const res = (await syncDrive()) as { imported: number; alreadyPresent: number; scanned: number };
+      if (res.imported > 0) {
+        toast.success(`Imported ${res.imported} file${res.imported === 1 ? "" : "s"} from Drive`);
+        await qc.invalidateQueries({ queryKey: ["documents"] });
+        await qc.invalidateQueries({ queryKey: ["all-documents"] });
+      } else {
+        toast.message(`No new files. ${res.scanned} already in your library.`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }
   const uploadSmall = useServerFn(uploadDocument);
   const extract = useServerFn(extractDocument);
   const del = useServerFn(deleteDocument);
