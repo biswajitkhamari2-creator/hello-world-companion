@@ -1,13 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createClient } from "@supabase/supabase-js";
 import { deriveTelegramWebhookSecret, safeEqual, tgDownload } from "@/lib/telegram.server";
 
 // Shared inbox owner: we store rows globally (RLS allows authenticated read).
 // Drive files are uploaded under a shared "telegram-inbox" pseudo-user folder.
 const SHARED_OWNER = "telegram-inbox";
+const FALLBACK_SUPABASE_URL = "https://ffkyjnswyfeghmfmlapu.supabase.co";
 
 async function getAdmin() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin;
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || FALLBACK_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.APP_SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) {
+    throw new Error("Missing Supabase service-role key for Telegram webhook.");
+  }
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
+}
+
+async function upsertInbox(row: Record<string, unknown>) {
+  const admin = await getAdmin();
+  const { error } = await admin.from("telegram_inbox").upsert(row, { onConflict: "chat_id,message_id" });
+  if (error) throw new Error(`Telegram inbox save failed: ${error.message}`);
 }
 
 function extractUrls(text: string): string[] {
@@ -18,7 +32,6 @@ function extractUrls(text: string): string[] {
 async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?: string; file_size?: number }, base: {
   chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
 }) {
-  const admin = await getAdmin();
   const { bytes } = await tgDownload(doc.file_id);
   const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
   const fileName = doc.file_name || `telegram-${base.message_id}.pdf`;
@@ -28,7 +41,7 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
     mime: doc.mime_type || "application/pdf",
     data: bytes,
   });
-  await admin.from("telegram_inbox").upsert({
+  await upsertInbox({
     chat_id: base.chat_id,
     message_id: base.message_id,
     kind: "pdf",
@@ -41,13 +54,12 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
     drive_view_link: up.webViewLink,
     status: "ready",
     raw: base.raw as any,
-  }, { onConflict: "chat_id,message_id" });
+  });
 }
 
 async function handlePhoto(photo: { file_id: string; file_size?: number }, base: {
   chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
 }) {
-  const admin = await getAdmin();
   const { bytes } = await tgDownload(photo.file_id);
   const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
   const fileName = `telegram-${base.message_id}.jpg`;
@@ -57,7 +69,7 @@ async function handlePhoto(photo: { file_id: string; file_size?: number }, base:
     mime: "image/jpeg",
     data: bytes,
   });
-  await admin.from("telegram_inbox").upsert({
+  await upsertInbox({
     chat_id: base.chat_id,
     message_id: base.message_id,
     kind: "image",
@@ -70,14 +82,13 @@ async function handlePhoto(photo: { file_id: string; file_size?: number }, base:
     drive_view_link: up.webViewLink,
     status: "ready",
     raw: base.raw as any,
-  }, { onConflict: "chat_id,message_id" });
+  });
 }
 
 async function handleLink(url: string, base: {
   chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
 }) {
-  const admin = await getAdmin();
-  await admin.from("telegram_inbox").upsert({
+  await upsertInbox({
     chat_id: base.chat_id,
     message_id: base.message_id,
     kind: "link",
@@ -86,7 +97,7 @@ async function handleLink(url: string, base: {
     source_url: url,
     status: "ready",
     raw: base.raw as any,
-  }, { onConflict: "chat_id,message_id" });
+  });
 }
 
 export const Route = createFileRoute("/api/public/telegram/webhook")({
@@ -128,7 +139,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           return Response.json({ ok: true });
         } catch (e) {
           console.error("[telegram webhook]", e);
-          return Response.json({ ok: false, error: (e as Error).message }, { status: 200 });
+          return Response.json({ ok: false, error: (e as Error).message }, { status: 500 });
         }
       },
     },
