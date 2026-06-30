@@ -779,8 +779,8 @@ async function runOne(
   options: PromptOptions = {},
 ): Promise<any> {
   const prompt = `${promptFor(outputType, subject, chunk, options)}\n\nReturn JSON only in this exact shape (no markdown, no explanation):\n${jsonShapeFor(outputType)}`;
-  // Retry on 429 / transient 5xx with short backoff (client also retries the whole chunk).
-  const MAX_ATTEMPTS = 2;
+  // Retry on 429 / transient 5xx. Longer waits on rate limits since Gemini free tier is ~10 RPM.
+  const MAX_ATTEMPTS = 4;
   let lastErr: any = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
@@ -798,7 +798,9 @@ async function runOne(
       const status = err?.statusCode ?? err?.status ?? (msg.match(/\b(4\d\d|5\d\d)\b/)?.[1] ? Number(msg.match(/\b(4\d\d|5\d\d)\b/)![1]) : 0);
       const retriable = status === 429 || (status >= 500 && status < 600);
       if (!retriable || attempt === MAX_ATTEMPTS - 1) throw err;
-      const delay = 1500 + Math.floor(Math.random() * 800);
+      const isRate = status === 429 || /rate.?limit|too many requests|quota/i.test(msg);
+      const base = isRate ? 15000 : 1500;
+      const delay = Math.min(base * Math.pow(2, attempt), 60000) + Math.floor(Math.random() * 800);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
