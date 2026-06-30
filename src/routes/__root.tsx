@@ -127,20 +127,6 @@ function RootComponent() {
   const router = useRouter();
 
   useEffect(() => {
-    // Ensure a Supabase session exists so every protected server fn has a bearer token.
-    // Uses anonymous sign-in — enable it in Supabase → Auth → Providers → "Anonymous Sign-ins".
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
-          const { error } = await supabase.auth.signInAnonymously();
-          if (error) console.warn("[Supabase] Anonymous sign-in failed", error.message);
-        }
-      } catch (e) {
-        console.warn("[Supabase] Session bootstrap failed", e);
-      }
-    })();
-
     try {
       const { data: sub } = supabase.auth.onAuthStateChange((event) => {
         if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
