@@ -92,6 +92,11 @@ export function BrandMark({
           >
             {text}
           </span>
+          <span
+            className="ml-0.5 inline-block w-[1px] animate-pulse bg-accent align-middle"
+            style={{ height: "0.9em" }}
+            aria-hidden="true"
+          />
         </span>
       </span>
     </span>
