@@ -246,7 +246,7 @@ export function AppShell({
         <div className="flex-1 flex flex-col min-w-0">
           <div className="sticky top-0 z-30 flex h-12 items-center gap-2 border-b border-border/60 bg-background/70 px-3 backdrop-blur-xl">
             <HamburgerTrigger />
-            <Link to="/" className="ml-1 hidden min-w-0 sm:block">
+            <Link to="/" className="ml-1 block min-w-0">
               <BrandMark size="sm" />
             </Link>
             <div className="ml-auto flex items-center gap-2">{topbarRight}</div>
