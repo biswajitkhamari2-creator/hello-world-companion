@@ -56,15 +56,7 @@ function Dashboard() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        const { error } = await supabase.auth.signInAnonymously();
-        if (error) {
-          toast.error(error.message);
-          return;
-        }
-      }
-      const { data: s2 } = await supabase.auth.getSession();
-      setUserEmail(s2.session?.user.email ?? null);
+      setUserEmail(data.session?.user.email ?? null);
       setCheckedAuth(true);
     })();
   }, [navigate]);
