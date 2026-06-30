@@ -14,7 +14,7 @@ import {
   type User,
 } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { firebaseAuth, firebaseDb } from "./firebase";
+import { firebaseAuth, firebaseDb, firebaseConfigured } from "./firebase";
 
 export interface UserProfile {
   uid: string;
@@ -35,7 +35,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 async function ensureProfile(user: User, displayName?: string): Promise<UserProfile> {
-  const ref = doc(firebaseDb, "users", user.uid);
+  const ref = doc(firebaseDb!, "users", user.uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
     const profile: UserProfile = {
@@ -56,6 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!firebaseConfigured || !firebaseAuth) {
+      setLoading(false);
+      return;
+    }
     const unsub = onAuthStateChanged(firebaseAuth, async (u) => {
       setUser(u);
       if (u) {
@@ -79,9 +83,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile,
     loading,
     signIn: async (email, password) => {
+      if (!firebaseAuth) throw new Error("Firebase is not configured. Add VITE_FIREBASE_* env vars.");
       await signInWithEmailAndPassword(firebaseAuth, email, password);
     },
     signUp: async (email, password, displayName) => {
+      if (!firebaseAuth) throw new Error("Firebase is not configured. Add VITE_FIREBASE_* env vars.");
       const cred = await createUserWithEmailAndPassword(firebaseAuth, email, password);
       if (displayName) {
         await updateProfile(cred.user, { displayName });
@@ -89,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await ensureProfile(cred.user, displayName);
     },
     signOut: async () => {
+      if (!firebaseAuth) return;
       await fbSignOut(firebaseAuth);
     },
   };
