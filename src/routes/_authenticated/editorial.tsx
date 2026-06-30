@@ -18,7 +18,7 @@ import { uploadFileResumable } from "@/lib/drive-upload";
 export const Route = createFileRoute("/_authenticated/editorial")({
   head: () => ({
     meta: [
-      { title: "Editorial Analyser — UPSC Genius AI" },
+      { title: "Editorial Analyser — Sushama UPSC" },
       { name: "description", content: "Paste or upload any newspaper editorial. AI returns 3-line summary, GS mapping, key concepts, vocabulary, prelims MCQs and mains questions." },
     ],
   }),
