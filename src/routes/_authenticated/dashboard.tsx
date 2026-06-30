@@ -40,7 +40,7 @@ import { NewspaperIssue } from "@/components/newspaper-issue";
 import { TelegramInbox } from "@/components/telegram-inbox";
 import { AppShell } from "@/components/app-shell";
 
-export const Route = createFileRoute("/dashboard")({
+export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [{ title: "Dashboard — UPSC Mitra" }],
   }),

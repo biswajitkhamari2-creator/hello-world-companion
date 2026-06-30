@@ -16,7 +16,7 @@ import { analyseEditorial, type EditorialAnalysis } from "@/lib/editorial.functi
 import { createUploadSession, finalizeUpload, extractDocument, getDocument } from "@/lib/documents.functions";
 import { uploadFileResumable } from "@/lib/drive-upload";
 
-export const Route = createFileRoute("/editorial")({
+export const Route = createFileRoute("/_authenticated/editorial")({
   head: () => ({
     meta: [
       { title: "Editorial Analyser — UPSC Genius AI" },

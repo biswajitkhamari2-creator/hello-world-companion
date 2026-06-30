@@ -36,7 +36,7 @@ import {
 import { extractDocument } from "@/lib/documents.functions";
 import type { OutputType } from "@/lib/generations.functions";
 
-export const Route = createFileRoute("/inbox")({
+export const Route = createFileRoute("/_authenticated/inbox")({
   head: () => ({
     meta: [{ title: "Telegram Inbox — UPSC Mitra" }],
   }),
