@@ -442,3 +442,61 @@ export const finalizeUpload = createServerFn({ method: "POST" })
     if (error) throw error;
     return row;
   });
+
+// Complete only the final small chunk on the server. This avoids the browser
+// hanging at 99% on Google Drive's final resumable response/CORS edge case.
+export const completeUploadFinalChunk = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => {
+    if (!(d instanceof FormData)) throw new Error("Expected FormData");
+    const documentId = String(d.get("documentId") || "");
+    const uploadUrl = String(d.get("uploadUrl") || "");
+    const start = Number(d.get("start"));
+    const end = Number(d.get("end"));
+    const total = Number(d.get("total"));
+    const chunk = d.get("chunk");
+    if (!z.string().uuid().safeParse(documentId).success) throw new Error("Invalid document id");
+    if (!uploadUrl.startsWith("https://www.googleapis.com/upload/drive/v3/files")) throw new Error("Invalid upload URL");
+    if (!Number.isInteger(start) || !Number.isInteger(end) || !Number.isInteger(total) || start < 0 || end <= start || total < end) {
+      throw new Error("Invalid upload range");
+    }
+    if (!(chunk instanceof File)) throw new Error("Missing upload chunk");
+    if (chunk.size !== end - start) throw new Error("Upload chunk size mismatch");
+    if (chunk.size > 4 * 1024 * 1024) throw new Error("Final upload chunk is too large");
+    return { documentId, uploadUrl, start, end, total, chunk };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: doc, error: docErr } = await supabase
+      .from("documents")
+      .select("id")
+      .eq("id", data.documentId)
+      .eq("user_id", userId)
+      .single();
+    if (docErr || !doc) throw docErr || new Error("Document not found");
+
+    const { uploadFinalResumableChunk } = await import("./gdrive.server");
+    const meta = await uploadFinalResumableChunk({
+      uploadUrl: data.uploadUrl,
+      start: data.start,
+      end: data.end,
+      total: data.total,
+      chunk: await data.chunk.arrayBuffer(),
+    });
+
+    const { data: row, error } = await supabase
+      .from("documents")
+      .update({
+        status: "uploaded",
+        drive_file_id: meta.id,
+        drive_view_link: meta.webViewLink,
+        size_bytes: meta.size,
+        mime: meta.mimeType,
+      })
+      .eq("id", data.documentId)
+      .eq("user_id", userId)
+      .select()
+      .single();
+    if (error) throw error;
+    return row;
+  });
