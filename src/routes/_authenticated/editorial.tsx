@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { analyseEditorial, type EditorialAnalysis } from "@/lib/editorial.functions";
-import { createUploadSession, finalizeUpload, extractDocument, getDocument, uploadDocument } from "@/lib/documents.functions";
+import { createUploadSession, finalizeUpload, completeUploadFinalChunk, extractDocument, getDocument, uploadDocument } from "@/lib/documents.functions";
 import { uploadFileResumable } from "@/lib/drive-upload";
 
 export const Route = createFileRoute("/_authenticated/editorial")({
@@ -32,6 +32,7 @@ function EditorialPage() {
   const analyseFn = useServerFn(analyseEditorial);
   const startUploadSession = useServerFn(createUploadSession);
   const finalize = useServerFn(finalizeUpload);
+  const completeFinalChunk = useServerFn(completeUploadFinalChunk);
   const uploadSmall = useServerFn(uploadDocument);
   const extractFn = useServerFn(extractDocument);
   const getDocFn = useServerFn(getDocument);
@@ -60,6 +61,7 @@ function EditorialPage() {
         const session = await startUploadSession({
           data: { fileName: file.name, mime, size: file.size, title: file.name },
         });
+        let completedRow: any = null;
         const { driveFileId } = await uploadFileResumable({
           file,
           uploadUrl: session.uploadUrl,
@@ -67,8 +69,20 @@ function EditorialPage() {
             const pct = total ? Math.round((loaded / total) * 100) : 0;
             toast.loading(`Uploading editorial… ${pct}%`, { id: "ext" });
           },
+          uploadFinalChunk: async ({ blob, start, end, total }) => {
+            const fd = new FormData();
+            fd.set("documentId", session.documentId);
+            fd.set("uploadUrl", session.uploadUrl);
+            fd.set("start", String(start));
+            fd.set("end", String(end));
+            fd.set("total", String(total));
+            fd.set("chunk", new File([blob], file.name, { type: mime }));
+            completedRow = await completeFinalChunk({ data: fd });
+            toast.loading("Uploading editorial… 100%", { id: "ext" });
+            return { driveFileId: completedRow?.drive_file_id ?? null };
+          },
         });
-        uploaded = await finalize({ data: { documentId: session.documentId, driveFileId } });
+        uploaded = completedRow ?? await finalize({ data: { documentId: session.documentId, driveFileId } });
       }
       toast.loading("Extracting editorial from PDF…", { id: "ext" });
       const ext = await extractFn({ data: { documentId: uploaded.id } });
