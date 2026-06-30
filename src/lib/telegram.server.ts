@@ -1,21 +1,19 @@
-// Telegram Bot API helpers (via Lovable connector gateway).
-import { createHash, timingSafeEqual } from "node:crypto";
+// Telegram Bot API helpers — talks directly to api.telegram.org with your bot token.
+// Required env vars (set in Vercel):
+//   TELEGRAM_BOT_TOKEN       — from @BotFather
+//   TELEGRAM_WEBHOOK_SECRET  — random 32+ char string you generate; used to verify webhook authenticity
+import { timingSafeEqual } from "node:crypto";
 
-const GATEWAY = "https://connector-gateway.lovable.dev/telegram";
-
-function headers() {
-  const lovableKey = process.env.LOVABLE_API_KEY?.trim();
-  const tgKey = process.env.TELEGRAM_API_KEY?.trim();
-  if (!tgKey) throw new Error("Telegram connector is not linked for this project.");
-  return {
-    ...(lovableKey ? { Authorization: `Bearer ${lovableKey}` } : {}),
-    "X-Connection-Api-Key": tgKey,
-  } as Record<string, string>;
+function botToken(): string {
+  const t = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!t) throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
+  return t;
 }
 
-export function deriveTelegramWebhookSecret(): string {
-  const tgKey = process.env.TELEGRAM_API_KEY ?? "";
-  return createHash("sha256").update(`telegram-webhook:${tgKey}`).digest("base64url");
+export function getTelegramWebhookSecret(): string {
+  const s = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+  if (!s) throw new Error("TELEGRAM_WEBHOOK_SECRET is not configured.");
+  return s;
 }
 
 export function safeEqual(a: string, b: string): boolean {
@@ -25,9 +23,9 @@ export function safeEqual(a: string, b: string): boolean {
 }
 
 export async function tgCall<T = unknown>(method: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${GATEWAY}/${method}`, {
+  const res = await fetch(`https://api.telegram.org/bot${botToken()}/${method}`, {
     method: "POST",
-    headers: { ...headers(), "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = (await res.json()) as { ok: boolean; result?: T; description?: string };
@@ -37,7 +35,7 @@ export async function tgCall<T = unknown>(method: string, body?: unknown): Promi
 
 export async function tgDownload(fileId: string): Promise<{ bytes: ArrayBuffer; path: string }> {
   const file = await tgCall<{ file_path: string }>("getFile", { file_id: fileId });
-  const res = await fetch(`${GATEWAY}/file/${file.file_path}`, { headers: headers() });
+  const res = await fetch(`https://api.telegram.org/file/bot${botToken()}/${file.file_path}`);
   if (!res.ok) throw new Error(`Telegram file download failed (${res.status})`);
   return { bytes: await res.arrayBuffer(), path: file.file_path };
 }
