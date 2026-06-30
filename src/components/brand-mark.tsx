@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,30 +15,30 @@ export function BrandMark({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
-  const [text, setText] = useState(SUFFIX);
-  const [phase, setPhase] = useState<"typing" | "hold" | "erasing" | "wait">("hold");
+  const [text, setText] = useState("");
+  const stateRef = useRef({ i: 0, dir: 1 as 1 | -1, pause: 0 });
 
   useEffect(() => {
-    let t: ReturnType<typeof setTimeout>;
-    if (phase === "typing") {
-      if (text.length < SUFFIX.length) {
-        t = setTimeout(() => setText(SUFFIX.slice(0, text.length + 1)), 70);
-      } else {
-        t = setTimeout(() => setPhase("hold"), 1800);
+    const id = setInterval(() => {
+      const s = stateRef.current;
+      if (s.pause > 0) {
+        s.pause -= 1;
+        return;
       }
-    } else if (phase === "hold") {
-      t = setTimeout(() => setPhase("erasing"), 1800);
-    } else if (phase === "erasing") {
-      if (text.length > 0) {
-        t = setTimeout(() => setText(SUFFIX.slice(0, text.length - 1)), 35);
-      } else {
-        t = setTimeout(() => setPhase("wait"), 500);
+      s.i += s.dir;
+      if (s.i >= SUFFIX.length) {
+        s.i = SUFFIX.length;
+        s.dir = -1;
+        s.pause = 22; // ~1.8s hold at full
+      } else if (s.i <= 0) {
+        s.i = 0;
+        s.dir = 1;
+        s.pause = 6; // ~0.5s hold empty
       }
-    } else {
-      t = setTimeout(() => setPhase("typing"), 300);
-    }
-    return () => clearTimeout(t);
-  }, [text, phase]);
+      setText(SUFFIX.slice(0, s.i));
+    }, 80);
+    return () => clearInterval(id);
+  }, []);
 
   const iconBox =
     size === "lg" ? "h-11 w-11" : size === "sm" ? "h-8 w-8" : "h-9 w-9";
