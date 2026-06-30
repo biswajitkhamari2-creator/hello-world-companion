@@ -335,6 +335,19 @@ function InboxPage() {
                       {it.archived_at && (
                         <Badge variant="secondary" className="text-[10px]">archived</Badge>
                       )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="ml-auto h-7 w-7 text-rose-600 hover:bg-rose-100 hover:text-rose-700"
+                        onClick={() => {
+                          if (confirm("Delete this inbox item permanently?")) deleteMut.mutate(it.id);
+                        }}
+                        disabled={deleteMut.isPending}
+                        aria-label="Delete"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                     {it.caption && it.file_name && (
                       <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
