@@ -1004,11 +1004,24 @@ export const generateOutput = createServerFn({ method: "POST" })
       let rateLimitedCount = 0;
       let terminalError: string | null = null;
       for (let i = 0; i < chunks.length; i++) {
+        if (i > 0 && profile.minGapMs > 0) {
+          await new Promise((r) => setTimeout(r, profile.minGapMs));
+        }
         try {
           results[i] = await runOne(gw, profile.model || DEFAULT_MODEL, UPSC_SYSTEM_PROMPT, data.outputType, docSubject, chunks[i], generateText, opts, { maxOutputTokens: profile.maxOutputTokens });
         } catch (err: any) {
           const msg = String(err?.message || err);
-          if (/429|rate.?limit/i.test(msg)) rateLimitedCount++;
+          if (/429|rate.?limit/i.test(msg)) {
+            rateLimitedCount++;
+            // Back off and retry once after the rate-limit window.
+            await new Promise((r) => setTimeout(r, Math.max(profile.minGapMs, 30_000)));
+            try {
+              results[i] = await runOne(gw, profile.model || DEFAULT_MODEL, UPSC_SYSTEM_PROMPT, data.outputType, docSubject, chunks[i], generateText, opts, { maxOutputTokens: profile.maxOutputTokens });
+              continue;
+            } catch (retryErr: any) {
+              console.warn(`chunk ${i} retry failed`, String(retryErr?.message || retryErr).slice(0, 200));
+            }
+          }
           if (/402|Payment Required|credits|insufficient|401|403|unauthori[sz]ed|forbidden/i.test(`${msg} ${err?.responseBody || ""}`)) {
             terminalError = friendlyAiError(err);
           }
