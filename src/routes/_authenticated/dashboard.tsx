@@ -191,8 +191,11 @@ function Dashboard() {
       qc.invalidateQueries({ queryKey: ["documents", row.id] });
 
       extract({ data: { documentId: row.id } })
-        .then(() => {
+        .then((res: any) => {
           console.log("[ActivePDF] Extraction complete", { activeDocumentId: row.id });
+          if (res?.ok === false) {
+            toast.error(res?.message || "Extraction failed. Please re-upload the document.");
+          }
           qc.invalidateQueries({ queryKey: ["documents", row.id] });
         })
         .catch((e) => toast.error(e?.message || "Extraction failed"));
@@ -392,7 +395,7 @@ function ReprocessButton({
         try {
           const res: any = await extract({ data: { documentId: docId } });
           if (res?.ok === false) {
-            toast.error("Still no readable text found in this file.");
+            toast.error(res?.message || "Still no readable text found in this file.");
           } else {
             toast.success("Reprocessed — extraction complete.");
           }
@@ -744,7 +747,7 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
       {doc.status === "failed" && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <p className="text-sm text-rose-700">
-            Extraction failed{doc.error_message ? `: ${doc.error_message}` : "."} You can retry with OCR.
+            Extraction failed{doc.error_message ? `: ${doc.error_message}` : "."} {doc.error_message?.includes("Google Drive file is no longer accessible") ? "Please delete and upload it again." : "You can retry with OCR."}
           </p>
           <ReprocessButton docId={doc.id} />
         </div>
