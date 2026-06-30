@@ -346,7 +346,13 @@ export async function uploadFinalResumableChunk(opts: {
   mimeType: string;
   webViewLink: string | null;
 }> {
+  const url = new URL(opts.uploadUrl);
+  if (url.protocol !== "https:" || url.hostname !== "www.googleapis.com" || !url.pathname.startsWith("/upload/drive/v3/files")) {
+    throw new Error("Invalid Drive upload session URL.");
+  }
   const bytes = opts.chunk instanceof Uint8Array ? opts.chunk : new Uint8Array(opts.chunk);
+  const body = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(body).set(bytes);
   const token = await getAccessToken();
   const res = await fetch(opts.uploadUrl, {
     method: "PUT",
@@ -355,7 +361,7 @@ export async function uploadFinalResumableChunk(opts: {
       "Content-Length": String(bytes.byteLength),
       "Content-Range": `bytes ${opts.start}-${opts.end - 1}/${opts.total}`,
     },
-    body: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    body,
   });
   if (!res.ok) await throwDriveError("final upload chunk", res);
   const body = (await res.json()) as {
