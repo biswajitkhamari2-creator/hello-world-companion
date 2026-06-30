@@ -36,12 +36,7 @@ function EditorialPage() {
   const extractFn = useServerFn(extractDocument);
   const getDocFn = useServerFn(getDocument);
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) await supabase.auth.signInAnonymously();
-    })();
-  }, []);
+  // Auth gate guarantees a session exists.
 
   const analyse = useMutation({
     mutationFn: async () => analyseFn({ data: { text: text.trim(), source: source.trim() || undefined } }),
