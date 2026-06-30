@@ -311,12 +311,12 @@ function Dashboard() {
       )}
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 sm:flex sm:flex-wrap sm:justify-between">
-          <div className="min-w-0">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+          <div className="min-w-0 w-full sm:w-auto">
             <h1 className="truncate font-serif text-2xl font-semibold sm:text-3xl">Your study library</h1>
             <p className="text-sm text-muted-foreground">One active PDF at a time. Uploading a new file replaces the previous one.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <input
               ref={fileRef}
               type="file"
