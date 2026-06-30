@@ -14,9 +14,9 @@ ticking **Production** AND **Preview** for each. Then **Deployments → ⋯ → 
 | `APP_SUPABASE_SERVICE_ROLE_KEY` | Supabase Project Settings → API → `service_role` key (secret) |
 | `GROQ_API_KEY` | https://console.groq.com/keys |
 | `GEMINI_API_KEY` | https://aistudio.google.com/app/apikey |
-| `GOOGLE_OAUTH_CLIENT_ID` | See `docs/google-oauth-setup.md` step 4 |
-| `GOOGLE_OAUTH_CLIENT_SECRET` | See `docs/google-oauth-setup.md` step 4 |
-| `GOOGLE_OAUTH_REFRESH_TOKEN` | See `docs/google-oauth-setup.md` step 5 |
+| `GOOGLE_CLIENT_ID` | Google Cloud Console → Credentials → OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Google Cloud Console → Credentials → OAuth client ID |
+| `GOOGLE_REFRESH_TOKEN` | Visit `https://<your-vercel-domain>/api/oauth/google/start` once after deploying, copy the token shown on the callback page |
 | `TELEGRAM_BOT_TOKEN` | @BotFather → `/newbot` or `/token` |
 | `TELEGRAM_WEBHOOK_SECRET` | Generate any random 32+ char string (e.g. `openssl rand -hex 32`) |
 

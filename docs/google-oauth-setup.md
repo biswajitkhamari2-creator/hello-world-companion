@@ -1,91 +1,71 @@
-# Google Drive OAuth setup
+# Google OAuth Setup (your own Google Cloud project)
 
-You'll create your own Google Cloud OAuth app and generate a long-lived
-refresh token. The app uses this to upload, list, download, and delete files
-on your Google Drive directly — no Lovable runtime involved.
+This app talks to Google Drive directly with **your own** OAuth client.
+No Lovable connector, no gateway. You need exactly 3 env vars on Vercel:
 
-Time required: ~10 minutes.
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REFRESH_TOKEN`
 
-## 1. Create / pick a Google Cloud project
+## 1. Create the OAuth client in Google Cloud
 
-1. Go to https://console.cloud.google.com/
-2. Top bar → project picker → **New Project** → name it e.g. `upsc-genius-ai` → Create.
+1. https://console.cloud.google.com → create or pick a project.
+2. **APIs & Services → Library** → enable **Google Drive API**.
+3. **APIs & Services → OAuth consent screen** → User type **External** →
+   App name, support email, your email as developer contact → **Save**.
+   - Scopes step: add `https://www.googleapis.com/auth/drive.file`.
+   - Test users: add your own Google account.
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
+   - Application type: **Web application**
+   - Authorized redirect URIs — add EXACTLY:
+     ```
+     https://<your-vercel-domain>/api/oauth/google/callback
+     ```
+     Example: `https://hello-world-companion-seven.vercel.app/api/oauth/google/callback`
+     (Add one entry per domain you deploy to — production, preview, custom domain.)
+5. Copy **Client ID** → `GOOGLE_CLIENT_ID`, **Client secret** → `GOOGLE_CLIENT_SECRET`.
 
-## 2. Enable the Google Drive API
+## 2. Add the two vars to Vercel and redeploy
 
-1. APIs & Services → **Library**
-2. Search "Google Drive API" → click → **Enable**
+Vercel → Project → Settings → Environment Variables → add both for
+**Production + Preview** → Deployments → Redeploy.
 
-## 3. Configure the OAuth consent screen
+## 3. Mint a refresh token (one-time, in-app)
 
-1. APIs & Services → **OAuth consent screen**
-2. User type: **External** → Create
-3. Fill in:
-   - App name: `UPSC Genius AI`
-   - User support email: your email
-   - Developer contact: your email
-4. **Scopes** step → Add or Remove Scopes →
-   add `https://www.googleapis.com/auth/drive.file`
-   *(this scope lets the app only see files it created — recommended)*
-   If you want the app to see your entire Drive instead, use
-   `https://www.googleapis.com/auth/drive` here AND in step 5.
-5. **Test users** step → add your own Google account.
-6. Save. Leave the app in "Testing" mode for now.
-
-> Note on refresh-token expiry: in Testing mode, refresh tokens expire after
-> 7 days. To make them permanent, click **PUBLISH APP** on the consent
-> screen (no Google verification is needed for the `drive.file` scope on a
-> personal-use app — you'll get an "unverified" warning during step 5 of
-> token generation, which is fine).
-
-## 4. Create OAuth Client ID
-
-1. APIs & Services → **Credentials** → Create Credentials → **OAuth client ID**
-2. Application type: **Web application**
-3. Name: `upsc-genius-vercel`
-4. Authorized redirect URIs → Add URI: `https://developers.google.com/oauthplayground`
-5. Create → **copy the Client ID and Client Secret** somewhere safe.
-
-These map to:
-- `GOOGLE_OAUTH_CLIENT_ID`
-- `GOOGLE_OAUTH_CLIENT_SECRET`
-
-## 5. Generate the refresh token
-
-1. Open https://developers.google.com/oauthplayground/
-2. Top-right ⚙️ → tick **Use your own OAuth credentials** → paste Client ID + Secret → close.
-3. Left panel → "Step 1 Select & authorize APIs" → paste
-   `https://www.googleapis.com/auth/drive.file` into the input → **Authorize APIs**
-4. Sign in with the same Google account you added as a test user. Accept the warning if shown.
-5. You land on "Step 2 Exchange authorization code for tokens" → click **Exchange authorization code for tokens**
-6. Copy the **Refresh token** value.
-
-This maps to `GOOGLE_OAUTH_REFRESH_TOKEN`.
-
-## 6. (Optional) Pin a Drive folder
-
-The app stores uploads under `My Drive/UPSC-Genius-AI/<userId>/` automatically.
-If you want it to use a specific existing folder:
-
-1. In Drive, create or open the folder.
-2. Copy the folder ID from the URL: `https://drive.google.com/drive/folders/<THIS_PART>`
-3. Set `GOOGLE_DRIVE_ROOT_FOLDER_ID` to that ID.
-
-## 7. Paste into Vercel
-
-Vercel → Project → Settings → Environment Variables (Production + Preview):
+Open in a browser, signed in to the Google account that should own uploads:
 
 ```
-GOOGLE_OAUTH_CLIENT_ID=...
-GOOGLE_OAUTH_CLIENT_SECRET=...
-GOOGLE_OAUTH_REFRESH_TOKEN=...
-GOOGLE_DRIVE_ROOT_FOLDER_ID=  # optional
+https://<your-vercel-domain>/api/oauth/google/start
 ```
 
-Then **Deployments → ⋯ → Redeploy**.
+You'll be sent through Google's consent screen, then redirected back to
+`/api/oauth/google/callback` which prints your **refresh token**. Copy it.
 
-## Troubleshooting
+## 4. Save the refresh token on Vercel
 
-- **`invalid_grant`** — refresh token expired (7-day Testing-mode limit). Publish the consent screen in step 3, then regenerate the token via step 5.
-- **`insufficient authentication scopes`** — you authorized a different scope than the one used by the app. Re-run step 5 with `drive.file`.
-- **404 on download** — the file was uploaded under a previous credential; `drive.file` scope only sees files this app created itself. Re-upload, or switch the consent screen scope to full `drive`.
+Vercel → Settings → Environment Variables → add `GOOGLE_REFRESH_TOKEN`
+(Production + Preview) → Redeploy.
+
+## 5. (Optional) Pin a Drive folder
+
+Create a folder in My Drive (e.g. `UPSC-Genius-AI`), open it, copy the ID
+from the URL (`https://drive.google.com/drive/folders/<ID>`), and set:
+
+```
+GOOGLE_DRIVE_ROOT_FOLDER_ID=<id>
+```
+
+Otherwise the app auto-creates a folder named `UPSC-Genius-AI`.
+
+## Notes / gotchas
+
+- **drive.file scope** = the app only sees files it created. Old files from
+  the previous Lovable connector are invisible — re-upload them.
+- **Refresh token expiry**: while the OAuth consent screen is in **Testing**
+  mode, refresh tokens expire after 7 days. Switch consent screen to
+  **In production** (no Google verification needed for `drive.file` on a
+  single-user app) so tokens don't expire.
+- After you've captured the refresh token you may delete
+  `src/routes/api/oauth/google/start.ts` and `callback.ts` to remove the
+  public OAuth bootstrap endpoints. They're harmless (they only mint
+  tokens against your own OAuth client) but they're not needed at runtime.
