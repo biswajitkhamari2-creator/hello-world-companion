@@ -352,6 +352,50 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
   );
 }
 
+function ReprocessButton({
+  docId,
+  variant = "outline",
+  label = "Reprocess (OCR)",
+}: {
+  docId: string;
+  variant?: "outline" | "ghost" | "default" | "secondary";
+  label?: string;
+}) {
+  const qc = useQueryClient();
+  const extract = useServerFn(extractDocument);
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      size="sm"
+      variant={variant}
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        // Optimistically flip to processing so the spinner shows immediately.
+        qc.setQueryData(["documents", docId], (rows: any) =>
+          Array.isArray(rows) ? rows.map((r: any) => (r.id === docId ? { ...r, status: "processing", error_message: null } : r)) : rows,
+        );
+        try {
+          const res: any = await extract({ data: { documentId: docId } });
+          if (res?.ok === false) {
+            toast.error("Still no readable text found in this file.");
+          } else {
+            toast.success("Reprocessed — extraction complete.");
+          }
+        } catch (e: any) {
+          toast.error(e?.message || "Reprocess failed");
+        } finally {
+          setBusy(false);
+          qc.invalidateQueries({ queryKey: ["documents"] });
+        }
+      }}
+    >
+      {busy ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
+      {busy ? "Reprocessing…" : label}
+    </Button>
+  );
+}
+
 
 function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
   const qc = useQueryClient();
