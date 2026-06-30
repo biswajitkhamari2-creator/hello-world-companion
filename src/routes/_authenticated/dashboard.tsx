@@ -205,7 +205,7 @@ function Dashboard() {
             setUploadProgress(total ? Math.round((loaded / total) * 100) : 0);
           },
         });
-        console.log("[Drive] Upload complete", { driveFileId });
+        console.log("[Drive] Upload complete", { driveFileId, recoveredByServer: !driveFileId });
         row = await finalize({ data: { documentId: session.documentId, driveFileId } });
         console.log("[Drive] Finalised", { driveFileId: row?.drive_file_id, viewLink: row?.drive_view_link });
       }
