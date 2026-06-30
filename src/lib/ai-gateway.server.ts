@@ -4,7 +4,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 // No Lovable AI Gateway dependency.
 const RUN_ID_HEADER = "X-AI-Run-ID";
 
-export type AiProviderName = "groq" | "gemini";
+export type AiProviderName = "nvidia" | "groq" | "gemini";
 
 function cleanSecretValue(value: string | undefined): string | undefined {
   if (!value) return undefined;
@@ -15,25 +15,31 @@ function cleanSecretValue(value: string | undefined): string | undefined {
 }
 
 function getAiApiKey(provider: AiProviderName): string | undefined {
-  return cleanSecretValue(provider === "groq" ? process.env.GROQ_API_KEY : process.env.GEMINI_API_KEY);
+  if (provider === "nvidia") return cleanSecretValue(process.env.NVIDIA_API_KEY);
+  if (provider === "groq") return cleanSecretValue(process.env.GROQ_API_KEY);
+  return cleanSecretValue(process.env.GEMINI_API_KEY);
 }
 
 function providerBaseUrl(provider: AiProviderName) {
-  return provider === "groq"
-    ? "https://api.groq.com/openai/v1"
-    : "https://generativelanguage.googleapis.com/v1beta/openai";
+  if (provider === "nvidia") return "https://integrate.api.nvidia.com/v1";
+  if (provider === "groq") return "https://api.groq.com/openai/v1";
+  return "https://generativelanguage.googleapis.com/v1beta/openai";
 }
 
 export function getConfiguredAiProviders(): AiProviderName[] {
   const providers: AiProviderName[] = [];
+  if (getAiApiKey("nvidia")) providers.push("nvidia");
   if (getAiApiKey("groq")) providers.push("groq");
   if (getAiApiKey("gemini")) providers.push("gemini");
   return providers;
 }
 
 export function getDefaultModel(provider?: AiProviderName) {
-  const resolved = provider ?? (getAiApiKey("groq") ? "groq" : "gemini");
-  return resolved === "groq" ? "llama-3.1-8b-instant" : "gemini-2.0-flash";
+  const resolved =
+    provider ?? (getAiApiKey("nvidia") ? "nvidia" : getAiApiKey("groq") ? "groq" : "gemini");
+  if (resolved === "nvidia") return "meta/llama-3.3-70b-instruct";
+  if (resolved === "groq") return "llama-3.1-8b-instant";
+  return "gemini-2.0-flash";
 }
 
 async function isProviderAuthorized(provider: AiProviderName, apiKey: string): Promise<boolean> {
@@ -61,7 +67,7 @@ export async function resolveAvailableAiProvider(preferredProvider?: AiProviderN
 
   const order: AiProviderName[] = preferredProvider
     ? [preferredProvider, ...configured.filter((provider) => provider !== preferredProvider)]
-    : ["groq", "gemini"].filter((provider): provider is AiProviderName => configured.includes(provider as AiProviderName));
+    : (["nvidia", "groq", "gemini"] as AiProviderName[]).filter((provider) => configured.includes(provider));
 
   const rejected: AiProviderName[] = [];
   for (const provider of order) {
@@ -75,14 +81,13 @@ export async function resolveAvailableAiProvider(preferredProvider?: AiProviderN
 }
 
 export function createGateway(initialRunId?: string, preferredProvider?: AiProviderName) {
-  const groqKey = getAiApiKey("groq");
-  const geminiKey = getAiApiKey("gemini");
-  const useGroq = preferredProvider === "gemini" ? false : preferredProvider === "groq" ? Boolean(groqKey) : Boolean(groqKey);
-  const apiKey = useGroq ? groqKey : geminiKey || groqKey;
-  const providerName: AiProviderName = useGroq || !geminiKey ? "groq" : "gemini";
-  if (!apiKey) {
-    throw new Error("No AI key configured. Set GROQ_API_KEY (preferred) or GEMINI_API_KEY in project secrets.");
+  const configured = getConfiguredAiProviders();
+  if (!configured.length) {
+    throw new Error("No AI key configured. Set NVIDIA_API_KEY, GROQ_API_KEY, or GEMINI_API_KEY in project secrets.");
   }
+  const providerName: AiProviderName =
+    preferredProvider && configured.includes(preferredProvider) ? preferredProvider : configured[0];
+  const apiKey = getAiApiKey(providerName)!;
 
   let runId = initialRunId?.trim() || undefined;
   let resolveRunId: (value: string | undefined) => void = () => {};
@@ -145,6 +150,7 @@ export interface AiTaskProfile {
 }
 
 export function getAiTaskProfile(task?: string): AiTaskProfile {
+  const hasNvidia = Boolean(getAiApiKey("nvidia"));
   const hasGroq = Boolean(getAiApiKey("groq"));
   const hasGemini = Boolean(getAiApiKey("gemini"));
 
@@ -152,6 +158,16 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
   // generation layer uses a deterministic local parser instead of sending a
   // huge prompt; keep Groq preferred because the user chose it over Gemini.
   if (task === "newspaper") {
+    if (hasNvidia) {
+      return {
+        provider: "nvidia",
+        model: "meta/llama-3.3-70b-instruct",
+        chunkSize: 18_000,
+        recommendedConcurrency: 1,
+        minGapMs: 1_500,
+        maxOutputTokens: 2_500,
+      };
+    }
     if (hasGroq) {
       return {
         provider: "groq",
@@ -169,6 +185,17 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
       recommendedConcurrency: 1,
       minGapMs: hasGemini ? 8_000 : 65_000,
       maxOutputTokens: 3_000,
+    };
+  }
+
+  if (hasNvidia) {
+    return {
+      provider: "nvidia",
+      model: "meta/llama-3.3-70b-instruct",
+      chunkSize: task === "infographics" ? 20_000 : 24_000,
+      recommendedConcurrency: 1,
+      minGapMs: 1_500,
+      maxOutputTokens: task === "infographics" ? 2_500 : 2_200,
     };
   }
 

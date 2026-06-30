@@ -73,9 +73,13 @@ export const Route = createFileRoute("/api/mentor")({
 
         try {
           const initialRunId = getLovableAiGatewayRunId(request);
-          if (!process.env.GROQ_API_KEY?.trim() && !process.env.GEMINI_API_KEY?.trim()) {
+          if (
+            !process.env.NVIDIA_API_KEY?.trim() &&
+            !process.env.GROQ_API_KEY?.trim() &&
+            !process.env.GEMINI_API_KEY?.trim()
+          ) {
             return jsonError(
-              "AI Mentor is not configured: set GROQ_API_KEY (preferred) or GEMINI_API_KEY in project Secrets.",
+              "AI Mentor is not configured: set NVIDIA_API_KEY (preferred), GROQ_API_KEY, or GEMINI_API_KEY.",
               503,
               "AI_KEY_MISSING",
             );
