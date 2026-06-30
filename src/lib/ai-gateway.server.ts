@@ -85,26 +85,27 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
   const hasGroq = Boolean(process.env.GROQ_API_KEY?.trim());
   const hasGemini = Boolean(process.env.GEMINI_API_KEY?.trim());
 
-  // Newspaper analysis is prompt + output heavy. Groq's free TPM is only 6k,
-  // so prefer Gemini when available; otherwise shrink chunks and serialize.
+  // Newspaper analysis is prompt + output heavy. With Groq free TPM, the
+  // generation layer uses a deterministic local parser instead of sending a
+  // huge prompt; keep Groq preferred because the user chose it over Gemini.
   if (task === "newspaper") {
-    if (hasGemini) {
+    if (hasGroq) {
       return {
-        provider: "gemini",
-        model: "gemini-2.0-flash",
-        chunkSize: 18_000,
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        chunkSize: 10_000,
         recommendedConcurrency: 1,
-        minGapMs: 8_000,
-        maxOutputTokens: 3_000,
+        minGapMs: 1_500,
+        maxOutputTokens: 1_400,
       };
     }
     return {
-      provider: "groq",
-      model: "llama-3.1-8b-instant",
-      chunkSize: 7_000,
+      provider: "gemini",
+      model: "gemini-2.0-flash",
+      chunkSize: 18_000,
       recommendedConcurrency: 1,
-      minGapMs: 65_000,
-      maxOutputTokens: 1_400,
+      minGapMs: hasGemini ? 8_000 : 65_000,
+      maxOutputTokens: 3_000,
     };
   }
 
