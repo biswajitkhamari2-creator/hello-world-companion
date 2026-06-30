@@ -32,6 +32,14 @@ import {
 } from "@/lib/generations.functions";
 
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import { FinalChecker } from "@/components/final-checker";
 import { StampLogoButton } from "@/components/stamp-logo";
