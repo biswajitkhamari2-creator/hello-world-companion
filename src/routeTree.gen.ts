@@ -18,6 +18,7 @@ import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedEditorialRouteImport } from './routes/_authenticated/editorial'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
+import { Route as ApiOauthGoogleStartRouteImport } from './routes/api/oauth/google/start'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -64,6 +65,11 @@ const ApiPublicTelegramWebhookRoute =
     path: '/api/public/telegram/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiOauthGoogleStartRoute = ApiOauthGoogleStartRouteImport.update({
+  id: '/api/oauth/google/start',
+  path: '/api/oauth/google/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AuthenticatedInboxRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/api/mentor': typeof ApiMentorRoute
+  '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AuthenticatedInboxRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/api/mentor': typeof ApiMentorRoute
+  '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRoutesById {
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
   '/api/mentor': typeof ApiMentorRoute
+  '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRouteTypes {
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/mentor'
     | '/api/mentor'
+    | '/api/oauth/google/start'
     | '/api/public/telegram/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/mentor'
     | '/api/mentor'
+    | '/api/oauth/google/start'
     | '/api/public/telegram/webhook'
   id:
     | '__root__'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inbox'
     | '/_authenticated/mentor'
     | '/api/mentor'
+    | '/api/oauth/google/start'
     | '/api/public/telegram/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -136,6 +148,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiMentorRoute: typeof ApiMentorRoute
+  ApiOauthGoogleStartRoute: typeof ApiOauthGoogleStartRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
 }
 
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/oauth/google/start': {
+      id: '/api/oauth/google/start'
+      path: '/api/oauth/google/start'
+      fullPath: '/api/oauth/google/start'
+      preLoaderRoute: typeof ApiOauthGoogleStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -229,6 +249,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiMentorRoute: ApiMentorRoute,
+  ApiOauthGoogleStartRoute: ApiOauthGoogleStartRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
 }
 export const routeTree = rootRouteImport
