@@ -84,6 +84,7 @@ function Dashboard() {
 
   const startUploadSession = useServerFn(createUploadSession);
   const finalize = useServerFn(finalizeUpload);
+  const uploadSmall = useServerFn(uploadDocument);
   const extract = useServerFn(extractDocument);
   const del = useServerFn(deleteDocument);
 
