@@ -15,16 +15,46 @@ const APP_FOLDER_NAME = "UPSC-Genius-AI";
 // In-memory access token cache (per-worker). Google tokens live 1h; refresh ~5 min early.
 let tokenCache: { token: string; expiresAt: number } | null = null;
 
+function cleanEnvValue(value: string | undefined): string {
+  const cleaned = (value ?? "").trim();
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    return cleaned.slice(1, -1).trim();
+  }
+  return cleaned;
+}
+
+function getGoogleEnv(name: "clientId" | "clientSecret" | "refreshToken"): string {
+  const aliases = {
+    clientId: ["GOOGLE_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_ID"],
+    clientSecret: ["GOOGLE_CLIENT_SECRET", "GOOGLE_OAUTH_CLIENT_SECRET"],
+    refreshToken: ["GOOGLE_REFRESH_TOKEN", "GOOGLE_OAUTH_REFRESH_TOKEN", "GOOGLE_DRIVE_REFRESH_TOKEN"],
+  }[name];
+
+  for (const key of aliases) {
+    const value = cleanEnvValue(process.env[key]);
+    if (value) return value;
+  }
+  return "";
+}
+
 async function getAccessToken(): Promise<string> {
   const now = Date.now();
   if (tokenCache && tokenCache.expiresAt - 60_000 > now) return tokenCache.token;
 
-  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
-  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN?.trim();
+  const clientId = getGoogleEnv("clientId");
+  const clientSecret = getGoogleEnv("clientSecret");
+  const refreshToken = getGoogleEnv("refreshToken");
   if (!clientId || !clientSecret || !refreshToken) {
+    const missing = [
+      !clientId ? "GOOGLE_CLIENT_ID" : "",
+      !clientSecret ? "GOOGLE_CLIENT_SECRET" : "",
+      !refreshToken ? "GOOGLE_REFRESH_TOKEN" : "",
+    ].filter(Boolean);
     throw new Error(
-      "Google Drive is not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in Vercel. Visit /api/oauth/google/start on your deployed site to mint a refresh token.",
+      `Google Drive is not configured. Missing: ${missing.join(", ")}. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in Vercel. Visit /api/oauth/google/start on your deployed site to mint a refresh token.`,
     );
   }
 
@@ -41,6 +71,11 @@ async function getAccessToken(): Promise<string> {
   });
   if (!res.ok) {
     const t = await res.text().catch(() => "");
+    if (res.status === 400 || res.status === 401) {
+      throw new Error(
+        `Google OAuth refresh failed (${res.status}). Your GOOGLE_CLIENT_SECRET or GOOGLE_REFRESH_TOKEN is invalid/mismatched for GOOGLE_CLIENT_ID. Re-copy the OAuth client secret from Google Cloud and mint a fresh refresh token. Details: ${t.slice(0, 300)}`,
+      );
+    }
     throw new Error(`Google OAuth refresh failed (${res.status}): ${t.slice(0, 400)}`);
   }
   const data = (await res.json()) as { access_token: string; expires_in: number };
@@ -102,7 +137,7 @@ async function ensureFolder(name: string, parentId?: string): Promise<string> {
 }
 
 export async function getUserFolderId(userId: string): Promise<string> {
-  const explicitRoot = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID?.trim();
+  const explicitRoot = cleanEnvValue(process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID);
   const root = explicitRoot || (await ensureFolder(APP_FOLDER_NAME));
   return ensureFolder(userId, root);
 }
