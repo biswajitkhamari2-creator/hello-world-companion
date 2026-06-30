@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Download, FileText, Loader2, Newspaper, Sparkles, Trash2, Upload, LayoutDashboard, History, ChevronDown, ChevronUp, Eye, FileCheck2, X, RefreshCw } from "lucide-react";
+import { BookOpen, Download, FileText, Loader2, Newspaper, Sparkles, Trash2, Upload, LayoutDashboard, History, ChevronDown, ChevronUp, Eye, FileCheck2, X, RefreshCw, FolderSync } from "lucide-react";
 
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ import {
   extractDocument,
   deleteDocument,
   uploadDocument,
+  syncFromDrive,
 } from "@/lib/documents.functions";
 import { uploadFileResumable } from "@/lib/drive-upload";
 import {
