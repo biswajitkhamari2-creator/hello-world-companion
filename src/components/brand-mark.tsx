@@ -49,13 +49,13 @@ export function BrandMark({
       ? "text-2xl sm:text-3xl"
       : size === "sm"
       ? "text-base"
-      : "text-base sm:text-lg";
+      : "text-sm sm:text-lg";
   const suffix =
     size === "lg"
       ? "text-sm sm:text-base"
       : size === "sm"
       ? "text-[10px]"
-      : "text-[11px] sm:text-xs";
+      : "text-[10px] sm:text-xs";
 
   return (
     <span className={cn("flex min-w-0 items-center gap-2.5", className)}>
@@ -70,7 +70,7 @@ export function BrandMark({
       <span className="flex min-w-0 flex-col leading-tight">
         <span
           className={cn(
-            "truncate font-serif font-semibold tracking-tight",
+            "font-serif font-semibold tracking-tight whitespace-nowrap",
             title
           )}
         >
@@ -78,7 +78,7 @@ export function BrandMark({
         </span>
         <span
           className={cn(
-            "truncate font-mono italic tracking-wide text-muted-foreground",
+            "font-mono italic tracking-wide text-muted-foreground whitespace-nowrap",
             suffix
           )}
           aria-label="by Sidheswar Enterprises"
