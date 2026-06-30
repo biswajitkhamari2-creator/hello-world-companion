@@ -232,7 +232,7 @@ function InboxPage() {
                   setSelectedDate(e.target.value || todayIso());
                   setDateFilterOn(true);
                 }}
-                className="h-9 rounded-md border border-indigo-200 bg-white/70 backdrop-blur px-2 text-sm text-indigo-900"
+                className="h-9 rounded-md border border-indigo-300 bg-indigo-50/80 backdrop-blur px-2 text-sm text-indigo-900"
               />
               <Button size="sm" variant="outline" onClick={() => shiftDay(1)} disabled={selectedDate >= todayIso()}>
                 ›
@@ -281,7 +281,7 @@ function InboxPage() {
             <Loader2 className="h-4 w-4 animate-spin" /> Loading inbox…
           </div>
         ) : !filteredItems.length ? (
-          <div className="rounded-xl border border-dashed border-indigo-300 bg-white/50 backdrop-blur-md p-10 text-center shadow-sm">
+          <div className="rounded-xl border border-dashed border-indigo-300 bg-indigo-50/60 backdrop-blur-md p-10 text-center shadow-sm">
             <InboxIcon className="mx-auto h-8 w-8 text-muted-foreground" />
             <h3 className="mt-3 font-serif text-lg">
               {showArchived
@@ -301,7 +301,7 @@ function InboxPage() {
             {filteredItems.map((it) => (
               <li
                 key={it.id}
-                className="rounded-xl border border-indigo-100/70 bg-white/60 backdrop-blur-md p-4 shadow-sm hover:bg-white/80 transition-colors"
+                className="rounded-xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50/80 via-sky-50/70 to-amber-50/60 backdrop-blur-md p-4 shadow-sm hover:from-indigo-100/80 hover:via-sky-100/70 hover:to-amber-100/60 transition-colors"
               >
                 <div className="flex items-start gap-3">
                   <div className="shrink-0 mt-0.5">
