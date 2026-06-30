@@ -351,8 +351,8 @@ export async function uploadFinalResumableChunk(opts: {
     throw new Error("Invalid Drive upload session URL.");
   }
   const bytes = opts.chunk instanceof Uint8Array ? opts.chunk : new Uint8Array(opts.chunk);
-  const body = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(body).set(bytes);
+  const requestBody = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(requestBody).set(bytes);
   const token = await getAccessToken();
   const res = await fetch(opts.uploadUrl, {
     method: "PUT",
@@ -361,7 +361,7 @@ export async function uploadFinalResumableChunk(opts: {
       "Content-Length": String(bytes.byteLength),
       "Content-Range": `bytes ${opts.start}-${opts.end - 1}/${opts.total}`,
     },
-    body,
+    body: requestBody,
   });
   if (!res.ok) await throwDriveError("final upload chunk", res);
   const body = (await res.json()) as {
