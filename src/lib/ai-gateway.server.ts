@@ -150,6 +150,7 @@ export interface AiTaskProfile {
 }
 
 export function getAiTaskProfile(task?: string): AiTaskProfile {
+  const hasNvidia = Boolean(getAiApiKey("nvidia"));
   const hasGroq = Boolean(getAiApiKey("groq"));
   const hasGemini = Boolean(getAiApiKey("gemini"));
 
@@ -157,6 +158,16 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
   // generation layer uses a deterministic local parser instead of sending a
   // huge prompt; keep Groq preferred because the user chose it over Gemini.
   if (task === "newspaper") {
+    if (hasNvidia) {
+      return {
+        provider: "nvidia",
+        model: "meta/llama-3.3-70b-instruct",
+        chunkSize: 18_000,
+        recommendedConcurrency: 1,
+        minGapMs: 1_500,
+        maxOutputTokens: 2_500,
+      };
+    }
     if (hasGroq) {
       return {
         provider: "groq",
@@ -174,6 +185,17 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
       recommendedConcurrency: 1,
       minGapMs: hasGemini ? 8_000 : 65_000,
       maxOutputTokens: 3_000,
+    };
+  }
+
+  if (hasNvidia) {
+    return {
+      provider: "nvidia",
+      model: "meta/llama-3.3-70b-instruct",
+      chunkSize: task === "infographics" ? 20_000 : 24_000,
+      recommendedConcurrency: 1,
+      minGapMs: 1_500,
+      maxOutputTokens: task === "infographics" ? 2_500 : 2_200,
     };
   }
 
