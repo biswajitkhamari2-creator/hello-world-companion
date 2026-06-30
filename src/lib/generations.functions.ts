@@ -777,10 +777,12 @@ async function runOne(
   chunk: string,
   generateText: any,
   options: PromptOptions = {},
+  retryTuning: { maxAttempts?: number; initialRateDelayMs?: number } = {},
 ): Promise<any> {
   const prompt = `${promptFor(outputType, subject, chunk, options)}\n\nReturn JSON only in this exact shape (no markdown, no explanation):\n${jsonShapeFor(outputType)}`;
   // Retry on 429 / transient 5xx. Longer waits on rate limits since Gemini free tier is ~10 RPM.
-  const MAX_ATTEMPTS = 4;
+  const MAX_ATTEMPTS = retryTuning.maxAttempts ?? 4;
+  const RATE_DELAY_MS = retryTuning.initialRateDelayMs ?? 15000;
   let lastErr: any = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
@@ -799,12 +801,29 @@ async function runOne(
       const retriable = status === 429 || (status >= 500 && status < 600);
       if (!retriable || attempt === MAX_ATTEMPTS - 1) throw err;
       const isRate = status === 429 || /rate.?limit|too many requests|quota/i.test(msg);
-      const base = isRate ? 15000 : 1500;
+      const base = isRate ? RATE_DELAY_MS : 1500;
       const delay = Math.min(base * Math.pow(2, attempt), 60000) + Math.floor(Math.random() * 800);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
   throw lastErr;
+}
+
+function retryableAiFailure(err: unknown): { retryable: boolean; retryAfterMs: number; reason: string } {
+  const anyErr = err as { message?: string; status?: number; statusCode?: number; responseBody?: string };
+  const message = String(anyErr?.message || err || "");
+  const detail = `${message} ${anyErr?.responseBody || ""}`;
+  const status = anyErr?.statusCode ?? anyErr?.status ?? (detail.match(/\b(4\d\d|5\d\d)\b/)?.[1] ? Number(detail.match(/\b(4\d\d|5\d\d)\b/)![1]) : 0);
+  if (status === 402 || /payment required|credits|insufficient/i.test(detail)) {
+    return { retryable: false, retryAfterMs: 0, reason: friendlyAiError(err) };
+  }
+  if (status === 429 || /rate.?limit|too many requests|quota/i.test(detail)) {
+    return { retryable: true, retryAfterMs: 65_000 + Math.floor(Math.random() * 5_000), reason: friendlyAiError(err) };
+  }
+  if (status >= 500 && status < 600) {
+    return { retryable: true, retryAfterMs: 8_000 + Math.floor(Math.random() * 2_000), reason: "AI service is temporarily busy. Retrying…" };
+  }
+  return { retryable: false, retryAfterMs: 0, reason: friendlyAiError(err) };
 }
 
 function friendlyAiError(err: unknown): string {
@@ -967,11 +986,15 @@ export const processChunk = createServerFn({ method: "POST" })
     const gw = createGateway();
     const opts: PromptOptions = (data.options as PromptOptions) ?? {};
     try {
-      const part = await runOne(gw, DEFAULT_MODEL, UPSC_SYSTEM_PROMPT, data.outputType, doc.subject ?? null, chunks[data.chunkIndex], generateText, opts);
-      return { part };
+      const part = await runOne(gw, DEFAULT_MODEL, UPSC_SYSTEM_PROMPT, data.outputType, doc.subject ?? null, chunks[data.chunkIndex], generateText, opts, { maxAttempts: 1 });
+      return { part, retryable: false, retryAfterMs: 0, reason: null };
     } catch (e) {
       console.error("processChunk failed", e);
-      throw new Error(friendlyAiError(e));
+      const retry = retryableAiFailure(e);
+      if (retry.retryable) {
+        return { part: null, ...retry };
+      }
+      throw new Error(retry.reason);
     }
   });
 

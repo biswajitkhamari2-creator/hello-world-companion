@@ -497,7 +497,11 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
             const gap = Date.now() - lastStartedAt;
             if (gap < MIN_GAP_MS) await new Promise((r) => setTimeout(r, MIN_GAP_MS - gap));
             lastStartedAt = Date.now();
-            const { part } = await chunkFn({ data: { documentId: doc.id, outputType: type, chunkIndex: i, options } });
+            const chunkResult = await chunkFn({ data: { documentId: doc.id, outputType: type, chunkIndex: i, options } });
+            if (chunkResult?.retryable) {
+              throw new Error(`${chunkResult.reason || "AI is busy. Retrying…"} __retry_after_ms=${chunkResult.retryAfterMs || 65000}`);
+            }
+            const { part } = chunkResult;
             parts[i] = part;
             setProgress((p) => p && { ...p, done: p.done + 1, retrying: retry > 0 ? Math.max(0, p.retrying - 1) : p.retrying });
             return;
@@ -519,8 +523,10 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
             // Longer back-off on 429 since Gemini free is 10 RPM: 15s, 30s, 60s, 60s.
             const isRate = /429|Too Many Requests|rate limit|quota/i.test(msg);
             const base = isRate ? 15000 : 2000;
-            const delay = Math.min(base * Math.pow(2, retry), 60000) + Math.floor(Math.random() * 1500);
+            const serverRetryAfter = Number(msg.match(/__retry_after_ms=(\d+)/)?.[1] || 0);
+            const delay = serverRetryAfter || Math.min(base * Math.pow(2, retry), 60000) + Math.floor(Math.random() * 1500);
             if (retry === 0) setProgress((p) => p && { ...p, retrying: p.retrying + 1 });
+            if (isRate) toast.info(`AI is busy — waiting ${Math.ceil(delay / 1000)}s, then continuing automatically.`);
             await new Promise((r) => setTimeout(r, delay));
           }
         }
