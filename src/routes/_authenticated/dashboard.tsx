@@ -800,7 +800,7 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
                 <Button asChild size="sm" variant="outline" className="border-rose-300 text-rose-700 hover:bg-rose-50">
                   <a href="/inbox">📅 Pick date from Telegram</a>
                 </Button>
-                <Button size="sm" onClick={() => run("newspaper")} disabled={pending !== null} className="bg-rose-700 hover:bg-rose-800">
+                <Button size="sm" onClick={() => run("newspaper")} disabled={pending !== null} className="bg-green-600 hover:bg-green-700 text-white animate-pulse">
                   {pending === "newspaper" ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Newspaper className="mr-2 h-3.5 w-3.5" />}
                   Analyse as Newspaper
                 </Button>
