@@ -22,6 +22,11 @@ async function throwDriveError(action: string, res: Response): Promise<never> {
   if (authProblem) {
     throw new Error(`Google Drive connector authentication failed during ${action} (${res.status}): ${safeBody}`);
   }
+  if (res.status === 404 && action === "download") {
+    throw new Error(
+      "This file is no longer accessible in Google Drive. It was likely uploaded under a previous connector grant (the 'drive.file' scope only sees files this app currently created), or it was deleted/moved in Drive. Please re-upload the document.",
+    );
+  }
   throw new Error(`Google Drive ${action} failed (${res.status}): ${safeBody}`);
 }
 
