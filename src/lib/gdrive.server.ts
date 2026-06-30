@@ -355,7 +355,7 @@ export async function uploadFinalResumableChunk(opts: {
       "Content-Length": String(bytes.byteLength),
       "Content-Range": `bytes ${opts.start}-${opts.end - 1}/${opts.total}`,
     },
-    body: bytes,
+    body: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
   });
   if (!res.ok) await throwDriveError("final upload chunk", res);
   const body = (await res.json()) as {
