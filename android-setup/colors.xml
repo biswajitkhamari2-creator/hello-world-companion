@@ -1,0 +1,9 @@
+<!-- Save as: android/app/src/main/res/values/colors.xml (overwrite) -->
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#1a1f3a</color>
+    <color name="colorPrimaryDark">#0f1428</color>
+    <color name="colorAccent">#d4a857</color>
+    <color name="ic_launcher_background">#1a1f3a</color>
+    <color name="splash_background">#1a1f3a</color>
+</resources>

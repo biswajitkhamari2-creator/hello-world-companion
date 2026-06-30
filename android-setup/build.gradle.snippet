@@ -1,0 +1,32 @@
+// Merge into: android/app/build.gradle
+// Inside android { defaultConfig { ... } } and android { ... }
+
+android {
+    namespace "com.biswajit.geniusai"
+    compileSdk 35           // Android 15 SDK — required for Play Store from Aug 2025
+    defaultConfig {
+        applicationId "com.biswajit.geniusai"
+        minSdkVersion 23    // Android 6.0 — covers ~99% of devices
+        targetSdkVersion 34 // Android 14 (per requirement)
+        versionCode 1
+        versionName "1.0.0"
+        multiDexEnabled true
+    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Configure signing in Android Studio: Build > Generate Signed Bundle/APK
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    bundle {
+        language { enableSplit = true }
+        density  { enableSplit = true }
+        abi      { enableSplit = true }
+    }
+}

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>UPSC Genius AI</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #1a1f3a;
+        color: #f5f1e8;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .wrap { max-width: 320px; padding: 24px; }
+      h1 { color: #d4a857; font-size: 22px; margin: 0 0 12px; }
+      p { font-size: 14px; opacity: 0.8; line-height: 1.5; }
+      .spinner {
+        width: 36px; height: 36px; margin: 24px auto;
+        border: 3px solid rgba(212,168,87,0.25);
+        border-top-color: #d4a857;
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>UPSC Genius AI</h1>
+      <div class="spinner"></div>
+      <p>Loading… If this screen stays, check your internet connection.</p>
+      <p style="font-size:11px;opacity:0.5;margin-top:24px">by Sidheswar Enterprises</p>
+    </div>
+  </body>
+</html>
