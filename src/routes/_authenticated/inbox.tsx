@@ -160,7 +160,7 @@ function InboxPage() {
 
   return (
     <AppShell>
-      <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden bg-gradient-to-br from-indigo-50 via-sky-50 to-amber-50">
+      <div className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-gradient-to-br from-indigo-200 via-sky-200 to-amber-100">
         {/* Animated wave background */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-0 opacity-70">
           <svg viewBox="0 0 1440 320" xmlns="http://www.w3.org/2000/svg" className="w-full h-64 sm:h-80">
