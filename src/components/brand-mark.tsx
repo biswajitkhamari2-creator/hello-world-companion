@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +15,30 @@ export function BrandMark({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
-  const text = SUFFIX;
+  const [text, setText] = useState(SUFFIX);
+  const [phase, setPhase] = useState<"typing" | "hold" | "erasing" | "wait">("hold");
+
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    if (phase === "typing") {
+      if (text.length < SUFFIX.length) {
+        t = setTimeout(() => setText(SUFFIX.slice(0, text.length + 1)), 70);
+      } else {
+        t = setTimeout(() => setPhase("hold"), 1800);
+      }
+    } else if (phase === "hold") {
+      t = setTimeout(() => setPhase("erasing"), 1800);
+    } else if (phase === "erasing") {
+      if (text.length > 0) {
+        t = setTimeout(() => setText(SUFFIX.slice(0, text.length - 1)), 35);
+      } else {
+        t = setTimeout(() => setPhase("wait"), 500);
+      }
+    } else {
+      t = setTimeout(() => setPhase("typing"), 300);
+    }
+    return () => clearTimeout(t);
+  }, [text, phase]);
 
   const iconBox =
     size === "lg" ? "h-11 w-11" : size === "sm" ? "h-8 w-8" : "h-9 w-9";
