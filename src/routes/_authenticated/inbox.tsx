@@ -35,6 +35,7 @@ import {
 } from "@/lib/telegram-inbox.functions";
 import { extractDocument } from "@/lib/documents.functions";
 import type { OutputType } from "@/lib/generations.functions";
+import runningKid from "@/assets/running-kid.png";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   head: () => ({
@@ -161,6 +162,16 @@ function InboxPage() {
   return (
     <AppShell>
       <div className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-gradient-to-br from-indigo-200 via-sky-200 to-amber-100">
+        {/* Running kid animation */}
+        <img
+          src={runningKid}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          width={140}
+          height={140}
+          className="pointer-events-none absolute bottom-24 left-0 z-0 h-28 w-28 sm:h-36 sm:w-36 animate-kid-run drop-shadow-xl"
+        />
         {/* Animated wave background */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-0 opacity-70">
           <svg viewBox="0 0 1440 320" xmlns="http://www.w3.org/2000/svg" className="w-full h-64 sm:h-80">

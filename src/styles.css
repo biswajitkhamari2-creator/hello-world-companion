@@ -17,6 +17,16 @@
   animation: upsc-flip 3.5s ease-in-out infinite;
 }
 
+@keyframes kid-run {
+  0%   { transform: translateX(110vw) translateY(0); }
+  50%  { transform: translateX(50vw) translateY(-8px); }
+  100% { transform: translateX(-20vw) translateY(0); }
+}
+
+@utility animate-kid-run {
+  animation: kid-run 14s linear infinite;
+}
+
 /* === UPSC Genius AI — Scholarly Indigo design system === */
 
 @theme inline {
