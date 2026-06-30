@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { deriveTelegramWebhookSecret, safeEqual, tgDownload } from "@/lib/telegram.server";
+import { getTelegramWebhookSecret, safeEqual, tgDownload } from "@/lib/telegram.server";
 
 // Shared inbox owner: we store rows globally (RLS allows authenticated read).
 // Drive files are uploaded under a shared "telegram-inbox" pseudo-user folder.
@@ -105,7 +105,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const expected = deriveTelegramWebhookSecret();
+          const expected = getTelegramWebhookSecret();
           const actual = request.headers.get("X-Telegram-Bot-Api-Secret-Token") ?? "";
           if (!safeEqual(actual, expected)) {
             return new Response("Unauthorized", { status: 401 });

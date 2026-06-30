@@ -1,41 +1,81 @@
 // Google Drive storage adapter for UPSC Genius AI.
-// All calls route through the Lovable connector gateway so OAuth refresh is automatic.
-// Scope in use: drive.file — we can only see/manage files this app creates.
+// Talks directly to https://www.googleapis.com using your own OAuth refresh token.
+// Required env vars (set in Vercel):
+//   GOOGLE_OAUTH_CLIENT_ID
+//   GOOGLE_OAUTH_CLIENT_SECRET
+//   GOOGLE_OAUTH_REFRESH_TOKEN
+//   GOOGLE_DRIVE_ROOT_FOLDER_ID  (optional — defaults to a folder named UPSC-Genius-AI in My Drive)
+// See docs/google-oauth-setup.md for how to generate these.
 
-const GATEWAY = "https://connector-gateway.lovable.dev/google_drive";
+const DRIVE_API = "https://www.googleapis.com/drive/v3";
+const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
+const OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const APP_FOLDER_NAME = "UPSC-Genius-AI";
 
-function authHeaders() {
-  const lovableKey = process.env.LOVABLE_API_KEY?.trim();
-  const driveKey = process.env.GOOGLE_DRIVE_API_KEY?.trim();
-  if (!driveKey) throw new Error("Google Drive connector is not linked for this project.");
-  return {
-    ...(lovableKey ? { Authorization: `Bearer ${lovableKey}` } : {}),
-    "X-Connection-Api-Key": driveKey,
-  } as Record<string, string>;
+// In-memory access token cache (per-worker). Google tokens live 1h; refresh ~5 min early.
+let tokenCache: { token: string; expiresAt: number } | null = null;
+
+async function getAccessToken(): Promise<string> {
+  const now = Date.now();
+  if (tokenCache && tokenCache.expiresAt - 60_000 > now) return tokenCache.token;
+
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
+  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN?.trim();
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error(
+      "Google Drive is not configured. Set GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, and GOOGLE_OAUTH_REFRESH_TOKEN. See docs/google-oauth-setup.md.",
+    );
+  }
+
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+  });
+  const res = await fetch(OAUTH_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Google OAuth refresh failed (${res.status}): ${t.slice(0, 400)}`);
+  }
+  const data = (await res.json()) as { access_token: string; expires_in: number };
+  tokenCache = {
+    token: data.access_token,
+    expiresAt: now + data.expires_in * 1000,
+  };
+  return tokenCache.token;
 }
 
 async function throwDriveError(action: string, res: Response): Promise<never> {
   const body = await res.text();
   const safeBody = body.slice(0, 800);
-  const authProblem = /lovable_api_key|api key|authorization|unauthorized|forbidden|undecryptable|not_registered/i.test(body);
-  if (authProblem) {
-    throw new Error(`Google Drive connector authentication failed during ${action} (${res.status}): ${safeBody}`);
+  if (res.status === 401 || res.status === 403) {
+    // Force refresh next call
+    tokenCache = null;
+    throw new Error(`Google Drive auth failed during ${action} (${res.status}): ${safeBody}`);
   }
   if (res.status === 404 && action === "download") {
     throw new Error(
-      "This file is no longer accessible in Google Drive. It was likely uploaded under a previous connector grant (the 'drive.file' scope only sees files this app currently created), or it was deleted/moved in Drive. Please re-upload the document.",
+      "This file is no longer accessible in Google Drive. With the 'drive.file' scope, the app only sees files it created itself — files uploaded under a previous credential are invisible. Re-upload the document.",
     );
   }
   throw new Error(`Google Drive ${action} failed (${res.status}): ${safeBody}`);
 }
 
-async function gw(path: string, init: RequestInit = {}): Promise<Response> {
-  const res = await fetch(`${GATEWAY}${path}`, {
+async function gw(url: string, init: RequestInit = {}): Promise<Response> {
+  const token = await getAccessToken();
+  return fetch(url, {
     ...init,
-    headers: { ...authHeaders(), ...(init.headers as Record<string, string> | undefined) },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(init.headers as Record<string, string> | undefined),
+    },
   });
-  return res;
 }
 
 async function ensureFolder(name: string, parentId?: string): Promise<string> {
@@ -43,7 +83,7 @@ async function ensureFolder(name: string, parentId?: string): Promise<string> {
   const q = encodeURIComponent(
     `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false${qParent}`,
   );
-  const find = await gw(`/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1`);
+  const find = await gw(`${DRIVE_API}/files?q=${q}&fields=files(id,name)&pageSize=1`);
   if (!find.ok) await throwDriveError("folder lookup", find);
   const body = (await find.json()) as { files?: Array<{ id: string }> };
   if (body.files && body.files.length > 0) return body.files[0].id;
@@ -51,7 +91,7 @@ async function ensureFolder(name: string, parentId?: string): Promise<string> {
   // Create
   const meta: Record<string, unknown> = { name, mimeType: "application/vnd.google-apps.folder" };
   if (parentId) meta.parents = [parentId];
-  const create = await gw(`/drive/v3/files?fields=id`, {
+  const create = await gw(`${DRIVE_API}/files?fields=id`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(meta),
@@ -62,7 +102,8 @@ async function ensureFolder(name: string, parentId?: string): Promise<string> {
 }
 
 export async function getUserFolderId(userId: string): Promise<string> {
-  const root = await ensureFolder(APP_FOLDER_NAME);
+  const explicitRoot = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID?.trim();
+  const root = explicitRoot || (await ensureFolder(APP_FOLDER_NAME));
   return ensureFolder(userId, root);
 }
 
@@ -104,7 +145,7 @@ export async function uploadBufferToDrive(opts: {
   body.set(bytes, preBytes.length);
   body.set(postBytes, preBytes.length + bytes.length);
 
-  const res = await gw(`/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink,size,mimeType`, {
+  const res = await gw(`${DRIVE_UPLOAD}/files?uploadType=multipart&fields=id,webViewLink,size,mimeType`, {
     method: "POST",
     headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
     body,
@@ -120,7 +161,7 @@ export async function uploadBufferToDrive(opts: {
 }
 
 export async function downloadDriveFile(fileId: string): Promise<{ buffer: ArrayBuffer; mime: string }> {
-  const res = await gw(`/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`);
+  const res = await gw(`${DRIVE_API}/files/${encodeURIComponent(fileId)}?alt=media`);
   if (!res.ok) await throwDriveError("download", res);
   const mime = res.headers.get("content-type") || "application/octet-stream";
   const buffer = await res.arrayBuffer();
@@ -128,7 +169,7 @@ export async function downloadDriveFile(fileId: string): Promise<{ buffer: Array
 }
 
 export async function deleteDriveFile(fileId: string): Promise<void> {
-  const res = await gw(`/drive/v3/files/${encodeURIComponent(fileId)}`, { method: "DELETE" });
+  const res = await gw(`${DRIVE_API}/files/${encodeURIComponent(fileId)}`, { method: "DELETE" });
   // 404 = already gone, treat as success.
   if (!res.ok && res.status !== 404) {
     await throwDriveError("delete", res);
@@ -140,7 +181,7 @@ export async function getDriveStorageQuota(): Promise<{
   usage: number;
   usageInDrive: number;
 }> {
-  const res = await gw(`/drive/v3/about?fields=storageQuota`);
+  const res = await gw(`${DRIVE_API}/about?fields=storageQuota`);
   if (!res.ok) await throwDriveError("quota check", res);
   const body = (await res.json()) as { storageQuota?: { limit?: string; usage?: string; usageInDrive?: string } };
   const q = body.storageQuota ?? {};
@@ -165,7 +206,7 @@ export async function createResumableUploadSession(opts: {
     parents: [parentId],
     mimeType: opts.mime || "application/octet-stream",
   };
-  const res = await gw(`/upload/drive/v3/files?uploadType=resumable`, {
+  const res = await gw(`${DRIVE_UPLOAD}/files?uploadType=resumable`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json; charset=UTF-8",
@@ -181,7 +222,7 @@ export async function createResumableUploadSession(opts: {
     res.headers.get("x-goog-upload-url");
   if (!uploadUrl) {
     throw new Error(
-      "Drive did not return a resumable upload URL (Location header missing from gateway response).",
+      "Drive did not return a resumable upload URL (Location header missing).",
     );
   }
   return { uploadUrl };
@@ -195,7 +236,7 @@ export async function getDriveFileMetadata(fileId: string): Promise<{
   webViewLink: string | null;
 }> {
   const res = await gw(
-    `/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,size,mimeType,webViewLink`,
+    `${DRIVE_API}/files/${encodeURIComponent(fileId)}?fields=id,name,size,mimeType,webViewLink`,
   );
   if (!res.ok) await throwDriveError("metadata", res);
   const body = (await res.json()) as {
@@ -231,7 +272,7 @@ export async function listFolderFiles(folderId: string): Promise<Array<{
   let pageToken: string | undefined;
   for (let i = 0; i < 20; i++) {
     const tokenPart = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
-    const res = await gw(`/drive/v3/files?q=${q}&fields=${fields}&pageSize=200${tokenPart}`);
+    const res = await gw(`${DRIVE_API}/files?q=${q}&fields=${fields}&pageSize=200${tokenPart}`);
     if (!res.ok) await throwDriveError("folder list", res);
     const body = (await res.json()) as {
       nextPageToken?: string;
