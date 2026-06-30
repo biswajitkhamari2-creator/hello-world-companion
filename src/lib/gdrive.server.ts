@@ -145,3 +145,66 @@ export async function getDriveStorageQuota(): Promise<{
     usageInDrive: Number(q.usageInDrive ?? 0),
   };
 }
+
+// --- Resumable upload (direct browser → Google) ---
+
+export async function createResumableUploadSession(opts: {
+  userId: string;
+  fileName: string;
+  mime: string;
+  size: number;
+}): Promise<{ uploadUrl: string }> {
+  const parentId = await getUserFolderId(opts.userId);
+  const metadata = {
+    name: opts.fileName,
+    parents: [parentId],
+    mimeType: opts.mime || "application/octet-stream",
+  };
+  const res = await gw(`/upload/drive/v3/files?uploadType=resumable`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=UTF-8",
+      "X-Upload-Content-Type": metadata.mimeType,
+      "X-Upload-Content-Length": String(opts.size),
+    },
+    body: JSON.stringify(metadata),
+  });
+  if (!res.ok && res.status !== 200) await throwDriveError("resumable session init", res);
+  const uploadUrl =
+    res.headers.get("location") ||
+    res.headers.get("Location") ||
+    res.headers.get("x-goog-upload-url");
+  if (!uploadUrl) {
+    throw new Error(
+      "Drive did not return a resumable upload URL (Location header missing from gateway response).",
+    );
+  }
+  return { uploadUrl };
+}
+
+export async function getDriveFileMetadata(fileId: string): Promise<{
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  webViewLink: string | null;
+}> {
+  const res = await gw(
+    `/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,size,mimeType,webViewLink`,
+  );
+  if (!res.ok) await throwDriveError("metadata", res);
+  const body = (await res.json()) as {
+    id: string;
+    name: string;
+    size?: string;
+    mimeType?: string;
+    webViewLink?: string;
+  };
+  return {
+    id: body.id,
+    name: body.name,
+    size: Number(body.size ?? 0),
+    mimeType: body.mimeType ?? "application/octet-stream",
+    webViewLink: body.webViewLink ?? null,
+  };
+}
