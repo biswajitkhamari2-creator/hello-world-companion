@@ -322,7 +322,7 @@ export async function findLatestDriveFileByUpload(opts: {
     }>;
   };
   const files = body.files ?? [];
-  const exact = files.find((f) => Number(f.size ?? 0) === opts.size) ?? files[0];
+  const exact = files.find((f) => Number(f.size ?? 0) === opts.size);
   if (!exact) return null;
   return {
     id: exact.id,
