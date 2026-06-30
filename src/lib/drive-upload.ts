@@ -65,7 +65,7 @@ function isNetworkFetchError(err: unknown): boolean {
 function getChunkSize(total: number, override?: number): number {
   if (override) return override;
   if (total >= 512 * MIB) return 64 * MIB;
-  if (total >= 96 * MIB) return 32 * MIB;
+  if (total >= 96 * MIB) return DEFAULT_CHUNK;
   return 16 * MIB;
 }
 
@@ -73,7 +73,7 @@ export async function uploadFileResumable(
   opts: ResumableUploadOptions,
 ): Promise<ResumableUploadResult> {
   const total = opts.file.size;
-  const chunkSize = getChunkSize(total, opts.chunkSize ?? DEFAULT_CHUNK);
+  const chunkSize = getChunkSize(total, opts.chunkSize);
   let offset = 0;
 
   opts.onProgress?.(0, total);
