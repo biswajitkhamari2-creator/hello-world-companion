@@ -22,7 +22,7 @@ function Index() {
         Your App
       </h1>
       <p className="mt-3 max-w-md text-sm text-muted-foreground">
-        Firebase Authentication is wired up. Sign in to access the dashboard.
+        Supabase Authentication is wired up. Sign in to access the dashboard.
       </p>
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
         {loading ? (
