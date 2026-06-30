@@ -1,4 +1,4 @@
-// Google Drive storage adapter for Sushama UPSC.
+// Google Drive storage adapter for UPSC.
 // Talks directly to https://www.googleapis.com using your own OAuth refresh token.
 // Required env vars (set in Vercel):
 //   GOOGLE_CLIENT_ID

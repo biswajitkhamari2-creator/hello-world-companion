@@ -14,10 +14,10 @@ export const Route = createFileRoute("/auth")({
   }),
   head: () => ({
     meta: [
-      { title: "Sign in — Sushama UPSC" },
-      { name: "description", content: "Sign in to Sushama UPSC to access your AI mentor, notes, MCQs and current affairs library." },
+      { title: "Sign in — UPSC" },
+      { name: "description", content: "Sign in to UPSC to access your AI mentor, notes, MCQs and current affairs library." },
       { name: "robots", content: "noindex, nofollow" },
-      { property: "og:title", content: "Sign in — Sushama UPSC" },
+      { property: "og:title", content: "Sign in — UPSC" },
       { property: "og:url", content: "https://open-hello-bloom.lovable.app/auth" },
     ],
     links: [{ rel: "canonical", href: "https://open-hello-bloom.lovable.app/auth" }],

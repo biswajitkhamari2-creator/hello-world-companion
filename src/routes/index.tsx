@@ -22,9 +22,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sushama UPSC — AI Notes, MCQs & Current Affairs for UPSC" },
+      { title: "UPSC — AI Notes, MCQs & Current Affairs for UPSC" },
       { name: "description", content: "Premium AI mentor for UPSC aspirants. Upload any PDF or editorial and get syllabus-mapped notes, MCQs, infographics, handwritten notes and Mains answers — PYQ-aligned." },
-      { property: "og:title", content: "Sushama UPSC — AI Notes, MCQs & Current Affairs for UPSC" },
+      { property: "og:title", content: "UPSC — AI Notes, MCQs & Current Affairs for UPSC" },
       { property: "og:description", content: "Premium AI mentor for UPSC aspirants. Syllabus-mapped notes, MCQs, infographics and Mains answers from any study material." },
       { property: "og:url", content: "https://open-hello-bloom.lovable.app/" },
     ],
@@ -149,7 +149,7 @@ function Landing() {
           <BottomCTA />
         </main>
         <footer className="relative border-t border-border/50 py-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} <span className="font-semibold text-foreground/80">Sushama UPSC</span> · by Sidheswar Enterprises
+          © {new Date().getFullYear()} <span className="font-semibold text-foreground/80">UPSC</span> · by Sidheswar Enterprises
         </footer>
       </div>
     </AppShell>
@@ -171,7 +171,7 @@ function Hero() {
         <h1 className="mt-5 max-w-3xl font-serif text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl">
           Welcome back to{" "}
           <span className="animate-upsc-flip bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 bg-clip-text text-transparent">
-            Sushama&nbsp;UPSC
+            UPSC
           </span>
         </h1>
         <p className="mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">

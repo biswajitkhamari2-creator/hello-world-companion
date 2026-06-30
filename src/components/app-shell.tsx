@@ -191,7 +191,7 @@ function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border/60 px-3 py-3 text-[11px] text-muted-foreground">
         <SignOutButton />
-        <span className="mt-2 font-medium text-foreground/80">Sushama UPSC</span>
+        <span className="mt-2 font-medium text-foreground/80">UPSC</span>
         <span className="opacity-70">by Sidheswar Enterprises</span>
       </SidebarFooter>
     </Sidebar>
