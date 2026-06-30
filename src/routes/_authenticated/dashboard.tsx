@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Download, FileText, Loader2, Newspaper, Sparkles, Trash2, Upload, LayoutDashboard, History, ChevronDown, ChevronUp, Eye, FileCheck2, X, RefreshCw, FolderSync } from "lucide-react";
+import { BookOpen, Download, FileText, Loader2, Newspaper, Sparkles, Trash2, Upload, LayoutDashboard, History, ChevronDown, ChevronUp, Eye, FileCheck2, X, RefreshCw, FolderSync, Info } from "lucide-react";
 
 import { toast } from "sonner";
 
@@ -32,6 +32,14 @@ import {
 } from "@/lib/generations.functions";
 
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import { FinalChecker } from "@/components/final-checker";
 import { StampLogoButton } from "@/components/stamp-logo";
@@ -87,6 +95,7 @@ function Dashboard() {
   const finalize = useServerFn(finalizeUpload);
   const syncDrive = useServerFn(syncFromDrive);
   const [syncing, setSyncing] = useState(false);
+  const [showDriveAccessInfo, setShowDriveAccessInfo] = useState(false);
 
   async function onSyncFromDrive() {
     if (syncing) return;
@@ -320,6 +329,17 @@ function Dashboard() {
               <span className="hidden sm:inline">{syncing ? "Syncing…" : "Sync from Drive"}</span>
               <span className="sm:hidden">{syncing ? "…" : "Sync"}</span>
             </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowDriveAccessInfo(true)}
+              className="min-h-11 shrink-0"
+              title="Why don't I see my manually-uploaded Drive files?"
+              aria-label="Drive access info"
+            >
+              <Info className="h-4 w-4" aria-hidden="true" />
+            </Button>
             <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="min-h-11 shrink-0">
               {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="mr-2 h-4 w-4" aria-hidden="true" />}
               <span className="hidden sm:inline">
@@ -366,7 +386,47 @@ function Dashboard() {
           )}
         </div>
       </main>
-    </div></AppShell>
+    </div>
+    <Dialog open={showDriveAccessInfo} onOpenChange={setShowDriveAccessInfo}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>About "Sync from Drive"</DialogTitle>
+          <DialogDescription>
+            Why some Drive files don't appear, and how to expand access.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            <strong className="text-foreground">Current access:</strong> the app uses Google's
+            <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">drive.file</code>
+            scope — it can only see files the app itself created (uploads through this
+            dashboard or the Telegram bot).
+          </p>
+          <p>
+            <strong className="text-foreground">What "Sync from Drive" does:</strong> scans
+            your <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">UPSC-Genius-AI/&lt;your-id&gt;/</code>
+            folder and imports any app-created files that aren't yet in your library.
+          </p>
+          <p>
+            <strong className="text-foreground">PDFs you dropped manually</strong> into Drive
+            via drive.google.com will <em>not</em> appear — Google blocks the app from seeing
+            them at the OAuth level.
+          </p>
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900">
+            <p className="font-medium">Want full Drive read access?</p>
+            <p className="mt-1 text-xs">
+              Open <strong>Lovable → Connectors → Google Drive</strong>, disconnect, and
+              reconnect choosing the <code>drive.readonly</code> scope. After that, "Sync
+              from Drive" can pull in PDFs you uploaded manually anywhere in your Drive.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowDriveAccessInfo(false)}>Got it</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </AppShell>
   );
 }
 
