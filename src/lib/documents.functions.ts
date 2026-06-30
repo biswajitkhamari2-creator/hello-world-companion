@@ -8,6 +8,16 @@ const SUBJECTS = [
   "Society", "Governance", "Ethics", "Current Affairs",
 ] as const;
 
+const DRIVE_FILE_INACCESSIBLE_MESSAGE =
+  "This Google Drive file is no longer accessible. Delete this document and upload/forward it again.";
+
+function isDriveFileInaccessibleError(error: unknown): boolean {
+  const message = String((error as any)?.message || error || "");
+  return /no longer accessible in Google Drive|File not found|uploaded under a previous connector grant|drive\.file scope/i.test(
+    message,
+  );
+}
+
 async function extractTextFromBuffer(buf: ArrayBuffer, mime: string, filename: string): Promise<string> {
   const lower = (mime || "").toLowerCase();
   const name = filename.toLowerCase();
@@ -205,6 +215,17 @@ ${sample}
       return { ok: true, subject, priority };
     } catch (e: any) {
       console.error("extract failed", e);
+      if (isDriveFileInaccessibleError(e)) {
+        await supabase.from("documents").update({
+          status: "failed",
+          error_message: DRIVE_FILE_INACCESSIBLE_MESSAGE,
+        }).eq("id", doc.id);
+        return {
+          ok: false,
+          reason: "drive_file_inaccessible",
+          message: DRIVE_FILE_INACCESSIBLE_MESSAGE,
+        };
+      }
       await supabase.from("documents").update({
         status: "failed",
         error_message: e?.message || "Extraction failed",
@@ -219,7 +240,7 @@ export const listDocuments = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("documents")
-      .select("id,title,source_type,subject,priority,summary,status,size_bytes,created_at,mime,drive_file_id,drive_view_link,storage_provider")
+      .select("id,title,source_type,subject,priority,summary,status,error_message,size_bytes,created_at,mime,drive_file_id,drive_view_link,storage_provider")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw error;
