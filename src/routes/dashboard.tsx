@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import {
   listDocuments,
-  uploadDocument,
   createUploadSession,
   finalizeUpload,
   extractDocument,
@@ -90,7 +89,6 @@ function Dashboard() {
   });
 
 
-  const upload = useServerFn(uploadDocument);
   const startUploadSession = useServerFn(createUploadSession);
   const finalize = useServerFn(finalizeUpload);
   const extract = useServerFn(extractDocument);
