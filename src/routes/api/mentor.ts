@@ -1,9 +1,10 @@
 import {
   createGateway,
-  DEFAULT_MODEL,
   UPSC_SYSTEM_PROMPT,
+  getDefaultModel,
   getLovableAiGatewayResponseHeaders,
   getLovableAiGatewayRunId,
+  resolveAvailableAiProvider,
   withLovableAiGatewayRunIdHeader,
 } from "@/lib/ai-gateway.server";
 import { createFileRoute } from "@tanstack/react-router";
@@ -79,8 +80,9 @@ export const Route = createFileRoute("/api/mentor")({
               "AI_KEY_MISSING",
             );
           }
-          const gateway = createGateway(initialRunId);
-          const model = gateway(DEFAULT_MODEL);
+          const provider = await resolveAvailableAiProvider();
+          const gateway = createGateway(initialRunId, provider);
+          const model = gateway(getDefaultModel(provider));
           const result = streamText({
             model,
             maxRetries: 0,

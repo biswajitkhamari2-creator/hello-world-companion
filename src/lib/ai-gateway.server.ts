@@ -6,9 +6,77 @@ const RUN_ID_HEADER = "X-AI-Run-ID";
 
 export type AiProviderName = "groq" | "gemini";
 
+function cleanSecretValue(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  let cleaned = value.trim().replace(/^['"]|['"]$/g, "");
+  const assignment = cleaned.match(/^[A-Z0-9_]+\s*=\s*(.+)$/i);
+  if (assignment?.[1]) cleaned = assignment[1].trim().replace(/^['"]|['"]$/g, "");
+  return cleaned || undefined;
+}
+
+function getAiApiKey(provider: AiProviderName): string | undefined {
+  return cleanSecretValue(provider === "groq" ? process.env.GROQ_API_KEY : process.env.GEMINI_API_KEY);
+}
+
+function providerBaseUrl(provider: AiProviderName) {
+  return provider === "groq"
+    ? "https://api.groq.com/openai/v1"
+    : "https://generativelanguage.googleapis.com/v1beta/openai";
+}
+
+export function getConfiguredAiProviders(): AiProviderName[] {
+  const providers: AiProviderName[] = [];
+  if (getAiApiKey("groq")) providers.push("groq");
+  if (getAiApiKey("gemini")) providers.push("gemini");
+  return providers;
+}
+
+export function getDefaultModel(provider?: AiProviderName) {
+  const resolved = provider ?? (getAiApiKey("groq") ? "groq" : "gemini");
+  return resolved === "groq" ? "llama-3.1-8b-instant" : "gemini-2.0-flash";
+}
+
+async function isProviderAuthorized(provider: AiProviderName, apiKey: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5_000);
+  try {
+    const response = await fetch(`${providerBaseUrl(provider)}/models`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+    });
+    return response.status !== 401 && response.status !== 403;
+  } catch {
+    // If the lightweight check is blocked by the provider/network, still try the real request.
+    return true;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function resolveAvailableAiProvider(preferredProvider?: AiProviderName): Promise<AiProviderName> {
+  const configured = getConfiguredAiProviders();
+  if (!configured.length) {
+    throw new Error("No AI key configured. Set GROQ_API_KEY (preferred) or GEMINI_API_KEY in project secrets.");
+  }
+
+  const order: AiProviderName[] = preferredProvider
+    ? [preferredProvider, ...configured.filter((provider) => provider !== preferredProvider)]
+    : ["groq", "gemini"].filter((provider): provider is AiProviderName => configured.includes(provider as AiProviderName));
+
+  const rejected: AiProviderName[] = [];
+  for (const provider of order) {
+    const apiKey = getAiApiKey(provider);
+    if (!apiKey) continue;
+    if (await isProviderAuthorized(provider, apiKey)) return provider;
+    rejected.push(provider);
+  }
+
+  throw new Error(`AI provider key rejected: ${rejected.join(", ") || "configured provider"}`);
+}
+
 export function createGateway(initialRunId?: string, preferredProvider?: AiProviderName) {
-  const groqKey = process.env.GROQ_API_KEY?.trim();
-  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const groqKey = getAiApiKey("groq");
+  const geminiKey = getAiApiKey("gemini");
   const useGroq = preferredProvider === "gemini" ? false : preferredProvider === "groq" ? Boolean(groqKey) : Boolean(groqKey);
   const apiKey = useGroq ? groqKey : geminiKey || groqKey;
   const providerName: AiProviderName = useGroq || !geminiKey ? "groq" : "gemini";
@@ -34,9 +102,7 @@ export function createGateway(initialRunId?: string, preferredProvider?: AiProvi
 
   const provider = createOpenAICompatible({
     name: providerName,
-    baseURL: providerName === "groq"
-      ? "https://api.groq.com/openai/v1"
-      : "https://generativelanguage.googleapis.com/v1beta/openai",
+    baseURL: providerBaseUrl(providerName),
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },
@@ -66,11 +132,8 @@ export async function withLovableAiGatewayRunIdHeader(
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-// Default model — Groq's Llama 3.3 70B (free tier, high RPM) when GROQ_API_KEY is set,
-// otherwise falls back to Gemini.
-export const DEFAULT_MODEL = process.env.GROQ_API_KEY?.trim()
-  ? "llama-3.1-8b-instant"
-  : "gemini-2.0-flash";
+// Backwards-compatible fallback; request handlers should prefer getDefaultModel(provider).
+export const DEFAULT_MODEL = "llama-3.1-8b-instant";
 
 export interface AiTaskProfile {
   provider: AiProviderName;
@@ -82,8 +145,8 @@ export interface AiTaskProfile {
 }
 
 export function getAiTaskProfile(task?: string): AiTaskProfile {
-  const hasGroq = Boolean(process.env.GROQ_API_KEY?.trim());
-  const hasGemini = Boolean(process.env.GEMINI_API_KEY?.trim());
+  const hasGroq = Boolean(getAiApiKey("groq"));
+  const hasGemini = Boolean(getAiApiKey("gemini"));
 
   // Newspaper analysis is prompt + output heavy. With Groq free TPM, the
   // generation layer uses a deterministic local parser instead of sending a
