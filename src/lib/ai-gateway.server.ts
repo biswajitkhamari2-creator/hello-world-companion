@@ -5,9 +5,12 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 const RUN_ID_HEADER = "X-AI-Run-ID";
 
 export function createGateway(initialRunId?: string) {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const groqKey = process.env.GROQ_API_KEY?.trim();
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const useGroq = Boolean(groqKey);
+  const apiKey = groqKey || geminiKey;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured. Add it in project secrets to enable AI features.");
+    throw new Error("No AI key configured. Set GROQ_API_KEY (preferred) or GEMINI_API_KEY in project secrets.");
   }
 
   let runId = initialRunId?.trim() || undefined;
@@ -27,8 +30,10 @@ export function createGateway(initialRunId?: string) {
   if (runId) publishRunId(runId);
 
   const provider = createOpenAICompatible({
-    name: "gemini",
-    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+    name: useGroq ? "groq" : "gemini",
+    baseURL: useGroq
+      ? "https://api.groq.com/openai/v1"
+      : "https://generativelanguage.googleapis.com/v1beta/openai",
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },
@@ -58,8 +63,11 @@ export async function withLovableAiGatewayRunIdHeader(
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-// Gemini model id (note: no "google/" prefix when calling Gemini directly).
-export const DEFAULT_MODEL = "gemini-2.0-flash";
+// Default model — Groq's Llama 3.3 70B (free tier, high RPM) when GROQ_API_KEY is set,
+// otherwise falls back to Gemini.
+export const DEFAULT_MODEL = process.env.GROQ_API_KEY?.trim()
+  ? "llama-3.3-70b-versatile"
+  : "gemini-2.0-flash";
 
 
 
