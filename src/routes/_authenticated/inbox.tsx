@@ -160,7 +160,36 @@ function InboxPage() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden bg-gradient-to-br from-indigo-50 via-sky-50 to-amber-50">
+        {/* Animated wave background */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-0 opacity-70">
+          <svg viewBox="0 0 1440 320" xmlns="http://www.w3.org/2000/svg" className="w-full h-64 sm:h-80">
+            <path fill="#6366f1" fillOpacity="0.18">
+              <animate attributeName="d" dur="9s" repeatCount="indefinite"
+                values="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,202.7C672,203,768,181,864,165.3C960,149,1056,139,1152,154.7C1248,171,1344,213,1392,234.7L1440,256L1440,320L0,320Z;
+                        M0,192L48,202.7C96,213,192,235,288,224C384,213,480,171,576,165.3C672,160,768,192,864,213.3C960,235,1056,245,1152,229.3C1248,213,1344,171,1392,149.3L1440,128L1440,320L0,320Z;
+                        M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,202.7C672,203,768,181,864,165.3C960,149,1056,139,1152,154.7C1248,171,1344,213,1392,234.7L1440,256L1440,320L0,320Z" />
+            </path>
+          </svg>
+          <svg viewBox="0 0 1440 320" xmlns="http://www.w3.org/2000/svg" className="w-full h-56 sm:h-72 -mt-48 sm:-mt-56">
+            <path fill="#0ea5e9" fillOpacity="0.16">
+              <animate attributeName="d" dur="12s" repeatCount="indefinite"
+                values="M0,160L48,176C96,192,192,224,288,229.3C384,235,480,213,576,186.7C672,160,768,128,864,138.7C960,149,1056,203,1152,213.3C1248,224,1344,192,1392,176L1440,160L1440,320L0,320Z;
+                        M0,256L48,234.7C96,213,192,171,288,165.3C384,160,480,192,576,202.7C672,213,768,203,864,186.7C960,171,1056,149,1152,154.7C1248,160,1344,192,1392,208L1440,224L1440,320L0,320Z;
+                        M0,160L48,176C96,192,192,224,288,229.3C384,235,480,213,576,186.7C672,160,768,128,864,138.7C960,149,1056,203,1152,213.3C1248,224,1344,192,1392,176L1440,160L1440,320L0,320Z" />
+            </path>
+          </svg>
+          <svg viewBox="0 0 1440 320" xmlns="http://www.w3.org/2000/svg" className="w-full h-48 sm:h-64 -mt-40 sm:-mt-52">
+            <path fill="#f59e0b" fillOpacity="0.14">
+              <animate attributeName="d" dur="15s" repeatCount="indefinite"
+                values="M0,288L48,272C96,256,192,224,288,213.3C384,203,480,213,576,229.3C672,245,768,267,864,261.3C960,256,1056,224,1152,208C1248,192,1344,192,1392,192L1440,192L1440,320L0,320Z;
+                        M0,224L48,240C96,256,192,288,288,282.7C384,277,480,235,576,224C672,213,768,235,864,234.7C960,235,1056,213,1152,213.3C1248,213,1344,235,1392,245.3L1440,256L1440,320L0,320Z;
+                        M0,288L48,272C96,256,192,224,288,213.3C384,203,480,213,576,229.3C672,245,768,267,864,261.3C960,256,1056,224,1152,208C1248,192,1344,192,1392,192L1440,192L1440,320L0,320Z" />
+            </path>
+          </svg>
+        </div>
+
+        <main className="relative z-10 mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         <header className="flex flex-wrap items-end justify-between gap-3 mb-5">
           <div>
             <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-indigo-900 flex items-center gap-2">
@@ -406,7 +435,8 @@ function InboxPage() {
             ))}
           </ul>
         )}
-      </main>
+        </main>
+      </div>
     </AppShell>
   );
 }
