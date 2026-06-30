@@ -882,6 +882,9 @@ async function runOne(
   options: PromptOptions = {},
   retryTuning: { maxAttempts?: number; initialRateDelayMs?: number; maxOutputTokens?: number } = {},
 ): Promise<any> {
+  if (outputType === "newspaper" && /^llama/i.test(model)) {
+    return localNewspaperFallback(chunk);
+  }
   const prompt = `${promptFor(outputType, subject, chunk, options)}\n\nReturn JSON only in this exact shape (no markdown, no explanation):\n${jsonShapeFor(outputType)}`;
   // Retry on 429 / transient 5xx. Longer waits on rate limits since Gemini free tier is ~10 RPM.
   const MAX_ATTEMPTS = retryTuning.maxAttempts ?? 4;
@@ -978,9 +981,10 @@ export const generateOutput = createServerFn({ method: "POST" })
     if (docErr || !doc) throw new Error("Document not found");
     if (!doc.extracted_text || doc.status !== "ready") throw new Error("Document is not ready yet");
 
-    const { createGateway, DEFAULT_MODEL, UPSC_SYSTEM_PROMPT } = await import("./ai-gateway.server");
+    const { createGateway, DEFAULT_MODEL, UPSC_SYSTEM_PROMPT, getAiTaskProfile } = await import("./ai-gateway.server");
     const { generateText } = await import("ai");
-    const gw = createGateway();
+    const profile = getAiTaskProfile(data.outputType);
+    const gw = createGateway(undefined, profile.provider);
 
     const schema = SCHEMAS[data.outputType];
     const fullText: string = doc.extracted_text;
@@ -990,7 +994,7 @@ export const generateOutput = createServerFn({ method: "POST" })
 
     // No artificial page limit — chunk through the entire document.
     // ~40k chars/chunk ≈ 10–12 pages of source. Hard cap is a safety ceiling only.
-    const CHUNK_SIZE = 40_000;
+    const CHUNK_SIZE = profile.chunkSize;
     const MAX_CHUNKS = 500; // ~5,000+ source pages
     const rawChunks = chunkText(fullText, CHUNK_SIZE).slice(0, MAX_CHUNKS);
     const chunks = rawChunks.length ? rawChunks : [fullText.slice(0, CHUNK_SIZE)];
@@ -1001,7 +1005,7 @@ export const generateOutput = createServerFn({ method: "POST" })
       let terminalError: string | null = null;
       for (let i = 0; i < chunks.length; i++) {
         try {
-          results[i] = await runOne(gw, DEFAULT_MODEL, UPSC_SYSTEM_PROMPT, data.outputType, docSubject, chunks[i], generateText, opts);
+          results[i] = await runOne(gw, profile.model || DEFAULT_MODEL, UPSC_SYSTEM_PROMPT, data.outputType, docSubject, chunks[i], generateText, opts, { maxOutputTokens: profile.maxOutputTokens });
         } catch (err: any) {
           const msg = String(err?.message || err);
           if (/429|rate.?limit/i.test(msg)) rateLimitedCount++;
@@ -1037,7 +1041,7 @@ export const generateOutput = createServerFn({ method: "POST" })
         output_type: data.outputType,
         title,
         content: finalOutput,
-        model: DEFAULT_MODEL,
+        model: profile.model || DEFAULT_MODEL,
         status: "ready",
       }).select().single();
       if (error) throw error;
@@ -1052,7 +1056,7 @@ export const generateOutput = createServerFn({ method: "POST" })
 
 // ---------- Chunked generation with client-driven progress ----------
 
-const CHUNK_SIZE = 40_000;
+const FALLBACK_CHUNK_SIZE = 14_000;
 function maxChunksFor(_t: OutputType) { return 500; } // no artificial cap (~5,000+ source pages)
 
 async function loadDocForUser(supabase: any, userId: string, documentId: string) {
@@ -1071,9 +1075,17 @@ export const planGeneration = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     const doc = await loadDocForUser(context.supabase, context.userId, data.documentId);
-    const raw = chunkText(doc.extracted_text, CHUNK_SIZE).slice(0, maxChunksFor(data.outputType));
+    const { getAiTaskProfile } = await import("./ai-gateway.server");
+    const profile = getAiTaskProfile(data.outputType);
+    const raw = chunkText(doc.extracted_text, profile.chunkSize || FALLBACK_CHUNK_SIZE).slice(0, maxChunksFor(data.outputType));
     const totalChunks = raw.length || 1;
-    return { totalChunks, subject: doc.subject ?? null, title: doc.title ?? null };
+    return {
+      totalChunks,
+      subject: doc.subject ?? null,
+      title: doc.title ?? null,
+      recommendedConcurrency: profile.recommendedConcurrency,
+      minGapMs: profile.minGapMs,
+    };
   });
 
 export const processChunk = createServerFn({ method: "POST" })
@@ -1082,19 +1094,22 @@ export const processChunk = createServerFn({ method: "POST" })
     documentId: z.string().uuid(),
     outputType: z.enum(OUTPUT_TYPES),
     chunkIndex: z.number().int().min(0),
+    chunkSize: z.number().int().min(2_000).max(60_000).optional(),
     options: OPTIONS_SCHEMA,
   }).parse(d))
   .handler(async ({ data, context }) => {
     const doc = await loadDocForUser(context.supabase, context.userId, data.documentId);
-    const raw = chunkText(doc.extracted_text, CHUNK_SIZE).slice(0, maxChunksFor(data.outputType));
+    const { getAiTaskProfile } = await import("./ai-gateway.server");
+    const profile = getAiTaskProfile(data.outputType);
+    const raw = chunkText(doc.extracted_text, data.chunkSize || profile.chunkSize || FALLBACK_CHUNK_SIZE).slice(0, maxChunksFor(data.outputType));
     const chunks = raw.length ? raw : [doc.extracted_text.slice(0, CHUNK_SIZE)];
     if (data.chunkIndex >= chunks.length) throw new Error("Chunk index out of range");
     const { createGateway, DEFAULT_MODEL, UPSC_SYSTEM_PROMPT } = await import("./ai-gateway.server");
     const { generateText } = await import("ai");
-    const gw = createGateway();
+    const gw = createGateway(undefined, profile.provider);
     const opts: PromptOptions = (data.options as PromptOptions) ?? {};
     try {
-      const part = await runOne(gw, DEFAULT_MODEL, UPSC_SYSTEM_PROMPT, data.outputType, doc.subject ?? null, chunks[data.chunkIndex], generateText, opts, { maxAttempts: 1 });
+      const part = await runOne(gw, profile.model || DEFAULT_MODEL, UPSC_SYSTEM_PROMPT, data.outputType, doc.subject ?? null, chunks[data.chunkIndex], generateText, opts, { maxAttempts: 1, maxOutputTokens: profile.maxOutputTokens });
       return { part, retryable: false, retryAfterMs: 0, reason: null };
     } catch (e) {
       console.error("processChunk failed", e);
