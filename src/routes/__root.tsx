@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import ogCover from "@/assets/og-cover.jpg";
 import "@fontsource/fraunces/400.css";
 import "@fontsource/fraunces/600.css";
 import "@fontsource/fraunces/700.css";
@@ -88,19 +89,53 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "UPSC Mitra — by Sidheswar Enterprises" },
-      { name: "description", content: "Upload any study material and let AI generate UPSC-oriented notes, MCQs, and Mains questions aligned with the syllabus and previous-year trends." },
+      { title: "UPSC Genius AI — AI Notes, MCQs & Current Affairs" },
+      { name: "description", content: "AI-powered UPSC prep: turn any PDF, editorial or newspaper into syllabus-mapped notes, MCQs, infographics and Mains answers — PYQ-aligned." },
+      { name: "theme-color", content: "#1a1f3a" },
       { name: "author", content: "Sidheswar Enterprises" },
-      { property: "og:title", content: "UPSC Mitra — by Sidheswar Enterprises" },
-      { property: "og:description", content: "Upload any study material and let AI generate UPSC-oriented notes, MCQs, and Mains questions aligned with the syllabus and previous-year trends." },
+      { property: "og:site_name", content: "UPSC Genius AI" },
+      { property: "og:locale", content: "en_IN" },
+      { property: "og:title", content: "UPSC Genius AI — AI Notes, MCQs & Current Affairs" },
+      { property: "og:description", content: "AI-powered UPSC prep: turn any PDF, editorial or newspaper into syllabus-mapped notes, MCQs, infographics and Mains answers — PYQ-aligned." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "UPSC Mitra — by Sidheswar Enterprises" },
-      { name: "twitter:description", content: "Upload any study material and let AI generate UPSC-oriented notes, MCQs, and Mains questions aligned with the syllabus and previous-year trends." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ad50c35f-561d-4086-9949-44a35981b0f3/id-preview-102710b2--be6b80b9-70b2-4fbd-91be-fb74dc5bebe0.lovable.app-1782760146645.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ad50c35f-561d-4086-9949-44a35981b0f3/id-preview-102710b2--be6b80b9-70b2-4fbd-91be-fb74dc5bebe0.lovable.app-1782760146645.png" },
+      { name: "twitter:title", content: "UPSC Genius AI — AI Notes, MCQs & Current Affairs" },
+      { name: "twitter:description", content: "AI-powered UPSC prep: turn any PDF, editorial or newspaper into syllabus-mapped notes, MCQs, infographics and Mains answers — PYQ-aligned." },
+      { property: "og:image", content: `https://open-hello-bloom.lovable.app${ogCover}` },
+      { property: "og:image:width", content: "1216" },
+      { property: "og:image:height", content: "640" },
+      { name: "twitter:image", content: `https://open-hello-bloom.lovable.app${ogCover}` },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              "@id": "https://open-hello-bloom.lovable.app/#org",
+              name: "Sidheswar Enterprises",
+              url: "https://open-hello-bloom.lovable.app",
+              logo: `https://open-hello-bloom.lovable.app${ogCover}`,
+            },
+            {
+              "@type": "WebSite",
+              "@id": "https://open-hello-bloom.lovable.app/#site",
+              name: "UPSC Genius AI",
+              url: "https://open-hello-bloom.lovable.app",
+              publisher: { "@id": "https://open-hello-bloom.lovable.app/#org" },
+              potentialAction: {
+                "@type": "SearchAction",
+                target: "https://open-hello-bloom.lovable.app/mentor?q={search_term_string}",
+                "query-input": "required name=search_term_string",
+              },
+            },
+          ],
+        }),
+      },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,

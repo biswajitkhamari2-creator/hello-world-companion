@@ -12,6 +12,16 @@ export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>) => ({
     redirect: typeof s.redirect === "string" ? s.redirect : undefined,
   }),
+  head: () => ({
+    meta: [
+      { title: "Sign in — UPSC Genius AI" },
+      { name: "description", content: "Sign in to UPSC Genius AI to access your AI mentor, notes, MCQs and current affairs library." },
+      { name: "robots", content: "noindex, nofollow" },
+      { property: "og:title", content: "Sign in — UPSC Genius AI" },
+      { property: "og:url", content: "https://open-hello-bloom.lovable.app/auth" },
+    ],
+    links: [{ rel: "canonical", href: "https://open-hello-bloom.lovable.app/auth" }],
+  }),
   component: AuthPage,
 });
 

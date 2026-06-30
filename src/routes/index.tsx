@@ -22,11 +22,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "UPSC Genius AI — by Sidheswar Enterprises" },
-      { name: "description", content: "Premium AI-powered UPSC preparation platform. Upload any material and generate notes, MCQs, infographics, and mains questions aligned with the latest syllabus and PYQs." },
-      { property: "og:title", content: "UPSC Genius AI — by Sidheswar Enterprises" },
-      { property: "og:description", content: "Premium AI-powered UPSC preparation platform by Sidheswar Enterprises." },
+      { title: "UPSC Genius AI — AI Notes, MCQs & Current Affairs for UPSC" },
+      { name: "description", content: "Premium AI mentor for UPSC aspirants. Upload any PDF or editorial and get syllabus-mapped notes, MCQs, infographics, handwritten notes and Mains answers — PYQ-aligned." },
+      { property: "og:title", content: "UPSC Genius AI — AI Notes, MCQs & Current Affairs for UPSC" },
+      { property: "og:description", content: "Premium AI mentor for UPSC aspirants. Syllabus-mapped notes, MCQs, infographics and Mains answers from any study material." },
+      { property: "og:url", content: "https://open-hello-bloom.lovable.app/" },
     ],
+    links: [{ rel: "canonical", href: "https://open-hello-bloom.lovable.app/" }],
   }),
   component: Landing,
 });
