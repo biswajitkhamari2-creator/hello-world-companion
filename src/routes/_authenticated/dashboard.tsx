@@ -678,7 +678,18 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
       )}
 
       {doc.status === "failed" && (
-        <p className="mt-3 text-sm text-rose-700">Extraction failed. Try a different file.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <p className="text-sm text-rose-700">
+            Extraction failed{doc.error_message ? `: ${doc.error_message}` : "."} You can retry with OCR.
+          </p>
+          <ReprocessButton docId={doc.id} />
+        </div>
+      )}
+
+      {doc.status === "ready" && (
+        <div className="mt-3">
+          <ReprocessButton docId={doc.id} variant="ghost" label="Re-run extraction (OCR)" />
+        </div>
       )}
 
     </div>
