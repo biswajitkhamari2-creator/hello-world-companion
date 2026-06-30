@@ -48,7 +48,8 @@ function EditorialPage() {
     try {
       toast.loading("Uploading editorial to Drive…", { id: "ext" });
       const mime = file.type || "application/pdf";
-      const SMALL_MAX = 90 * 1024 * 1024;
+      // Vercel serverless functions cap request bodies at ~4.5 MB.
+      const SMALL_MAX = 4 * 1024 * 1024;
       let uploaded: any;
       if (file.size <= SMALL_MAX) {
         const fd = new FormData();
