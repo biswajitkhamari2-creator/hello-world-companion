@@ -1,0 +1,1 @@
+ALTER TABLE public.generations DROP CONSTRAINT generations_output_type_check; ALTER TABLE public.generations ADD CONSTRAINT generations_output_type_check CHECK (output_type = ANY (ARRAY['handwritten_notes'::text, 'short_notes'::text, 'prelims_mcqs'::text, 'mains_questions'::text, 'infographics'::text, 'newspaper'::text, 'final_checker'::text]));

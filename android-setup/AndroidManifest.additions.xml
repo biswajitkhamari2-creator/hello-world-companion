@@ -1,0 +1,50 @@
+<!--
+  Merge these into: android/app/src/main/AndroidManifest.xml
+  AFTER running `npx cap add android`.
+
+  Place <uses-permission> entries at the top inside <manifest>.
+  Place <queries> at the top inside <manifest>.
+  The <application> attributes go on the existing <application> tag.
+-->
+
+<!-- Required for: API calls, file upload, downloads, camera, mic, notifications -->
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.VIBRATE" />
+
+<!-- Scoped storage (Android 10+); WRITE_EXTERNAL_STORAGE only needed for <= API 28 -->
+<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+<uses-permission
+    android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+    android:maxSdkVersion="28" />
+
+<uses-feature android:name="android.hardware.camera" android:required="false" />
+<uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+<!-- Lets the WebView open file pickers / share intents -->
+<queries>
+    <intent>
+        <action android:name="android.intent.action.GET_CONTENT" />
+        <data android:mimeType="*/*" />
+    </intent>
+    <intent>
+        <action android:name="android.media.action.IMAGE_CAPTURE" />
+    </intent>
+    <intent>
+        <action android:name="android.intent.action.PICK" />
+    </intent>
+</queries>
+
+<!--
+  On the existing <application ...> element, ensure these attributes are set:
+    android:usesCleartextTraffic="false"
+    android:requestLegacyExternalStorage="false"
+    android:hardwareAccelerated="true"
+    android:largeHeap="true"
+-->

@@ -1,0 +1,419 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import {
+  FileText,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Inbox as InboxIcon,
+  Loader2,
+  Download,
+  ExternalLink,
+  RefreshCw,
+  Trash2,
+  Archive,
+  ArchiveRestore,
+  Newspaper,
+  BookOpen,
+  PenLine,
+  Sparkles,
+  Calendar as CalendarIcon,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { AppShell } from "@/components/app-shell";
+import {
+  listInbox,
+  importInboxItem,
+  archiveInboxItem,
+  deleteInboxItem,
+  type InboxItem,
+} from "@/lib/telegram-inbox.functions";
+import { extractDocument } from "@/lib/documents.functions";
+import type { OutputType } from "@/lib/generations.functions";
+
+export const Route = createFileRoute("/inbox")({
+  head: () => ({
+    meta: [{ title: "Telegram Inbox — UPSC Mitra" }],
+  }),
+  component: InboxPage,
+});
+
+function InboxPage() {
+  const navigate = useNavigate();
+  const [ready, setReady] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const todayIso = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+  };
+  const [selectedDate, setSelectedDate] = useState<string>(todayIso());
+  const [dateFilterOn, setDateFilterOn] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        const { error } = await supabase.auth.signInAnonymously();
+        if (error) toast.error(error.message);
+      }
+      setReady(true);
+    })();
+  }, []);
+
+  const list = useServerFn(listInbox);
+  const importer = useServerFn(importInboxItem);
+  const archiver = useServerFn(archiveInboxItem);
+  const deleter = useServerFn(deleteInboxItem);
+  const extract = useServerFn(extractDocument);
+  const qc = useQueryClient();
+
+  const q = useQuery({
+    queryKey: ["telegram-inbox", showArchived ? "archived" : "active"],
+    queryFn: () => list({ data: { archived: showArchived } }) as Promise<InboxItem[]>,
+    enabled: ready,
+    refetchInterval: 20_000,
+  });
+
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+
+  function setActiveDoc(documentId: string) {
+    try {
+      sessionStorage.setItem("active_doc_id", documentId);
+    } catch {}
+  }
+
+  async function doImport(item: InboxItem, autoRun: OutputType | null) {
+    setBusyId(item.id);
+    setBusyAction(autoRun ?? "import");
+    try {
+      const r = await importer({ data: { itemId: item.id } });
+      setActiveDoc(r.documentId);
+      if (autoRun) {
+        try {
+          sessionStorage.setItem("auto_run_type", autoRun);
+          sessionStorage.setItem("auto_run_doc", r.documentId);
+        } catch {}
+      }
+      // Kick off extraction so the dashboard auto-runner can take over.
+      extract({ data: { documentId: r.documentId } }).catch(() => {});
+      toast.success(autoRun ? `Imported — starting ${autoRun.replace("_", " ")}…` : "Imported to your library");
+      qc.invalidateQueries({ queryKey: ["documents"] });
+      navigate({ to: "/dashboard" });
+    } catch (e) {
+      toast.error((e as Error).message || "Import failed");
+    } finally {
+      setBusyId(null);
+      setBusyAction(null);
+    }
+  }
+
+  const archiveMut = useMutation({
+    mutationFn: ({ itemId, archived }: { itemId: string; archived: boolean }) =>
+      archiver({ data: { itemId, archived } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["telegram-inbox"] });
+      toast.success("Updated");
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (itemId: string) => deleter({ data: { itemId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["telegram-inbox"] });
+      toast.success("Deleted");
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const allItems = q.data ?? [];
+  const sameLocalDay = (iso: string, ymd: string) => {
+    const d = new Date(iso);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 10);
+    return local === ymd;
+  };
+  const filteredItems = dateFilterOn
+    ? allItems.filter((it) => sameLocalDay(it.posted_at, selectedDate))
+    : allItems;
+  const pdfsForDay = filteredItems.filter((it) => it.kind === "pdf" && !it.archived_at);
+
+  async function fetchDayMaterial() {
+    if (!pdfsForDay.length) {
+      toast.info(`No newspaper PDF posted on ${selectedDate}. Post it in the channel and retry.`);
+      return;
+    }
+    // Auto-analyse the first (largest/main) PDF as a newspaper.
+    const main = [...pdfsForDay].sort(
+      (a, b) => (b.size_bytes ?? 0) - (a.size_bytes ?? 0),
+    )[0];
+    toast.success(`Found ${pdfsForDay.length} PDF${pdfsForDay.length > 1 ? "s" : ""} for ${selectedDate}. Starting newspaper analysis…`);
+    await doImport(main, "newspaper");
+  }
+
+  function shiftDay(delta: number) {
+    const d = new Date(selectedDate + "T00:00:00");
+    d.setDate(d.getDate() + delta);
+    setSelectedDate(d.toISOString().slice(0, 10));
+  }
+
+  return (
+    <AppShell>
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+        <header className="flex flex-wrap items-end justify-between gap-3 mb-5">
+          <div>
+            <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-indigo-900 flex items-center gap-2">
+              <InboxIcon className="h-6 w-6" /> Telegram Inbox
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Auto-syncs every PDF, image, and link posted in your Sidheswar Civil Mentor channel.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={showArchived ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowArchived((v) => !v)}
+            >
+              <Archive className="h-4 w-4 mr-1.5" />
+              {showArchived ? "Showing archived" : "Show archived"}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => q.refetch()} disabled={q.isFetching}>
+              <RefreshCw className={`h-4 w-4 ${q.isFetching ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+        </header>
+
+        <section className="mb-5 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-amber-50/40 p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-indigo-900">
+              <CalendarIcon className="h-5 w-5" />
+              <span className="font-serif font-semibold">Pick a date</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="outline" onClick={() => shiftDay(-1)}>
+                ‹
+              </Button>
+              <input
+                type="date"
+                value={selectedDate}
+                max={todayIso()}
+                onChange={(e) => {
+                  setSelectedDate(e.target.value || todayIso());
+                  setDateFilterOn(true);
+                }}
+                className="h-9 rounded-md border border-indigo-200 bg-white px-2 text-sm text-indigo-900"
+              />
+              <Button size="sm" variant="outline" onClick={() => shiftDay(1)} disabled={selectedDate >= todayIso()}>
+                ›
+              </Button>
+            </div>
+            <Button
+              size="sm"
+              variant={dateFilterOn ? "default" : "outline"}
+              onClick={() => setDateFilterOn((v) => !v)}
+            >
+              {dateFilterOn ? "Date filter ON" : "Date filter OFF"}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => { setSelectedDate(todayIso()); setDateFilterOn(true); }}
+              variant="ghost"
+            >
+              Today
+            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              <Badge variant="secondary" className="text-[11px]">
+                {filteredItems.length} item{filteredItems.length === 1 ? "" : "s"}
+              </Badge>
+              <Button
+                size="sm"
+                onClick={fetchDayMaterial}
+                disabled={busyId !== null}
+                className="bg-indigo-700 hover:bg-indigo-800"
+              >
+                {busyId ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Fetch & analyse {selectedDate}
+              </Button>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-indigo-900/70">
+            AI will pull the newspaper PDF posted on the selected day from your Telegram channel and start the full UPSC analysis.
+          </p>
+        </section>
+
+        {q.isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading inbox…
+          </div>
+        ) : !filteredItems.length ? (
+          <div className="rounded-xl border border-dashed border-indigo-200 bg-paper p-10 text-center">
+            <InboxIcon className="mx-auto h-8 w-8 text-muted-foreground" />
+            <h3 className="mt-3 font-serif text-lg">
+              {showArchived
+                ? "No archived items"
+                : dateFilterOn
+                ? `Nothing posted on ${selectedDate}`
+                : "No incoming posts yet"}
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              {dateFilterOn
+                ? "Try another date, or turn off the date filter to see everything."
+                : "Post a PDF, image, or link in the channel — it appears here within seconds."}
+            </p>
+          </div>
+        ) : (
+          <ul className="grid gap-3">
+            {filteredItems.map((it) => (
+              <li
+                key={it.id}
+                className="rounded-xl border border-indigo-100 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 mt-0.5">
+                    {it.kind === "pdf" ? (
+                      <FileText className="h-6 w-6 text-rose-600" />
+                    ) : it.kind === "image" ? (
+                      <ImageIcon className="h-6 w-6 text-emerald-600" />
+                    ) : (
+                      <LinkIcon className="h-6 w-6 text-sky-600" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium truncate">
+                        {it.file_name || it.source_url || it.caption?.slice(0, 80) || "Untitled"}
+                      </span>
+                      <Badge variant="outline" className="uppercase text-[10px]">
+                        {it.kind}
+                      </Badge>
+                      {it.archived_at && (
+                        <Badge variant="secondary" className="text-[10px]">archived</Badge>
+                      )}
+                    </div>
+                    {it.caption && it.file_name && (
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                        {it.caption}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {new Date(it.posted_at).toLocaleString()}
+                      {it.size_bytes ? ` · ${Math.round(it.size_bytes / 1024).toLocaleString()} KB` : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {it.kind === "link" && it.source_url ? (
+                    <Button asChild size="sm" variant="outline">
+                      <a href={it.source_url} target="_blank" rel="noreferrer">
+                        <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Open link
+                      </a>
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => doImport(it, null)}
+                        disabled={busyId === it.id}
+                      >
+                        {busyId === it.id && busyAction === "import" ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Import
+                      </Button>
+                      {it.kind === "pdf" && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => doImport(it, "newspaper")}
+                            disabled={busyId === it.id}
+                            className="border-rose-300 text-rose-700 hover:bg-rose-50"
+                          >
+                            <Newspaper className="h-3.5 w-3.5 mr-1.5" /> Analyse as Newspaper
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => doImport(it, "short_notes")}
+                            disabled={busyId === it.id}
+                          >
+                            <BookOpen className="h-3.5 w-3.5 mr-1.5" /> Generate Notes
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => doImport(it, "handwritten_notes")}
+                            disabled={busyId === it.id}
+                          >
+                            <PenLine className="h-3.5 w-3.5 mr-1.5" /> Handwritten Notes
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => doImport(it, "infographics")}
+                            disabled={busyId === it.id}
+                          >
+                            <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Generate Infographic
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  <div className="ml-auto flex gap-2">
+                    {it.archived_at ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => archiveMut.mutate({ itemId: it.id, archived: false })}
+                        disabled={archiveMut.isPending}
+                      >
+                        <ArchiveRestore className="h-3.5 w-3.5 mr-1.5" /> Unarchive
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => archiveMut.mutate({ itemId: it.id, archived: true })}
+                        disabled={archiveMut.isPending}
+                      >
+                        <Archive className="h-3.5 w-3.5 mr-1.5" /> Archive
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                      onClick={() => {
+                        if (confirm("Delete this inbox item permanently?")) deleteMut.mutate(it.id);
+                      }}
+                      disabled={deleteMut.isPending}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
+    </AppShell>
+  );
+}
