@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Download, FileText, Loader2, Newspaper, Sparkles, Trash2, Upload, LayoutDashboard, History, ChevronDown, ChevronUp, Eye, FileCheck2, X, RefreshCw, FolderSync } from "lucide-react";
+import { BookOpen, Download, FileText, Loader2, Newspaper, Sparkles, Trash2, Upload, LayoutDashboard, History, ChevronDown, ChevronUp, Eye, FileCheck2, X, RefreshCw, FolderSync, Info } from "lucide-react";
 
 import { toast } from "sonner";
 
@@ -87,6 +87,7 @@ function Dashboard() {
   const finalize = useServerFn(finalizeUpload);
   const syncDrive = useServerFn(syncFromDrive);
   const [syncing, setSyncing] = useState(false);
+  const [showDriveAccessInfo, setShowDriveAccessInfo] = useState(false);
 
   async function onSyncFromDrive() {
     if (syncing) return;
@@ -319,6 +320,17 @@ function Dashboard() {
               )}
               <span className="hidden sm:inline">{syncing ? "Syncing…" : "Sync from Drive"}</span>
               <span className="sm:hidden">{syncing ? "…" : "Sync"}</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowDriveAccessInfo(true)}
+              className="min-h-11 shrink-0"
+              title="Why don't I see my manually-uploaded Drive files?"
+              aria-label="Drive access info"
+            >
+              <Info className="h-4 w-4" aria-hidden="true" />
             </Button>
             <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="min-h-11 shrink-0">
               {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="mr-2 h-4 w-4" aria-hidden="true" />}
