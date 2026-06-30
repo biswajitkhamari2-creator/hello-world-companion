@@ -477,14 +477,14 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
     setProgress({ done: 0, total: 0, failed: 0, retrying: 0 });
     try {
       const options = prefsToOptions(prefs);
-      const { totalChunks } = await planFn({ data: { documentId: doc.id, outputType: type } });
+      const { totalChunks, recommendedConcurrency, minGapMs, chunkSize } = await planFn({ data: { documentId: doc.id, outputType: type } } as any);
 
       setProgress({ done: 0, total: totalChunks, failed: 0, retrying: 0 });
       const parts: any[] = new Array(totalChunks).fill(null);
       const MAX_RETRIES = 5;
-      // Groq free tier ≈ 30 RPM and is fast. Run chunks in parallel with a light gap.
-      const CONCURRENCY = 2;
-      const MIN_GAP_MS = 1500;
+      // Server returns AI-provider-safe pacing. Groq free TPM needs serialized calls.
+      const CONCURRENCY = Math.max(1, Number(recommendedConcurrency || 1));
+      const MIN_GAP_MS = Math.max(1_500, Number(minGapMs || 8_000));
       let lastStartedAt = 0;
 
       let aborted: string | null = null;
@@ -500,7 +500,7 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
             const gap = Date.now() - lastStartedAt;
             if (gap < MIN_GAP_MS) await new Promise((r) => setTimeout(r, MIN_GAP_MS - gap));
             lastStartedAt = Date.now();
-            const chunkResult = await chunkFn({ data: { documentId: doc.id, outputType: type, chunkIndex: i, options } });
+            const chunkResult = await chunkFn({ data: { documentId: doc.id, outputType: type, chunkIndex: i, chunkSize, options } } as any);
             if (chunkResult?.retryable) {
               throw new Error(`${chunkResult.reason || "AI is busy. Retrying…"} __retry_after_ms=${chunkResult.retryAfterMs || 65000}`);
             }

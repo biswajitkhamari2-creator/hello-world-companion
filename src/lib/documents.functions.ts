@@ -180,13 +180,13 @@ export const extractDocument = createServerFn({ method: "POST" })
       try {
         const { object } = await generateObject({
           model: gw(DEFAULT_MODEL),
-          system: UPSC_SYSTEM_PROMPT,
+          system: `${UPSC_SYSTEM_PROMPT}\nReturn only a valid JSON object matching the requested schema.`,
           schema: z.object({
             subject: z.enum(SUBJECTS),
             priority: z.enum(["high", "medium", "low"]),
             summary: z.string().min(20).max(600),
           }),
-          prompt: `Classify the following study material for UPSC preparation.
+          prompt: `Classify the following study material for UPSC preparation and return JSON only.
 
 Pick the single best subject from this list: ${SUBJECTS.join(", ")}.
 Assess UPSC priority (high / medium / low) based on how frequently this topic appears in PYQs and the current syllabus.

@@ -1,14 +1,17 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
-// Direct Google Gemini via its OpenAI-compatible endpoint.
+// Direct Groq / Google Gemini via OpenAI-compatible endpoints.
 // No Lovable AI Gateway dependency.
 const RUN_ID_HEADER = "X-AI-Run-ID";
 
-export function createGateway(initialRunId?: string) {
+export type AiProviderName = "groq" | "gemini";
+
+export function createGateway(initialRunId?: string, preferredProvider?: AiProviderName) {
   const groqKey = process.env.GROQ_API_KEY?.trim();
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
-  const useGroq = Boolean(groqKey);
-  const apiKey = groqKey || geminiKey;
+  const useGroq = preferredProvider === "gemini" ? false : preferredProvider === "groq" ? Boolean(groqKey) : Boolean(groqKey);
+  const apiKey = useGroq ? groqKey : geminiKey || groqKey;
+  const providerName: AiProviderName = useGroq || !geminiKey ? "groq" : "gemini";
   if (!apiKey) {
     throw new Error("No AI key configured. Set GROQ_API_KEY (preferred) or GEMINI_API_KEY in project secrets.");
   }
@@ -30,8 +33,8 @@ export function createGateway(initialRunId?: string) {
   if (runId) publishRunId(runId);
 
   const provider = createOpenAICompatible({
-    name: useGroq ? "groq" : "gemini",
-    baseURL: useGroq
+    name: providerName,
+    baseURL: providerName === "groq"
       ? "https://api.groq.com/openai/v1"
       : "https://generativelanguage.googleapis.com/v1beta/openai",
     headers: {
@@ -68,6 +71,64 @@ export async function withLovableAiGatewayRunIdHeader(
 export const DEFAULT_MODEL = process.env.GROQ_API_KEY?.trim()
   ? "llama-3.1-8b-instant"
   : "gemini-2.0-flash";
+
+export interface AiTaskProfile {
+  provider: AiProviderName;
+  model: string;
+  chunkSize: number;
+  recommendedConcurrency: number;
+  minGapMs: number;
+  maxOutputTokens: number;
+}
+
+export function getAiTaskProfile(task?: string): AiTaskProfile {
+  const hasGroq = Boolean(process.env.GROQ_API_KEY?.trim());
+  const hasGemini = Boolean(process.env.GEMINI_API_KEY?.trim());
+
+  // Newspaper analysis is prompt + output heavy. With Groq free TPM, the
+  // generation layer uses a deterministic local parser instead of sending a
+  // huge prompt; keep Groq preferred because the user chose it over Gemini.
+  if (task === "newspaper") {
+    if (hasGroq) {
+      return {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        chunkSize: 10_000,
+        recommendedConcurrency: 1,
+        minGapMs: 1_500,
+        maxOutputTokens: 1_400,
+      };
+    }
+    return {
+      provider: "gemini",
+      model: "gemini-2.0-flash",
+      chunkSize: 18_000,
+      recommendedConcurrency: 1,
+      minGapMs: hasGemini ? 8_000 : 65_000,
+      maxOutputTokens: 3_000,
+    };
+  }
+
+  if (hasGroq) {
+    return {
+      provider: "groq",
+      model: "llama-3.1-8b-instant",
+      chunkSize: task === "infographics" ? 12_000 : 14_000,
+      recommendedConcurrency: 1,
+      minGapMs: 65_000,
+      maxOutputTokens: task === "infographics" ? 1_800 : 1_600,
+    };
+  }
+
+  return {
+    provider: "gemini",
+    model: "gemini-2.0-flash",
+    chunkSize: task === "infographics" ? 24_000 : 30_000,
+    recommendedConcurrency: 1,
+    minGapMs: 8_000,
+    maxOutputTokens: task === "infographics" ? 3_000 : 2_500,
+  };
+}
 
 
 
