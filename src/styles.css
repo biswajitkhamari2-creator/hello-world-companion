@@ -4,6 +4,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@keyframes upsc-flip {
+  0%   { transform: perspective(600px) rotateY(0deg); }
+  45%  { transform: perspective(600px) rotateY(360deg); }
+  100% { transform: perspective(600px) rotateY(360deg); }
+}
+
+@utility animate-upsc-flip {
+  display: inline-block;
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+  animation: upsc-flip 3.5s ease-in-out infinite;
+}
+
 /* === UPSC Genius AI — Scholarly Indigo design system === */
 
 @theme inline {

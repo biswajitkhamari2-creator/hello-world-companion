@@ -168,7 +168,7 @@ function Hero() {
 
         <h1 className="mt-5 max-w-3xl font-serif text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl">
           Welcome back to{" "}
-          <span className="bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 bg-clip-text text-transparent">
+          <span className="animate-upsc-flip bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 bg-clip-text text-transparent">
             UPSC Genius&nbsp;AI
           </span>
         </h1>
