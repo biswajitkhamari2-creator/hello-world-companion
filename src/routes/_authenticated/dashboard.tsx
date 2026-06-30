@@ -386,7 +386,47 @@ function Dashboard() {
           )}
         </div>
       </main>
-    </div></AppShell>
+    </div>
+    <Dialog open={showDriveAccessInfo} onOpenChange={setShowDriveAccessInfo}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>About "Sync from Drive"</DialogTitle>
+          <DialogDescription>
+            Why some Drive files don't appear, and how to expand access.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            <strong className="text-foreground">Current access:</strong> the app uses Google's
+            <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">drive.file</code>
+            scope — it can only see files the app itself created (uploads through this
+            dashboard or the Telegram bot).
+          </p>
+          <p>
+            <strong className="text-foreground">What "Sync from Drive" does:</strong> scans
+            your <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">UPSC-Genius-AI/&lt;your-id&gt;/</code>
+            folder and imports any app-created files that aren't yet in your library.
+          </p>
+          <p>
+            <strong className="text-foreground">PDFs you dropped manually</strong> into Drive
+            via drive.google.com will <em>not</em> appear — Google blocks the app from seeing
+            them at the OAuth level.
+          </p>
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900">
+            <p className="font-medium">Want full Drive read access?</p>
+            <p className="mt-1 text-xs">
+              Open <strong>Lovable → Connectors → Google Drive</strong>, disconnect, and
+              reconnect choosing the <code>drive.readonly</code> scope. After that, "Sync
+              from Drive" can pull in PDFs you uploaded manually anywhere in your Drive.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowDriveAccessInfo(false)}>Got it</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </AppShell>
   );
 }
 
