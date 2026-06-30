@@ -5,26 +5,18 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut as fbSignOut,
-  updateProfile,
-  type User,
-} from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { firebaseAuth, firebaseDb, firebaseConfigured } from "./firebase";
+import type { Session, User } from "@supabase/supabase-js";
+import { supabase } from "../integrations/supabase/client";
 
 export interface UserProfile {
-  uid: string;
+  id: string;
   email: string | null;
   displayName: string | null;
-  createdAt?: unknown;
 }
 
 interface AuthContextValue {
   user: User | null;
+  session: Session | null;
   profile: UserProfile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
@@ -34,69 +26,65 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-async function ensureProfile(user: User, displayName?: string): Promise<UserProfile> {
-  const ref = doc(firebaseDb!, "users", user.uid);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) {
-    const profile: UserProfile = {
-      uid: user.uid,
-      email: user.email,
-      displayName: displayName ?? user.displayName ?? null,
-      createdAt: serverTimestamp(),
-    };
-    await setDoc(ref, profile);
-    return profile;
-  }
-  return snap.data() as UserProfile;
+function toProfile(user: User | null): UserProfile | null {
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email ?? null,
+    displayName:
+      (user.user_metadata?.display_name as string | undefined) ??
+      (user.user_metadata?.full_name as string | undefined) ??
+      null,
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!firebaseConfigured || !firebaseAuth) {
-      setLoading(false);
-      return;
-    }
-    const unsub = onAuthStateChanged(firebaseAuth, async (u) => {
-      setUser(u);
-      if (u) {
-        try {
-          const p = await ensureProfile(u);
-          setProfile(p);
-        } catch (err) {
-          console.error("Failed to load profile", err);
-          setProfile(null);
-        }
-      } else {
-        setProfile(null);
-      }
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      setUser(s?.user ?? null);
+      setProfile(toProfile(s?.user ?? null));
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+      setProfile(toProfile(data.session?.user ?? null));
       setLoading(false);
     });
-    return unsub;
+
+    return () => sub.subscription.unsubscribe();
   }, []);
 
   const value: AuthContextValue = {
     user,
+    session,
     profile,
     loading,
     signIn: async (email, password) => {
-      if (!firebaseAuth) throw new Error("Firebase is not configured. Add VITE_FIREBASE_* env vars.");
-      await signInWithEmailAndPassword(firebaseAuth, email, password);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
     },
     signUp: async (email, password, displayName) => {
-      if (!firebaseAuth) throw new Error("Firebase is not configured. Add VITE_FIREBASE_* env vars.");
-      const cred = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-      if (displayName) {
-        await updateProfile(cred.user, { displayName });
-      }
-      await ensureProfile(cred.user, displayName);
+      const redirectTo =
+        typeof window !== "undefined" ? window.location.origin : undefined;
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectTo,
+          data: displayName ? { display_name: displayName } : undefined,
+        },
+      });
+      if (error) throw error;
     },
     signOut: async () => {
-      if (!firebaseAuth) return;
-      await fbSignOut(firebaseAuth);
+      await supabase.auth.signOut();
     },
   };
 
