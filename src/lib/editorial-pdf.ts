@@ -154,7 +154,7 @@ export async function editorialsToPdf(row: EditorialRow): Promise<Blob> {
     const pdfDoc = await PDFDocument.load(bytes);
     await applyWatermarkToAllPages(pdfDoc, "editorial-lab");
     const stamped = await pdfDoc.save();
-    return new Blob([stamped], { type: "application/pdf" });
+    return new Blob([stamped.buffer.slice(stamped.byteOffset, stamped.byteOffset + stamped.byteLength) as ArrayBuffer], { type: "application/pdf" });
   } catch (err) {
     console.warn("[editorial-pdf] watermark failed, returning unstamped PDF", err);
     return rawBlob;
