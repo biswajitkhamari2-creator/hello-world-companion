@@ -89,6 +89,24 @@ export const uploadDocument = createServerFn({ method: "POST" })
 
     const buf = await data.file.arrayBuffer();
     const mime = data.file.type || "application/octet-stream";
+
+    // Duplicate guard — same user cannot upload the same file twice.
+    // Match on file_name + size_bytes (covers 99% of real-world re-uploads,
+    // no schema change needed).
+    const { data: existing } = await supabase
+      .from("documents")
+      .select("id, title")
+      .eq("user_id", userId)
+      .eq("file_name", data.file.name)
+      .eq("size_bytes", buf.byteLength)
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      throw new Error(
+        `Duplicate file not accepted — "${data.file.name}" is already in your library as "${existing.title}".`,
+      );
+    }
+
     const upload = await uploadBufferToDrive({
       userId,
       fileName: data.file.name,
