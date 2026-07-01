@@ -175,8 +175,8 @@ export const getInstitutionNews = createServerFn({ method: "GET" }).handler(
 // Fetch full article content for PDF export / reading
 export const getInstitutionArticle = createServerFn({ method: "POST" })
   .inputValidator((data: { url: string }) => {
-    if (!/^https:\/\/visionias\.in\/current-affairs\//.test(data.url)) {
-      throw new Error("Only visionias.in URLs are allowed");
+    if (!/^https:\/\/(visionias\.in|www\.drishtiias\.com)\//.test(data.url)) {
+      throw new Error("Only Vision IAS or Drishti IAS URLs are allowed");
     }
     return data;
   })
