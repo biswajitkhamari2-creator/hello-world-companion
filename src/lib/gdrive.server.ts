@@ -54,9 +54,6 @@ function hasDirectGoogleOAuth(): boolean {
   return Boolean(getGoogleEnv("clientId") && getGoogleEnv("clientSecret") && getGoogleEnv("refreshToken"));
 }
 
-function hasDriveConnector(): boolean {
-  return Boolean(getConnectorEnv("lovable") && getConnectorEnv("drive"));
-}
 
 function toDriveGatewayUrl(url: string): string {
   const parsed = new URL(url);
