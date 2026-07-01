@@ -216,18 +216,53 @@ function SignOutButton() {
 }
 
 function HamburgerTrigger() {
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, open, openMobile, isMobile } = useSidebar();
+  const isOpen = isMobile ? openMobile : open;
   return (
     <button
       type="button"
-      aria-label="Open navigation"
+      aria-label={isOpen ? "Close navigation" : "Open navigation"}
+      aria-expanded={isOpen}
       onClick={toggleSidebar}
-      className="group relative inline-flex h-10 w-10 items-center justify-center rounded-2xl text-white shadow-[0_10px_28px_-8px_rgba(99,102,241,0.65)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-8px_rgba(217,70,239,0.75)] active:scale-95"
+      className="group relative inline-flex h-11 w-11 items-center justify-center rounded-2xl text-white transition-all duration-300 hover:-translate-y-0.5 active:scale-90"
     >
-      <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 opacity-95 transition-opacity group-hover:opacity-100" />
-      <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 opacity-60 blur-md transition-opacity group-hover:opacity-90" />
-      <span className="absolute inset-[1px] rounded-[14px] bg-background/10 backdrop-blur-md" />
-      <Menu className="relative h-4.5 w-4.5 transition-transform duration-300 group-hover:rotate-90" />
+      {/* animated conic gradient ring */}
+      <span
+        className="absolute -inset-[2px] rounded-[18px] opacity-90 blur-[6px] transition-opacity duration-500 group-hover:opacity-100"
+        style={{
+          background:
+            "conic-gradient(from 0deg, #6366f1, #d946ef, #f59e0b, #22d3ee, #6366f1)",
+          animation: "spin 6s linear infinite",
+        }}
+      />
+      {/* solid gradient face */}
+      <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 shadow-[0_10px_28px_-8px_rgba(217,70,239,0.65)]" />
+      {/* glass inner */}
+      <span className="absolute inset-[1.5px] rounded-[14px] bg-background/20 backdrop-blur-xl ring-1 ring-white/20" />
+      {/* sparkle */}
+      <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-white shadow-[0_0_10px_2px_rgba(255,255,255,0.9)] animate-ping" />
+
+      {/* animated 3-bar / X icon */}
+      <span className="relative flex h-4 w-5 flex-col items-center justify-center gap-[3px]">
+        <span
+          className={cn(
+            "h-[2px] w-5 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.7)] transition-all duration-300",
+            isOpen ? "translate-y-[5px] rotate-45" : "group-hover:w-4",
+          )}
+        />
+        <span
+          className={cn(
+            "h-[2px] w-4 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.7)] transition-all duration-300",
+            isOpen ? "opacity-0 scale-x-0" : "group-hover:w-5",
+          )}
+        />
+        <span
+          className={cn(
+            "h-[2px] w-3 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.7)] transition-all duration-300",
+            isOpen ? "-translate-y-[5px] -rotate-45 w-5" : "group-hover:w-5",
+          )}
+        />
+      </span>
     </button>
   );
 }
