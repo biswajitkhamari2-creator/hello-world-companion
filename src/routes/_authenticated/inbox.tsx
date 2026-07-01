@@ -405,6 +405,13 @@ function InboxPage() {
                   }`}
                 />
                 <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-2 h-4 w-4 shrink-0 accent-indigo-600"
+                    checked={selected.has(it.id)}
+                    onChange={() => toggleSelect(it.id)}
+                    aria-label="Select item"
+                  />
                   <div
                     className={`shrink-0 mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-md ${
                       it.kind === "pdf"
