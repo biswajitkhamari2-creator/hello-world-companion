@@ -185,13 +185,72 @@ function parseEditorialJson(raw: string): EditorialAnalysisFull {
   try {
     return JSON.parse(candidate) as EditorialAnalysisFull;
   } catch {
-    return JSON.parse(
-      candidate
-        .replace(/,\s*}/g, "}")
-        .replace(/,\s*]/g, "]")
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ""),
-    ) as EditorialAnalysisFull;
+    const cleaned = candidate
+      .replace(/,\s*}/g, "}")
+      .replace(/,\s*]/g, "]")
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+    try {
+      return JSON.parse(cleaned) as EditorialAnalysisFull;
+    } catch {
+      return salvageEditorialJson(cleaned);
+    }
   }
+}
+
+// Local salvage: recover as many complete editorial objects as possible from a
+// truncated / malformed JSON blob, WITHOUT making another paid Gemini call.
+function salvageEditorialJson(raw: string): EditorialAnalysisFull {
+  const newspaperMatch = raw.match(/"detectedNewspaper"\s*:\s*"([^"]*)"/);
+  const dateMatch = raw.match(/"editionDate"\s*:\s*"([^"]*)"/);
+  const arrStart = raw.indexOf('"editorials"');
+  const editorials: EditorialItem[] = [];
+  if (arrStart !== -1) {
+    const bracket = raw.indexOf("[", arrStart);
+    if (bracket !== -1) {
+      let i = bracket + 1;
+      const n = raw.length;
+      while (i < n) {
+        while (i < n && raw[i] !== "{") i++;
+        if (i >= n) break;
+        const objStart = i;
+        let depth = 0;
+        let inStr = false;
+        let esc = false;
+        let objEnd = -1;
+        for (; i < n; i++) {
+          const c = raw[i];
+          if (inStr) {
+            if (esc) esc = false;
+            else if (c === "\\") esc = true;
+            else if (c === '"') inStr = false;
+          } else {
+            if (c === '"') inStr = true;
+            else if (c === "{") depth++;
+            else if (c === "}") {
+              depth--;
+              if (depth === 0) {
+                objEnd = i;
+                break;
+              }
+            }
+          }
+        }
+        if (objEnd === -1) break; // truncated object — stop
+        const slice = raw.slice(objStart, objEnd + 1);
+        try {
+          editorials.push(JSON.parse(slice) as EditorialItem);
+        } catch {
+          // skip malformed single entry, keep going
+        }
+        i = objEnd + 1;
+      }
+    }
+  }
+  return {
+    detectedNewspaper: newspaperMatch?.[1] || "Unknown",
+    editionDate: dateMatch?.[1],
+    editorials,
+  };
 }
 
 async function repairEditorialJson(raw: string, schema: unknown): Promise<EditorialAnalysisFull> {
