@@ -1108,7 +1108,7 @@ export const processChunk = createServerFn({ method: "POST" })
     documentId: z.string().uuid(),
     outputType: z.enum(OUTPUT_TYPES),
     chunkIndex: z.number().int().min(0),
-    chunkSize: z.number().int().min(2_000).max(60_000).optional(),
+    chunkSize: z.number().int().min(2_000).max(100_000).optional(),
     options: OPTIONS_SCHEMA,
   }).parse(d))
   .handler(async ({ data, context }) => {
