@@ -62,12 +62,13 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
       chat_id: base.chat_id,
       message_id: base.message_id,
       kind: "pdf",
-      caption: `${base.caption || ""}${base.caption ? "\n" : ""}Import failed: ${(e as Error).message}`,
+      caption: base.caption,
       posted_at: base.posted_at,
       file_name: fileName,
       mime: doc.mime_type || "application/pdf",
       size_bytes: doc.file_size ?? null,
       status: "failed",
+      error_message: (e as Error).message,
       raw: base.raw as any,
     });
   }
@@ -106,12 +107,13 @@ async function handlePhoto(photo: { file_id: string; file_size?: number }, base:
       chat_id: base.chat_id,
       message_id: base.message_id,
       kind: "image",
-      caption: `${base.caption || ""}${base.caption ? "\n" : ""}Import failed: ${(e as Error).message}`,
+      caption: base.caption,
       posted_at: base.posted_at,
       file_name: fileName,
       mime: "image/jpeg",
       size_bytes: photo.file_size ?? null,
       status: "failed",
+      error_message: (e as Error).message,
       raw: base.raw as any,
     });
   }
