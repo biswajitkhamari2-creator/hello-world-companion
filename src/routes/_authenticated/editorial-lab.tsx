@@ -240,7 +240,7 @@ function EditorialLabPage() {
               <div className="space-y-px border-y border-stone-200 bg-stone-200/80 dark:border-stone-800 dark:bg-stone-800/70">
                 {(pdfsQ.data ?? []).map((p: any) => {
                   const busy = analyseMut.isPending && analyseMut.variables === p.id;
-                  const delBusy = deletePdfMut.isPending && deletePdfMut.variables === p.id;
+                          const delBusy = deletePdfMut.isPending && (deletePdfMut.variables as any)?.id === p.id;
                   const selected = pdfSel.has(p.id);
                   return (
                     <div
@@ -279,9 +279,9 @@ function EditorialLabPage() {
                             {p.file_name || p.caption || "Newspaper"}
                           </h3>
                           <button
-                            onClick={() => {
-                              if (confirm("Delete this newspaper from the Telegram inbox?")) {
-                                deletePdfMut.mutate(p.id);
+                             onClick={() => {
+                              if (confirm("Delete this newspaper?")) {
+                                deletePdfMut.mutate({ id: p.id, source: p.source });
                               }
                             }}
                             disabled={delBusy}
