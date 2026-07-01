@@ -6,16 +6,34 @@ export interface OdishaNewsItem {
   source: string;
   pubDate: string;
   description?: string;
+  category: OpscCategory;
 }
+
+export type OpscCategory =
+  | "Polity & Governance"
+  | "Economy & Agriculture"
+  | "Geography & Environment"
+  | "History & Culture"
+  | "Schemes & Social Justice"
+  | "Science & Tech"
+  | "Security & Disaster";
 
 const FEEDS: { url: string; source: string }[] = [
   { url: "https://sambadenglish.com/rss", source: "Sambad" },
   {
-    url: "https://news.google.com/rss/search?q=Odisha+government+OR+%22Odisha+PSC%22+OR+%22OPSC%22+OR+Sambad+OR+Samaja&hl=en-IN&gl=IN&ceid=IN:en",
+    url: "https://news.google.com/rss/search?q=Odisha+government+OR+OPSC+OR+%22Odisha+cabinet%22+OR+%22Odisha+assembly%22+OR+%22Odisha+budget%22&hl=en-IN&gl=IN&ceid=IN:en",
     source: "Google News",
   },
   {
-    url: "https://news.google.com/rss/search?q=Odisha+scheme+OR+Odisha+policy+OR+Bhubaneswar+OR+Naveen+Patnaik+OR+Odisha+cabinet&hl=en-IN&gl=IN&ceid=IN:en",
+    url: "https://news.google.com/rss/search?q=Odisha+scheme+OR+Odisha+policy+OR+%22Mission+Shakti%22+OR+KALIA+OR+%22Biju+Swasthya%22+OR+%22Ama+Odisha%22&hl=en-IN&gl=IN&ceid=IN:en",
+    source: "Google News",
+  },
+  {
+    url: "https://news.google.com/rss/search?q=Mahanadi+OR+%22Chilika%22+OR+%22Similipal%22+OR+%22Bhitarkanika%22+OR+%22Odisha+cyclone%22+OR+%22Odisha+mining%22+OR+%22Odisha+tribal%22&hl=en-IN&gl=IN&ceid=IN:en",
+    source: "Google News",
+  },
+  {
+    url: "https://news.google.com/rss/search?q=Jagannath+OR+Konark+OR+%22Odia+language%22+OR+%22Odisha+heritage%22+OR+%22Kalinga%22+OR+%22Paik%22&hl=en-IN&gl=IN&ceid=IN:en",
     source: "Google News",
   },
 ];
@@ -42,9 +60,34 @@ function parseRss(xml: string, source: string): OdishaNewsItem[] {
       const hrefMatch = descRaw.match(/<a[^>]+href=["']([^"']+)["']/i);
       if (hrefMatch && !/news\.google\.com/i.test(hrefMatch[1])) link = hrefMatch[1];
     }
-    if (title && link) items.push({ title, link, source, pubDate, description: stripHtml(descRaw).slice(0, 400) });
+    if (title && link) {
+      const desc = stripHtml(descRaw).slice(0, 400);
+      items.push({ title, link, source, pubDate, description: desc, category: "Polity & Governance" });
+    }
   }
   return items;
+}
+
+// Off-syllabus noise (astrology, entertainment, cricket, celebrity, lifestyle, crime blotter)
+const NOISE_RE = /\b(horoscope|zodiac|astrolog|rashifal|numerolog|tarot|vastu|bollywood|hollywood|tollywood|ollywood|celebrity|actor|actress|singer|film|movie|trailer|box office|ott|web series|netflix|recipe|fashion|lifestyle|beauty|makeup|skincare|weight loss|diet plan|sex|dating|breakup|gossip|cricket|ipl|fifa|football|tennis|olympics|match|wicket|goal\b|viral video|trending|meme|photo gallery|photos:|watch:|birthday|wedding|kohli|dhoni|shah rukh|salman|deepika)\b/i;
+
+// Must mention Odisha or a clearly Odisha-specific keyword
+const ODISHA_RE = /\b(odisha|orissa|bhubaneswar|cuttack|puri|konark|jagannath|mahanadi|brahmani|baitarani|chilika|similipal|bhitarkanika|opsc|kalinga|paik|kharavela|gajapati|somavamasi|bhauma|jajpur|balasore|sambalpur|rourkela|berhampur|koraput|kandhamal|mayurbhanj|dhamra|paradip|hirakud)\b/i;
+
+// Map to Odisha PCS syllabus buckets
+const CATEGORY_RULES: { cat: OpscCategory; re: RegExp }[] = [
+  { cat: "Security & Disaster", re: /\b(cyclone|flood|earthquake|tsunami|landslide|disaster|maoist|naxal|left wing|extremism|terror|cyber|money launder|border|security force)\b/i },
+  { cat: "Geography & Environment", re: /\b(mahanadi|brahmani|baitarani|chilika|similipal|bhitarkanika|forest|wildlife|elephant|tiger|olive ridley|biodivers|pollut|climate|ecolog|environment|mining|mineral|coal|bauxite|iron ore|hirakud|dam|river)\b/i },
+  { cat: "Economy & Agriculture", re: /\b(econom|budget|gdp|inflation|rbi|fiscal|tax|gst|kalia|farmer|agricultur|paddy|msp|crop|irrigat|industry|industrial|msme|shg|self.help|export|invest|make in odisha|utkarsh|posco|jindal|tata steel|vedanta)\b/i },
+  { cat: "History & Culture", re: /\b(jagannath|konark|puri|rath yatra|kharavela|kalinga|paik|surendra sai|gajapati|somavamasi|bhauma|ganga|temple|heritage|odia language|odissi|pattachitra|festival|carnival|bali yatra|literature|monument|archaeolog)\b/i },
+  { cat: "Schemes & Social Justice", re: /\b(scheme|yojana|mission shakti|biju swasthya|bsky|ama odisha|nabin odisha|welfare|tribal|adivasi|dalit|sc\/st|women|child|health|education|scholarship|pension|ration|pds|poverty|inclusion|shg|anganwadi)\b/i },
+  { cat: "Science & Tech", re: /\b(isro|drdo|space|satellite|technolog|ai\b|artificial intelligence|semiconductor|biotech|nanotech|start.?up|innovation|research)\b/i },
+  { cat: "Polity & Governance", re: /\b(cabinet|assembly|opsc|lokayukta|right to public services|panchayat|zilla parishad|governor|chief minister|cm\b|mla|mp\b|bill\b|act\b|amendment|court|verdict|policy|governance|e-governance|rti|accountab|transparen)\b/i },
+];
+
+function categorize(text: string): OpscCategory | null {
+  for (const r of CATEGORY_RULES) if (r.re.test(text)) return r.cat;
+  return null;
 }
 
 export const getOdishaNews = createServerFn({ method: "GET" }).handler(async () => {
@@ -61,15 +104,26 @@ export const getOdishaNews = createServerFn({ method: "GET" }).handler(async () 
   const all: OdishaNewsItem[] = [];
   for (const r of results) if (r.status === "fulfilled") all.push(...r.value);
 
+  // Filter: block noise, require Odisha context, must map to a syllabus bucket
+  const filtered: OdishaNewsItem[] = [];
+  for (const it of all) {
+    const hay = `${it.title} ${it.description ?? ""}`;
+    if (NOISE_RE.test(hay)) continue;
+    if (!ODISHA_RE.test(hay)) continue;
+    const cat = categorize(hay);
+    if (!cat) continue;
+    filtered.push({ ...it, category: cat });
+  }
+
   const seen = new Set<string>();
-  const unique = all.filter((it) => {
+  const unique = filtered.filter((it) => {
     const k = it.title.toLowerCase().slice(0, 80);
     if (seen.has(k)) return false;
     seen.add(k);
     return true;
   });
   unique.sort((a, b) => (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0));
-  return { items: unique.slice(0, 30), fetchedAt: new Date().toISOString() };
+  return { items: unique.slice(0, 40), fetchedAt: new Date().toISOString() };
 });
 
 // AI extract: pull the article text, then ask Gemini for OPSC/PCS-focused key points.
