@@ -28,7 +28,7 @@ export interface ProcessingPrefs {
 }
 
 export const DEFAULT_PREFS: ProcessingPrefs = {
-  syllabusTagging: false,
+  syllabusTagging: true,
   pyqMapping: false,
   generateQuestions: true,
   questionPrelimsMcqs: true,
@@ -90,7 +90,10 @@ export interface GenerationOptions {
 
 export function prefsToOptions(p: ProcessingPrefs): GenerationOptions {
   return {
-    syllabusTagging: p.syllabusTagging,
+    // Mandatory: every generated note (Handwritten / Short / MCQs / Mains /
+    // Infographics) must carry a [UPSC: Stage | Paper | Subject | Topic | ...]
+    // tag so it matches the Institution Engine's GS-tagging behaviour.
+    syllabusTagging: true,
     pyqMapping: p.pyqMapping,
     mainsCategories: {
       essay: p.questionEssay,
