@@ -95,15 +95,17 @@ function EditorialLabPage() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
         {/* Header */}
-        <div className="mb-8 flex items-center gap-3">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 text-white shadow-lg">
-            <FileEdit className="h-6 w-6" />
+        <div className="mb-6 flex flex-col items-start gap-3 sm:mb-8 sm:flex-row sm:items-center">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 text-white shadow-lg sm:h-12 sm:w-12">
+            <FileEdit className="h-7 w-7 sm:h-6 sm:w-6" />
           </span>
-          <div>
-            <h1 className="font-serif text-2xl font-semibold sm:text-3xl">Editorial Lab</h1>
-            <p className="text-sm text-muted-foreground">
+          <div className="min-w-0">
+            <h1 className="font-serif text-[32px] font-extrabold leading-tight sm:text-3xl">
+              Editorial Lab
+            </h1>
+            <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground sm:text-sm">
               Forward The Hindu / Indian Express PDFs to the Telegram bot. Editorial Lab isolates
               only the editorial pages and produces crisp + comprehensive notes with diagrams —
               powered by paid Gemini 2.5 Pro.
@@ -112,44 +114,45 @@ function EditorialLabPage() {
         </div>
 
         {/* Newspaper PDFs from inbox */}
-        <Card className="p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <Newspaper className="h-4 w-4 text-indigo-500" />
-            <h2 className="font-serif text-lg font-semibold">Newspapers in Telegram Inbox</h2>
+        <Card className="p-4 sm:p-5">
+          <div className="mb-4 flex items-center gap-2 sm:mb-3">
+            <Newspaper className="h-6 w-6 text-indigo-500 sm:h-4 sm:w-4" />
+            <h2 className="font-serif text-xl font-bold sm:text-lg sm:font-semibold">
+              Newspapers in Telegram Inbox
+            </h2>
           </div>
           {pdfsQ.isLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            <div className="flex items-center gap-2 text-[15px] text-muted-foreground sm:text-sm">
+              <Loader2 className="h-5 w-5 animate-spin sm:h-4 sm:w-4" /> Loading…
             </div>
           ) : (pdfsQ.data ?? []).length === 0 ? (
-            <div className="text-sm text-muted-foreground">
+            <div className="text-[15px] leading-relaxed text-muted-foreground sm:text-sm">
               No PDF newspapers in the Telegram inbox yet. Forward the day's edition to the bot,
               then refresh.
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
               {(pdfsQ.data ?? []).map((p: any) => {
                 const busy = analyseMut.isPending && analyseMut.variables === p.id;
                 return (
-                  <div key={p.id} className="rounded-xl border bg-card p-3">
-                    <div className="truncate text-sm font-medium">
+                  <div key={p.id} className="rounded-2xl border bg-card p-4 sm:rounded-xl sm:p-3">
+                    <div className="break-words text-[17px] font-bold leading-snug sm:text-sm sm:font-medium">
                       {p.file_name || p.caption || "Newspaper"}
                     </div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">
-                      {new Date(p.posted_at).toLocaleString()} ·{" "}
-                      {p.size_bytes ? (p.size_bytes / 1024 / 1024).toFixed(1) + " MB" : ""}
+                    <div className="mt-1 text-[13px] text-muted-foreground sm:mt-0.5 sm:text-[11px]">
+                      {new Date(p.posted_at).toLocaleString()}
+                      {p.size_bytes ? " · " + (p.size_bytes / 1024 / 1024).toFixed(1) + " MB" : ""}
                     </div>
-                    <div className="mt-2 flex gap-2">
+                    <div className="mt-3 grid grid-cols-2 items-center gap-2 sm:mt-2 sm:flex">
                       <Button
-                        size="sm"
                         onClick={() => analyseMut.mutate(p.id)}
                         disabled={busy}
-                        className="bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 text-white hover:opacity-95"
+                        className="col-span-2 h-12 min-h-[48px] w-full justify-center bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 text-[16px] font-semibold text-white hover:opacity-95 sm:col-span-1 sm:h-9 sm:w-auto sm:text-sm"
                       >
                         {busy ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin sm:h-4 sm:w-4" />
                         ) : (
-                          <Sparkles className="mr-2 h-4 w-4" />
+                          <Sparkles className="mr-2 h-5 w-5 sm:h-4 sm:w-4" />
                         )}
                         Extract Editorial
                       </Button>
@@ -158,7 +161,7 @@ function EditorialLabPage() {
                           href={p.drive_view_link}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs underline text-muted-foreground self-center"
+                          className="inline-flex h-12 min-h-[48px] items-center justify-center rounded-md border text-[15px] font-medium text-muted-foreground underline-offset-4 hover:underline sm:h-auto sm:min-h-0 sm:border-0 sm:text-xs sm:font-normal sm:underline"
                         >
                           Open PDF
                         </a>
@@ -170,11 +173,12 @@ function EditorialLabPage() {
                           }
                         }}
                         disabled={deletePdfMut.isPending && deletePdfMut.variables === p.id}
-                        className="ml-auto rounded-full p-1.5 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50"
+                        className="inline-flex h-12 min-h-[48px] w-full items-center justify-center gap-2 rounded-md border text-[15px] font-medium text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50 sm:ml-auto sm:h-auto sm:min-h-0 sm:w-auto sm:rounded-full sm:border-0 sm:p-1.5"
                         aria-label="Delete newspaper"
                         title="Delete newspaper"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-5 w-5 sm:h-4 sm:w-4" />
+                        <span className="sm:hidden">Delete</span>
                       </button>
                     </div>
                   </div>
@@ -185,13 +189,15 @@ function EditorialLabPage() {
         </Card>
 
         {/* Saved editorial notes */}
-        <div className="mt-8 space-y-4">
-          <h2 className="font-serif text-xl font-semibold">Editorial Notes Library</h2>
+        <div className="mt-10 space-y-4 sm:mt-8">
+          <h2 className="font-serif text-[24px] font-bold sm:text-xl sm:font-semibold">
+            Editorial Notes Library
+          </h2>
           {notesQ.isLoading && (
-            <div className="text-sm text-muted-foreground">Loading notes…</div>
+            <div className="text-[15px] text-muted-foreground sm:text-sm">Loading notes…</div>
           )}
           {(notesQ.data ?? []).length === 0 && !notesQ.isLoading && (
-            <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-dashed p-8 text-center text-[15px] text-muted-foreground sm:text-sm">
               No editorials extracted yet.
             </div>
           )}
