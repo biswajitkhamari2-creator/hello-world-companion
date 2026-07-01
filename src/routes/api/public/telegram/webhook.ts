@@ -52,6 +52,30 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
   chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
 }) {
   const fileName = doc.file_name || `telegram-${base.message_id}.pdf`;
+  // Telegram Bot API has a hard 20 MB download cap (server-side, non-negotiable).
+  // We CANNOT fetch the file first and then shrink — the download itself is blocked.
+  // Save a clear "too_large" row so the user sees actionable guidance in the inbox
+  // instead of a generic failure.
+  const TG_BOT_LIMIT = 20 * 1024 * 1024;
+  if (typeof doc.file_size === "number" && doc.file_size > TG_BOT_LIMIT) {
+    const mb = (doc.file_size / (1024 * 1024)).toFixed(1);
+    await upsertInbox({
+      chat_id: base.chat_id,
+      message_id: base.message_id,
+      kind: "pdf",
+      caption: base.caption,
+      posted_at: base.posted_at,
+      file_name: fileName,
+      mime: doc.mime_type || "application/pdf",
+      size_bytes: doc.file_size,
+      status: "too_large",
+      error_message:
+        `PDF is ${mb} MB. Telegram bots can only download files up to 20 MB (Telegram's own limit — we cannot bypass it). ` +
+        `Please compress the PDF first (e.g. ilovepdf.com / Adobe compress) OR share a Google Drive / Dropbox link — the link will appear in Inbox and open directly.`,
+      raw: base.raw as any,
+    });
+    return;
+  }
   try {
     // Duplicate guard — same newspaper PDF (same name + size) already imported?
     // Skip the Drive upload + document insert entirely to save bandwidth/credit.
