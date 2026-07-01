@@ -63,11 +63,10 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
       data: shrunk,
     });
     // Auto-push into the owner's documents so the dashboard picks it up.
-    let documentId: string | null = null;
     if (INBOX_OWNER_USER_ID) {
       try {
         const admin = await getAdmin();
-        const { data: docRow, error: docErr } = await admin
+        const { error: docErr } = await admin
           .from("documents")
           .insert({
             user_id: INBOX_OWNER_USER_ID,
@@ -80,11 +79,8 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
             storage_provider: "google_drive",
             drive_file_id: up.fileId,
             drive_view_link: up.webViewLink,
-          })
-          .select("id")
-          .single();
+          });
         if (docErr) console.error("[telegram → documents insert]", docErr.message);
-        else documentId = docRow?.id ?? null;
       } catch (e) {
         console.error("[telegram → documents insert]", (e as Error).message);
       }
