@@ -163,3 +163,17 @@ export const deleteInboxItem = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const deleteInboxItems = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { itemIds: string[] }) => d)
+  .handler(async ({ data }) => {
+    if (!data.itemIds?.length) return { ok: true, deleted: 0 };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("telegram_inbox")
+      .delete()
+      .in("id", data.itemIds);
+    if (error) throw new Error(error.message);
+    return { ok: true, deleted: data.itemIds.length };
+  });
