@@ -313,6 +313,56 @@ function InboxPage() {
           </p>
         </section>
 
+        {filteredItems.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-indigo-200 bg-white/70 backdrop-blur px-3 py-2 shadow-sm">
+            <label className="flex items-center gap-2 text-sm text-indigo-900">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-indigo-600"
+                checked={selected.size > 0 && filteredItems.every((it) => selected.has(it.id))}
+                ref={(el) => {
+                  if (el) el.indeterminate = selected.size > 0 && !filteredItems.every((it) => selected.has(it.id));
+                }}
+                onChange={(e) => {
+                  if (e.target.checked) setSelected(new Set(filteredItems.map((it) => it.id)));
+                  else setSelected(new Set());
+                }}
+              />
+              Select all
+            </label>
+            <span className="text-xs text-indigo-900/70">{selected.size} selected</span>
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setSelected(new Set())}
+                disabled={!selected.size}
+              >
+                Clear
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => {
+                  const ids = Array.from(selected);
+                  if (!ids.length) return;
+                  if (confirm(`Delete ${ids.length} inbox item(s) permanently?`)) {
+                    bulkDeleteMut.mutate(ids);
+                  }
+                }}
+                disabled={!selected.size || bulkDeleteMut.isPending}
+              >
+                {bulkDeleteMut.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Delete selected
+              </Button>
+            </div>
+          </div>
+        )}
+
         {q.isLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading inbox…
