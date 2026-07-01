@@ -454,7 +454,17 @@ function formatMonth(k: string): string {
   return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
-function EditorialCard({ row, onDelete }: { row: EditorialRow; onDelete: () => void }) {
+function EditorialCard({
+  row,
+  onDelete,
+  selected,
+  onToggleSelect,
+}: {
+  row: EditorialRow;
+  onDelete: () => void;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const items = row.analysis?.editorials ?? [];
   const [dlBusy, setDlBusy] = useState<"md" | "pdf" | null>(null);
@@ -481,24 +491,41 @@ function EditorialCard({ row, onDelete }: { row: EditorialRow; onDelete: () => v
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card
+      className={
+        "overflow-hidden transition " +
+        (selected ? "ring-2 ring-indigo-400" : "")
+      }
+    >
       <div className="bg-gradient-to-r from-indigo-500/10 via-fuchsia-500/10 to-amber-500/10 p-4 sm:p-4">
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="flex w-full items-start justify-between gap-3 text-left"
-        >
-          <div className="min-w-0 flex-1">
+        <div className="flex w-full items-start gap-2 text-left">
+          {onToggleSelect && (
+            <button
+              onClick={onToggleSelect}
+              className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full border bg-background/60 text-muted-foreground hover:text-indigo-500"
+              aria-label={selected ? "Unselect" : "Select"}
+              title={selected ? "Unselect" : "Select"}
+            >
+              {selected ? <CheckSquare className="h-4 w-4 text-indigo-500" /> : <Square className="h-4 w-4" />}
+            </button>
+          )}
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left"
+          >
+            <div className="min-w-0 flex-1">
             <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:truncate sm:text-[11px]">
               {row.newspaper || "Newspaper"} · {row.edition_date || row.created_at?.slice(0, 10)}
             </div>
             <div className="mt-1 break-words font-serif text-[20px] font-bold leading-tight sm:mt-0 sm:truncate sm:text-lg sm:font-semibold">
               {row.source_label || "Editorial batch"} · {items.length} pieces
             </div>
-          </div>
-          <div className="shrink-0 rounded-full border bg-background/60 p-2 text-muted-foreground">
-            {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-          </div>
-        </button>
+            </div>
+            <div className="shrink-0 rounded-full border bg-background/60 p-2 text-muted-foreground">
+              {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </div>
+          </button>
+        </div>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
           <button
             onClick={downloadMd}
