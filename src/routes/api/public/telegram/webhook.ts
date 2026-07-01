@@ -6,6 +6,25 @@ import { getTelegramWebhookSecret, safeEqual, tgDownload } from "@/lib/telegram.
 // Drive files are uploaded under a shared "telegram-inbox" pseudo-user folder.
 const SHARED_OWNER = "telegram-inbox";
 const FALLBACK_SUPABASE_URL = "https://ffkyjnswyfeghmfmlapu.supabase.co";
+// If set, PDFs forwarded to the bot are also inserted into `documents`
+// for this user id — they show up in the dashboard automatically, no
+// manual upload needed. Set TELEGRAM_INBOX_OWNER_USER_ID in project secrets.
+const INBOX_OWNER_USER_ID = process.env.TELEGRAM_INBOX_OWNER_USER_ID || "";
+
+// Best-effort PDF shrink (Cloudflare Worker safe). Rewrites the PDF with
+// object streams — typically 10-30% smaller for text-heavy newspaper PDFs.
+// Image-heavy scans won't shrink much; that's expected.
+async function shrinkPdf(bytes: ArrayBuffer): Promise<{ bytes: ArrayBuffer; ratio: number }> {
+  try {
+    const { PDFDocument } = await import("pdf-lib");
+    const src = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
+    const out = await src.save({ useObjectStreams: true, addDefaultPage: false });
+    const outBuf = out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) as ArrayBuffer;
+    return { bytes: outBuf.byteLength < bytes.byteLength ? outBuf : bytes, ratio: outBuf.byteLength / bytes.byteLength };
+  } catch {
+    return { bytes, ratio: 1 };
+  }
+}
 
 async function getAdmin() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || FALLBACK_SUPABASE_URL;
@@ -35,13 +54,37 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
   const fileName = doc.file_name || `telegram-${base.message_id}.pdf`;
   try {
     const { bytes } = await tgDownload(doc.file_id);
+    const { bytes: shrunk } = await shrinkPdf(bytes);
     const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
     const up = await uploadBufferToDrive({
       userId: SHARED_OWNER,
       fileName,
       mime: doc.mime_type || "application/pdf",
-      data: bytes,
+      data: shrunk,
     });
+    // Auto-push into the owner's documents so the dashboard picks it up.
+    if (INBOX_OWNER_USER_ID) {
+      try {
+        const admin = await getAdmin();
+        const { error: docErr } = await admin
+          .from("documents")
+          .insert({
+            user_id: INBOX_OWNER_USER_ID,
+            title: base.caption || fileName,
+            file_name: fileName,
+            mime: up.mimeType,
+            size_bytes: up.size,
+            source_type: "telegram",
+            status: "uploaded",
+            storage_provider: "google_drive",
+            drive_file_id: up.fileId,
+            drive_view_link: up.webViewLink,
+          });
+        if (docErr) console.error("[telegram → documents insert]", docErr.message);
+      } catch (e) {
+        console.error("[telegram → documents insert]", (e as Error).message);
+      }
+    }
     await upsertInbox({
       chat_id: base.chat_id,
       message_id: base.message_id,
