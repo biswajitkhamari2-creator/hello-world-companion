@@ -766,7 +766,19 @@ function buildEditorialMarkdown(row: EditorialRow): string {
   return lines.join("\n");
 }
 
-function EditorialPiece({ item, idx, rowId }: { item: EditorialItem; idx: number; rowId: string }) {
+function EditorialPiece({
+  item,
+  idx,
+  rowId,
+  rowMeta,
+  onDeletePiece,
+}: {
+  item: EditorialItem;
+  idx: number;
+  rowId: string;
+  rowMeta?: { newspaper: string | null; edition_date: string | null; created_at: string };
+  onDeletePiece?: () => void;
+}) {
   const importanceTint =
     item.importance === "Very High"
       ? "bg-rose-500 text-white"
@@ -775,6 +787,69 @@ function EditorialPiece({ item, idx, rowId }: { item: EditorialItem; idx: number
         : item.importance === "Medium"
           ? "bg-indigo-500 text-white"
           : "bg-muted text-foreground";
+
+  const baseName = `${(item.title || "editorial").replace(/[^\w-]+/g, "_").slice(0, 60)}`;
+
+  const downloadMindMap = async () => {
+    if (!item.diagramMermaid) {
+      toast.error("No mind map available for this editorial");
+      return;
+    }
+    try {
+      mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose" });
+      const { svg } = await mermaid.render(`mm-dl-${rowId}-${idx}`, item.diagramMermaid);
+      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      triggerDownload(blob, `${baseName}_mindmap.svg`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Mind map export failed");
+    }
+  };
+
+  const downloadPyq = () => {
+    const lines: string[] = [];
+    lines.push(`# ${item.title} — PYQ & Probable Questions`);
+    lines.push("");
+    if (item.pyqLinks?.length) {
+      lines.push(`## Previous Year Questions`);
+      item.pyqLinks.forEach((p) =>
+        lines.push(`- ${p.year ? `**${p.year}** ` : ""}${p.paper ? `(${p.paper}) ` : ""}${p.question}`),
+      );
+      lines.push("");
+    }
+    if (item.probablePrelimsMCQ) {
+      lines.push(`## Probable Prelims MCQ`);
+      lines.push(item.probablePrelimsMCQ.q);
+      item.probablePrelimsMCQ.options.forEach((o, j) =>
+        lines.push(`${j === item.probablePrelimsMCQ!.answer ? "**✓** " : ""}${String.fromCharCode(65 + j)}. ${o}`),
+      );
+      lines.push(`> ${item.probablePrelimsMCQ.explanation}`);
+      lines.push("");
+    }
+    if (item.probableMainsQuestion) {
+      lines.push(`## Probable Mains Question`);
+      lines.push(`*${item.probableMainsQuestion.paper} · ${item.probableMainsQuestion.marks} marks*`);
+      lines.push(item.probableMainsQuestion.q);
+      lines.push(`> **Approach:** ${item.probableMainsQuestion.approach}`);
+    }
+    if (!item.pyqLinks?.length && !item.probablePrelimsMCQ && !item.probableMainsQuestion) {
+      toast.error("No PYQ / probable questions available");
+      return;
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    triggerDownload(blob, `${baseName}_pyq.md`);
+  };
+
+  const downloadHandwritten = () => {
+    const html = buildHandwrittenHtml(item, rowMeta);
+    const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=1000");
+    if (!w) {
+      toast.error("Popup blocked — allow popups to save handwritten notes");
+      return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  };
 
   return (
     <div className="rounded-2xl border bg-card/60 p-4 sm:p-4">
@@ -793,6 +868,44 @@ function EditorialPiece({ item, idx, rowId }: { item: EditorialItem; idx: number
           </div>
         </div>
         <Badge className={importanceTint}>{item.importance}</Badge>
+      </div>
+
+      {/* Per-piece action toolbar — everything for this editorial on one screen */}
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+        <button
+          onClick={downloadMindMap}
+          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-md border bg-background/60 px-3 text-[13px] font-semibold text-muted-foreground hover:text-indigo-500"
+          title="Download Mind Map (SVG)"
+        >
+          <Brain className="h-4 w-4" />
+          <span>Mind Map</span>
+        </button>
+        <button
+          onClick={downloadPyq}
+          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-md border bg-background/60 px-3 text-[13px] font-semibold text-muted-foreground hover:text-amber-600"
+          title="Download PYQ + probable questions (Markdown)"
+        >
+          <HelpCircle className="h-4 w-4" />
+          <span>PYQ</span>
+        </button>
+        <button
+          onClick={downloadHandwritten}
+          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-md border bg-background/60 px-3 text-[13px] font-semibold text-muted-foreground hover:text-fuchsia-600"
+          title="Open handwritten notes — use browser Print > Save as PDF"
+        >
+          <PenLine className="h-4 w-4" />
+          <span>Handwritten</span>
+        </button>
+        {onDeletePiece && (
+          <button
+            onClick={onDeletePiece}
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-md border bg-background/60 px-3 text-[13px] font-semibold text-muted-foreground hover:text-rose-600"
+            title="Delete this editorial from history"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>Delete</span>
+          </button>
+        )}
       </div>
 
       {item.crispNotes?.length > 0 && (
