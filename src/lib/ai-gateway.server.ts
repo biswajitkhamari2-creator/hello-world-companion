@@ -202,10 +202,10 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
     return {
       provider: "gemini",
       model: "gemini-2.5-flash",
-      chunkSize: task === "infographics" ? 60_000 : 80_000,
+      chunkSize: task === "infographics" ? 60_000 : task === "handwritten_notes" ? 28_000 : 80_000,
       recommendedConcurrency: 4,
       minGapMs: 250,
-      maxOutputTokens: task === "infographics" ? 3_500 : 3_000,
+      maxOutputTokens: task === "infographics" ? 3_500 : task === "handwritten_notes" ? 7_000 : 3_000,
     };
   }
 
@@ -213,10 +213,10 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
     return {
       provider: "nvidia",
       model: "meta/llama-3.3-70b-instruct",
-      chunkSize: task === "infographics" ? 32_000 : 40_000,
+      chunkSize: task === "infographics" ? 32_000 : task === "handwritten_notes" ? 18_000 : 40_000,
       recommendedConcurrency: 3,
       minGapMs: 500,
-      maxOutputTokens: task === "infographics" ? 2_500 : 2_200,
+      maxOutputTokens: task === "infographics" ? 2_500 : task === "handwritten_notes" ? 5_000 : 2_200,
     };
   }
 
@@ -224,10 +224,10 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
     return {
       provider: "groq",
       model: "llama-3.1-8b-instant",
-      chunkSize: task === "infographics" ? 12_000 : 14_000,
+      chunkSize: task === "infographics" ? 12_000 : task === "handwritten_notes" ? 8_000 : 14_000,
       recommendedConcurrency: 1,
       minGapMs: 65_000,
-      maxOutputTokens: task === "infographics" ? 1_800 : 1_600,
+      maxOutputTokens: task === "infographics" ? 1_800 : task === "handwritten_notes" ? 4_000 : 1_600,
     };
   }
 
