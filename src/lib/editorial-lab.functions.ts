@@ -103,6 +103,10 @@ export const listInboxNewspapers = createServerFn({ method: "GET" })
         return mime.includes("pdf") || name.endsWith(".pdf") || r.source_type === "telegram";
       })
       .filter((r: any) => !inboxIds.has(r.drive_file_id))
+      // Hide rows whose Drive upload never completed — they have nothing to
+      // extract. Showing them creates the confusing
+      // "Newspaper PDF is visible but has no downloadable file yet." error.
+      .filter((r: any) => Boolean(r.drive_file_id))
       .map((r: any) => ({
         id: r.id,
         file_name: r.file_name || r.title || "Uploaded newspaper PDF",
