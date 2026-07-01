@@ -44,16 +44,17 @@ export const importInboxItem = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!item) throw new Error("Inbox item not found");
-    if (item.kind === "link") throw new Error("Link items cannot be imported as documents — open the URL directly.");
+    const inboxItem = item;
+    if (inboxItem.kind === "link") throw new Error("Link items cannot be imported as documents — open the URL directly.");
 
-    let driveFileId = item.drive_file_id as string | null;
-    let driveViewLink = item.drive_view_link as string | null;
-    let mime = item.mime as string | null;
-    let sizeBytes = item.size_bytes as number | null;
+    let driveFileId = inboxItem.drive_file_id as string | null;
+    let driveViewLink = inboxItem.drive_view_link as string | null;
+    let mime = inboxItem.mime as string | null;
+    let sizeBytes = inboxItem.size_bytes as number | null;
 
     async function repairFromTelegram() {
-      const rawMsg = (item.raw as any)?.message || (item.raw as any)?.channel_post || (item.raw as any)?.edited_message || (item.raw as any)?.edited_channel_post || {};
-      const telegramFileId = item.kind === "pdf"
+      const rawMsg = (inboxItem.raw as any)?.message || (inboxItem.raw as any)?.channel_post || (inboxItem.raw as any)?.edited_message || (inboxItem.raw as any)?.edited_channel_post || {};
+      const telegramFileId = inboxItem.kind === "pdf"
         ? rawMsg.document?.file_id
         : Array.isArray(rawMsg.photo)
           ? rawMsg.photo.at(-1)?.file_id
@@ -68,8 +69,8 @@ export const importInboxItem = createServerFn({ method: "POST" })
         const { bytes } = await tgDownload(telegramFileId);
         const uploaded = await uploadBufferToDrive({
           userId: "telegram-inbox",
-          fileName: item.file_name || `telegram-${item.message_id}.${item.kind === "image" ? "jpg" : "pdf"}`,
-          mime: item.mime || (item.kind === "image" ? "image/jpeg" : "application/pdf"),
+          fileName: inboxItem.file_name || `telegram-${inboxItem.message_id}.${inboxItem.kind === "image" ? "jpg" : "pdf"}`,
+          mime: inboxItem.mime || (inboxItem.kind === "image" ? "image/jpeg" : "application/pdf"),
           data: bytes,
         });
         driveFileId = uploaded.fileId;
@@ -86,7 +87,7 @@ export const importInboxItem = createServerFn({ method: "POST" })
             status: "ready",
             error_message: null,
           })
-          .eq("id", item.id);
+          .eq("id", inboxItem.id);
       } catch (e) {
         throw new Error(
           `Telegram file could not be fetched anymore. Please resend the PDF/image to the bot, then import the new inbox item. Details: ${(e as Error).message}`,
@@ -107,14 +108,14 @@ export const importInboxItem = createServerFn({ method: "POST" })
 
     if (!driveFileId) throw new Error("This item has no stored file. Please resend it to the bot.");
 
-    const title = item.file_name || (item.caption?.slice(0, 80) ?? "Telegram import");
+    const title = inboxItem.file_name || (inboxItem.caption?.slice(0, 80) ?? "Telegram import");
     const { data: doc, error: insertErr } = await supabase
       .from("documents")
       .insert({
         user_id: userId,
         title,
-        file_name: item.file_name,
-        source_type: item.kind === "pdf" ? "pdf" : "image",
+        file_name: inboxItem.file_name,
+        source_type: inboxItem.kind === "pdf" ? "pdf" : "image",
         mime,
         size_bytes: sizeBytes,
         storage_provider: "google_drive",
