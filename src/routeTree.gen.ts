@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiMentorRouteImport } from './routes/api/mentor'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedMocksRouteImport } from './routes/_authenticated/mocks'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedEditorialRouteImport } from './routes/_authenticated/editorial'
@@ -52,6 +53,11 @@ const ApiMentorRoute = ApiMentorRouteImport.update({
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMocksRoute = AuthenticatedMocksRouteImport.update({
+  id: '/mocks',
+  path: '/mocks',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMentorRoute = AuthenticatedMentorRouteImport.update({
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/editorial': typeof AuthenticatedEditorialRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/mentor': typeof AuthenticatedMentorRoute
+  '/mocks': typeof AuthenticatedMocksRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByTo {
   '/editorial': typeof AuthenticatedEditorialRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/mentor': typeof AuthenticatedMentorRoute
+  '/mocks': typeof AuthenticatedMocksRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
@@ -145,6 +153,7 @@ export interface FileRoutesById {
   '/_authenticated/editorial': typeof AuthenticatedEditorialRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
+  '/_authenticated/mocks': typeof AuthenticatedMocksRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | '/editorial'
     | '/inbox'
     | '/mentor'
+    | '/mocks'
     | '/profile'
     | '/api/mentor'
     | '/api/oauth/google/callback'
@@ -179,6 +189,7 @@ export interface FileRouteTypes {
     | '/editorial'
     | '/inbox'
     | '/mentor'
+    | '/mocks'
     | '/profile'
     | '/api/mentor'
     | '/api/oauth/google/callback'
@@ -196,6 +207,7 @@ export interface FileRouteTypes {
     | '/_authenticated/editorial'
     | '/_authenticated/inbox'
     | '/_authenticated/mentor'
+    | '/_authenticated/mocks'
     | '/_authenticated/profile'
     | '/api/mentor'
     | '/api/oauth/google/callback'
@@ -256,6 +268,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mocks': {
+      id: '/_authenticated/mocks'
+      path: '/mocks'
+      fullPath: '/mocks'
+      preLoaderRoute: typeof AuthenticatedMocksRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/mentor': {
@@ -331,6 +350,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEditorialRoute: typeof AuthenticatedEditorialRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
+  AuthenticatedMocksRoute: typeof AuthenticatedMocksRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
 }
 
@@ -341,6 +361,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEditorialRoute: AuthenticatedEditorialRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
+  AuthenticatedMocksRoute: AuthenticatedMocksRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
 }
 
