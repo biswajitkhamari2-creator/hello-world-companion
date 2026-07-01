@@ -386,22 +386,37 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             raw: update,
           };
 
+          // Collect URLs from text, caption, and telegram entities (link previews).
+          const textCandidates = [msg.text, msg.caption].filter((v: unknown): v is string => typeof v === "string");
+          const entityUrls: string[] = [];
+          for (const ent of [...(msg.entities ?? []), ...(msg.caption_entities ?? [])]) {
+            if (ent?.type === "text_link" && typeof ent.url === "string") entityUrls.push(ent.url);
+          }
+          const allUrls = Array.from(new Set([
+            ...textCandidates.flatMap(extractUrls),
+            ...entityUrls,
+          ]));
+          console.log("[telegram webhook]", {
+            chat_id: base.chat_id, message_id: base.message_id,
+            has_document: !!msg.document, has_photo: Array.isArray(msg.photo),
+            text_preview: (msg.text || msg.caption || "").slice(0, 120),
+            url_count: allUrls.length, urls: allUrls,
+          });
+
           if (msg.document && (msg.document.mime_type === "application/pdf" || (msg.document.file_name || "").toLowerCase().endsWith(".pdf"))) {
             await handlePdf(msg.document, base);
           } else if (Array.isArray(msg.photo) && msg.photo.length) {
             const best = msg.photo[msg.photo.length - 1];
             await handlePhoto(best, base);
-          } else if (typeof msg.text === "string") {
-            const urls = extractUrls(msg.text);
-            if (urls.length) {
-              for (const u of urls) {
-                const perLinkBase = { ...base, message_id: base.message_id + Math.floor(Math.random() * 1000) };
-                const driveId = extractDriveFileId(u);
-                if (driveId) {
-                  await handleDrivePdfLink(u, driveId, perLinkBase);
-                } else {
-                  await handleLink(u, perLinkBase);
-                }
+          } else if (allUrls.length) {
+            for (const u of allUrls) {
+              const perLinkBase = { ...base, message_id: base.message_id + Math.floor(Math.random() * 1000) };
+              const driveId = extractDriveFileId(u);
+              console.log("[telegram webhook] url routed", { url: u, driveId });
+              if (driveId) {
+                await handleDrivePdfLink(u, driveId, perLinkBase);
+              } else {
+                await handleLink(u, perLinkBase);
               }
             }
           }
