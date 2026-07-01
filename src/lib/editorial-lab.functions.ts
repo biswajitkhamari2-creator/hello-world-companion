@@ -53,6 +53,57 @@ export interface EditorialRow {
 
 const TELEGRAM_SHARED_OWNER = "telegram-inbox";
 
+function extractUrls(text: string): string[] {
+  const re = /https?:\/\/[^\s)]+/gi;
+  return Array.from(new Set(text.match(re) ?? []));
+}
+
+function extractDriveFileId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)google\.com$/.test(u.hostname) && !/(^|\.)googleusercontent\.com$/.test(u.hostname)) return null;
+    const m = u.pathname.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{20,})/);
+    if (m) return m[1];
+    const idParam = u.searchParams.get("id");
+    return idParam && /^[a-zA-Z0-9_-]{20,}$/.test(idParam) ? idParam : null;
+  } catch {
+    return null;
+  }
+}
+
+function getDriveUrlFromInboxRow(row: any): string | null {
+  const candidates = [row?.source_url, row?.caption, row?.file_name, JSON.stringify(row?.raw ?? {})]
+    .filter(Boolean)
+    .flatMap((v) => extractUrls(String(v)));
+  return candidates.find((url) => Boolean(extractDriveFileId(url))) ?? null;
+}
+
+async function fetchPublicDrivePdf(fileId: string): Promise<{ bytes: ArrayBuffer; mime: string; name: string | null }> {
+  const primary = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`;
+  let res = await fetch(primary, { redirect: "follow" });
+  let contentType = res.headers.get("content-type") || "";
+  if (res.ok && /text\/html/i.test(contentType)) {
+    const html = await res.text();
+    const uuid = html.match(/name="uuid"\s+value="([^"]+)"/i)?.[1];
+    const confirm = html.match(/name="confirm"\s+value="([^"]+)"/i)?.[1] || "t";
+    if (uuid) {
+      const retry = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=${encodeURIComponent(confirm)}&uuid=${encodeURIComponent(uuid)}`;
+      res = await fetch(retry, { redirect: "follow" });
+      contentType = res.headers.get("content-type") || "";
+    }
+  }
+  if (!res.ok) throw new Error(`Drive public download failed (${res.status}). Share it as "Anyone with the link — Viewer" and resend.`);
+  if (/text\/html/i.test(contentType)) throw new Error("Drive returned a web page instead of PDF. Make the file public: Anyone with the link — Viewer.");
+  const cd = res.headers.get("content-disposition") || "";
+  const nameMatch = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+  const name = nameMatch ? decodeURIComponent(nameMatch[1]) : null;
+  const bytes = await res.arrayBuffer();
+  const mime = contentType.split(";")[0].trim() || "application/pdf";
+  const looksPdf = mime.includes("pdf") || (name || "").toLowerCase().endsWith(".pdf");
+  if (!looksPdf) throw new Error("This Drive link is not a PDF file.");
+  return { bytes, mime, name };
+}
+
 function getTelegramFileIdFromRaw(raw: any, kind: string): string | null {
   const msg = raw?.message || raw?.channel_post || raw?.edited_message || raw?.edited_channel_post || {};
   if (kind === "pdf") return msg?.document?.file_id || null;
@@ -80,12 +131,17 @@ export const listInboxNewspapers = createServerFn({ method: "GET" })
     const supabase = getAdmin();
     const { data: inboxRows, error: inboxError } = await supabase
       .from("telegram_inbox")
-      .select("id,file_name,caption,posted_at,size_bytes,drive_file_id,drive_view_link,status,error_message")
-      .eq("kind", "pdf")
+      .select("id,kind,file_name,caption,posted_at,size_bytes,drive_file_id,drive_view_link,source_url,status,error_message,raw")
+      .in("kind", ["pdf", "link"])
       .is("archived_at", null)
       .order("posted_at", { ascending: false })
-      .limit(50);
+      .limit(100);
     if (inboxError) throw new Error(inboxError.message);
+
+    const usableInboxRows = (inboxRows ?? []).filter((r: any) => {
+      if (r.kind === "pdf") return true;
+      return Boolean(getDriveUrlFromInboxRow(r));
+    });
 
     const { data: docRows, error: docError } = await supabase
       .from("documents")
@@ -95,7 +151,7 @@ export const listInboxNewspapers = createServerFn({ method: "GET" })
       .limit(50);
     if (docError) throw new Error(docError.message);
 
-    const inboxIds = new Set((inboxRows ?? []).map((r: any) => r.drive_file_id).filter(Boolean));
+    const inboxIds = new Set(usableInboxRows.map((r: any) => r.drive_file_id).filter(Boolean));
     const documentPdfs = (docRows ?? [])
       .filter((r: any) => {
         const name = String(r.file_name || r.title || "").toLowerCase();
@@ -121,7 +177,12 @@ export const listInboxNewspapers = createServerFn({ method: "GET" })
       }));
 
     return [
-      ...((inboxRows ?? []) as any[]).map((r) => ({ ...r, source: "telegram_inbox" })),
+      ...((usableInboxRows ?? []) as any[]).map((r) => ({
+        ...r,
+        file_name: r.file_name || (r.kind === "link" ? "Google Drive newspaper PDF" : r.file_name),
+        status: r.kind === "link" && !r.drive_file_id ? "drive_link_ready" : r.status,
+        source: "telegram_inbox",
+      })),
       ...documentPdfs,
     ].sort((a: any, b: any) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime());
   });
@@ -493,7 +554,7 @@ export const analyseEditorialFromInbox = createServerFn({ method: "POST" })
 
     const { data: inbox, error } = await supabase
       .from("telegram_inbox")
-      .select("id,file_name,caption,posted_at,drive_file_id,drive_view_link,mime,size_bytes,status,raw")
+      .select("id,kind,file_name,caption,posted_at,drive_file_id,drive_view_link,source_url,mime,size_bytes,status,raw")
       .eq("id", data.inboxId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -557,6 +618,43 @@ export const analyseEditorialFromInbox = createServerFn({ method: "POST" })
             throw new Error("Telegram bots cannot download PDFs larger than 20 MB. Upload this newspaper manually or send a Drive link.");
           }
           throw new Error(`Could not fetch this Telegram PDF. Please resend it to the bot, then refresh. Details: ${msg}`);
+        }
+      }
+    }
+
+    if (source && !source.driveFileId && (inbox as any)?.kind === "link") {
+      const driveUrl = getDriveUrlFromInboxRow(inbox);
+      const driveId = driveUrl ? extractDriveFileId(driveUrl) : null;
+      if (driveId) {
+        try {
+          const { uploadBufferToDrive } = await import("./gdrive.server");
+          const dl = await fetchPublicDrivePdf(driveId);
+          const uploaded = await uploadBufferToDrive({
+            userId: TELEGRAM_SHARED_OWNER,
+            fileName: dl.name || source.fileName || `drive-${driveId}.pdf`,
+            mime: dl.mime || "application/pdf",
+            data: dl.bytes,
+          });
+          await supabase
+            .from("telegram_inbox")
+            .update({
+              kind: "pdf",
+              file_name: dl.name || source.fileName || `drive-${driveId}.pdf`,
+              drive_file_id: uploaded.fileId,
+              drive_view_link: uploaded.webViewLink,
+              mime: uploaded.mimeType,
+              size_bytes: uploaded.size,
+              status: "ready",
+              error_message: null,
+              source_url: driveUrl,
+            })
+            .eq("id", source.id);
+          source.driveFileId = uploaded.fileId;
+          source.fileName = dl.name || source.fileName || `drive-${driveId}.pdf`;
+          source.mime = uploaded.mimeType;
+          source.sizeBytes = uploaded.size;
+        } catch (e: any) {
+          throw new Error(`Could not import the Drive PDF for Editorial Lab. ${String(e?.message || e)}`);
         }
       }
     }
