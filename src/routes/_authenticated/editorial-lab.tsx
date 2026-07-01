@@ -22,6 +22,7 @@ import {
   X,
   ChevronsDownUp,
   ChevronsUpDown,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -127,6 +128,22 @@ function EditorialLabPage() {
       setExpandSignal((s) => s + 1);
       return next;
     });
+  };
+
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshAll = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["editorial-lab", "pdfs"] }),
+        qc.invalidateQueries({ queryKey: ["editorial-lab", "notes"] }),
+      ]);
+      toast.success("Refreshed");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const togglePdf = (id: string) =>
