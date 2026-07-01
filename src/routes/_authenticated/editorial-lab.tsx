@@ -32,11 +32,13 @@ import {
   listEditorials,
   analyseEditorialFromInbox,
   deleteEditorial,
+  removeEditorialPiece,
   type EditorialRow,
   type EditorialItem,
 } from "@/lib/editorial-lab.functions";
 import { deleteInboxItem } from "@/lib/telegram-inbox.functions";
 import { deleteDocument } from "@/lib/documents.functions";
+import { Brain, PenLine, HelpCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/editorial-lab")({
   head: () => ({
