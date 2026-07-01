@@ -119,29 +119,30 @@ function SidebarNavLink({ item, active, index = 0 }: { item: NavItem; active: bo
         isActive={active}
         tooltip={item.title}
         className={cn(
-          "group/nav rounded-lg transition-all duration-200",
-          "hover:translate-x-1 hover:bg-sidebar-accent/80 hover:shadow-sm",
+          "group/nav relative my-1 h-auto rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2 backdrop-blur-md transition-all duration-300",
+          "shadow-[0_4px_14px_-6px_rgba(15,23,42,0.25)] hover:-translate-y-0.5 hover:translate-x-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-[0_10px_28px_-10px_rgba(99,102,241,0.55)]",
+          "before:pointer-events-none before:absolute before:inset-0 before:rounded-2xl before:bg-gradient-to-r before:from-indigo-500/0 before:via-fuchsia-500/0 before:to-amber-400/0 before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100 hover:before:from-indigo-500/10 hover:before:via-fuchsia-500/10 hover:before:to-amber-400/10",
           active &&
-            "bg-gradient-to-r from-indigo-500/15 via-fuchsia-500/10 to-amber-400/10 text-foreground shadow-sm",
+            "border-transparent bg-gradient-to-r from-indigo-500/25 via-fuchsia-500/20 to-amber-400/20 text-foreground shadow-[0_10px_30px_-10px_rgba(217,70,239,0.55)]",
         )}
       >
         <Link
           to={path}
           search={query ? search : undefined}
           onClick={() => { if (isMobile) setOpenMobile(false); }}
-          className="flex w-full items-center gap-2.5"
+          className="relative flex w-full items-center gap-3"
         >
           <span
             className={cn(
-              "grid h-7 w-7 shrink-0 place-items-center rounded-md transition-all duration-300 group-hover/nav:scale-110 group-hover/nav:rotate-3",
+              "grid h-8 w-8 shrink-0 place-items-center rounded-xl transition-all duration-300 group-hover/nav:scale-110 group-hover/nav:-rotate-6",
               active
-                ? "bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-md"
-                : "bg-sidebar-accent/60 text-foreground/70 group-hover/nav:text-foreground",
+                ? "bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 text-white shadow-[0_6px_18px_-4px_rgba(217,70,239,0.7)] ring-1 ring-white/30"
+                : "bg-gradient-to-br from-white/10 to-white/5 text-foreground/70 ring-1 ring-white/10 group-hover/nav:text-foreground group-hover/nav:from-indigo-500/30 group-hover/nav:to-fuchsia-500/20",
             )}
           >
             <item.icon className={cn("h-4 w-4 transition-transform", active && "animate-pulse")} />
           </span>
-          <span className="truncate text-[13.5px] font-medium">{item.title}</span>
+          <span className="truncate text-[13.5px] font-medium tracking-tight">{item.title}</span>
           {item.badge ? (
             <span className="ml-auto rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
               {item.badge}
@@ -219,9 +220,12 @@ function HamburgerTrigger() {
       type="button"
       aria-label="Open navigation"
       onClick={toggleSidebar}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 bg-paper/70 text-foreground shadow-sm backdrop-blur transition-all hover:bg-paper hover:shadow-md active:scale-95"
+      className="group relative inline-flex h-10 w-10 items-center justify-center rounded-2xl text-white shadow-[0_10px_28px_-8px_rgba(99,102,241,0.65)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-8px_rgba(217,70,239,0.75)] active:scale-95"
     >
-      <Menu className="h-4.5 w-4.5" />
+      <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 opacity-95 transition-opacity group-hover:opacity-100" />
+      <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 opacity-60 blur-md transition-opacity group-hover:opacity-90" />
+      <span className="absolute inset-[1px] rounded-[14px] bg-background/10 backdrop-blur-md" />
+      <Menu className="relative h-4.5 w-4.5 transition-transform duration-300 group-hover:rotate-90" />
     </button>
   );
 }
