@@ -3,18 +3,6 @@ import { useState } from "react";
 import {
   Sparkles,
   Search,
-  Newspaper,
-  FileEdit,
-  Target,
-  History,
-  Upload,
-  Inbox,
-  PenLine,
-  ImageIcon,
-  Library,
-  CalendarRange,
-  ArrowRight,
-  Flame,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { cn } from "@/lib/utils";
@@ -145,8 +133,6 @@ function Landing() {
         <FloatingBackdrop />
         <main className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:py-14">
           <Hero />
-          <QuickAccess />
-          <BottomCTA />
         </main>
         <footer className="relative border-t border-border/50 py-6 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} <span className="font-semibold text-foreground/80">UPSC</span> · by Sidheswar Enterprises
@@ -204,44 +190,6 @@ function Hero() {
             </button>
           </div>
         </form>
-      </div>
-
-      {/* Today strip */}
-      <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <TodayCard
-          icon={FileEdit}
-          tint="from-indigo-500 to-violet-500"
-          eyebrow="Today's Editorial"
-          title="Decoding the Editorial"
-          body="AI summary, GS mapping & probable questions."
-          to="/editorial"
-        />
-        <TodayCard
-          icon={Newspaper}
-          tint="from-rose-500 to-amber-500"
-          eyebrow="Latest Newspaper"
-          title="The Hindu · Today"
-          body="Article-wise UPSC analysis ready in one click."
-          to="/inbox"
-        />
-        <TodayCard
-          icon={Flame}
-          tint="from-amber-500 to-orange-500"
-          eyebrow="Current Affairs"
-          title="Top 10 of the Day"
-          body="Prelims-focused crisp facts & MCQs."
-          to="/dashboard?tab=current-affairs"
-        />
-        <TodayCard
-          icon={Target}
-          tint="from-emerald-500 to-teal-500"
-          eyebrow="Daily Target"
-          title="Continue learning"
-          body="Pick up where you left off."
-          to="/dashboard"
-          cta="Resume"
-          ctaIcon={History}
-        />
       </div>
     </section>
   );
