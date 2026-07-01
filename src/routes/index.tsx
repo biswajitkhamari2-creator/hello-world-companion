@@ -1,20 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Sparkles,
   Search,
-  Newspaper,
-  FileEdit,
-  Target,
-  History,
-  Upload,
-  Inbox,
-  PenLine,
-  ImageIcon,
-  Library,
-  CalendarRange,
-  ArrowRight,
-  Flame,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { cn } from "@/lib/utils";
@@ -145,8 +133,6 @@ function Landing() {
         <FloatingBackdrop />
         <main className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:py-14">
           <Hero />
-          <QuickAccess />
-          <BottomCTA />
         </main>
         <footer className="relative border-t border-border/50 py-6 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} <span className="font-semibold text-foreground/80">UPSC</span> · by Sidheswar Enterprises
@@ -205,177 +191,7 @@ function Hero() {
           </div>
         </form>
       </div>
-
-      {/* Today strip */}
-      <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <TodayCard
-          icon={FileEdit}
-          tint="from-indigo-500 to-violet-500"
-          eyebrow="Today's Editorial"
-          title="Decoding the Editorial"
-          body="AI summary, GS mapping & probable questions."
-          to="/editorial"
-        />
-        <TodayCard
-          icon={Newspaper}
-          tint="from-rose-500 to-amber-500"
-          eyebrow="Latest Newspaper"
-          title="The Hindu · Today"
-          body="Article-wise UPSC analysis ready in one click."
-          to="/inbox"
-        />
-        <TodayCard
-          icon={Flame}
-          tint="from-amber-500 to-orange-500"
-          eyebrow="Current Affairs"
-          title="Top 10 of the Day"
-          body="Prelims-focused crisp facts & MCQs."
-          to="/dashboard?tab=current-affairs"
-        />
-        <TodayCard
-          icon={Target}
-          tint="from-emerald-500 to-teal-500"
-          eyebrow="Daily Target"
-          title="Continue learning"
-          body="Pick up where you left off."
-          to="/dashboard"
-          cta="Resume"
-          ctaIcon={History}
-        />
-      </div>
     </section>
   );
 }
 
-function TodayCard({
-  icon: Icon,
-  tint,
-  eyebrow,
-  title,
-  body,
-  to,
-  cta = "Open",
-  ctaIcon: CtaIcon = ArrowRight,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  tint: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  to: string;
-  cta?: string;
-  ctaIcon?: React.ComponentType<{ className?: string }>;
-}) {
-  return (
-    <a href={to} className="block">
-      <GlassCard className="h-full">
-        <div className="flex items-start gap-3">
-          <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-md", tint)}>
-            <Icon className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <div className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{eyebrow}</div>
-            <div className="mt-0.5 truncate font-serif text-[17px] font-semibold text-foreground">{title}</div>
-          </div>
-        </div>
-        <p className="mt-3 text-[13.5px] leading-relaxed text-foreground/75">{body}</p>
-        <div className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-indigo-600 dark:text-indigo-300">
-          {cta} <CtaIcon className="h-3.5 w-3.5" />
-        </div>
-      </GlassCard>
-    </a>
-  );
-}
-
-// ---------------- Quick Access ----------------
-
-const QUICK = [
-  { title: "AI Mentor", desc: "Text + voice tutor, context-aware.", icon: Sparkles, to: "/mentor", tint: "from-indigo-500 to-fuchsia-500" },
-  { title: "AI Newspaper", desc: "Auto UPSC analysis per article.", icon: Newspaper, to: "/dashboard?mode=newspaper", tint: "from-rose-500 to-amber-500" },
-  { title: "PDF Upload", desc: "Drop any material, get UPSC outputs.", icon: Upload, to: "/dashboard", tint: "from-sky-500 to-indigo-500" },
-  { title: "Telegram Inbox", desc: "Imported newspapers & PDFs.", icon: Inbox, to: "/inbox", tint: "from-cyan-500 to-blue-500" },
-  { title: "Handwritten Notes", desc: "Topper notebook style PDF.", icon: PenLine, to: "/dashboard?gen=handwritten", tint: "from-violet-500 to-purple-500" },
-  { title: "Infographics", desc: "One-click visual concept packs.", icon: ImageIcon, to: "/dashboard?gen=infographics", tint: "from-emerald-500 to-teal-500" },
-  { title: "PYQ Search", desc: "Find & map previous-year trends.", icon: Library, to: "/dashboard?gen=pyq", tint: "from-amber-500 to-orange-500" },
-  { title: "Study Planner", desc: "Daily targets & revision loop.", icon: CalendarRange, to: "/dashboard?tab=planner", tint: "from-fuchsia-500 to-pink-500" },
-];
-
-function QuickAccess() {
-  return (
-    <section className="mt-14">
-      <div className="mb-5 flex items-end justify-between">
-        <div>
-          <h2 className="font-serif text-2xl font-semibold tracking-tight sm:text-3xl">Quick access</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Jump into your most-used tools.</p>
-        </div>
-        <Link to="/dashboard" className="hidden text-sm font-semibold text-indigo-600 hover:underline sm:inline-flex">
-          Open dashboard →
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-        {QUICK.map((q, idx) => (
-          <a
-            key={q.title}
-            href={q.to}
-            className="group relative block"
-            style={{ animation: `floatY 6s ease-in-out ${idx * 0.2}s infinite alternate` }}
-          >
-            <GlassCard className="h-full">
-              <span className={cn("grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br text-white shadow-md transition-transform group-hover:scale-110", q.tint)}>
-                <q.icon className="h-5 w-5" />
-              </span>
-              <h3 className="mt-3.5 font-serif text-[17px] font-semibold leading-tight text-foreground">{q.title}</h3>
-              <p className="mt-1 text-[13px] leading-relaxed text-foreground/70">{q.desc}</p>
-              <span className="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold text-indigo-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-indigo-300">
-                Open <ArrowRight className="h-3 w-3" />
-              </span>
-            </GlassCard>
-          </a>
-        ))}
-      </div>
-      <style>{`
-        @keyframes floatY {
-          from { transform: translateY(0); }
-          to   { transform: translateY(-4px); }
-        }
-      `}</style>
-    </section>
-  );
-}
-
-function BottomCTA() {
-  return (
-    <section className="mt-14">
-      <GlassCard className="overflow-hidden p-0">
-        <div className="relative grid items-center gap-6 p-7 sm:p-10 md:grid-cols-[1.4fr_1fr]">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">
-              Final Checker
-            </div>
-            <h3 className="mt-2 font-serif text-2xl font-semibold leading-tight sm:text-3xl">
-              Audit your prep across the full UPSC syllabus.
-            </h3>
-            <p className="mt-2 max-w-lg text-sm text-foreground/75 sm:text-[15px]">
-              Run a 9-phase quality check — syllabus matching, PYQ coverage, weak areas — and auto-fix gaps in one click.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3 md:justify-end">
-            <a
-              href="/dashboard"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-[1.03] active:scale-95"
-            >
-              <Sparkles className="h-4 w-4" /> Open Dashboard
-            </a>
-            <Link
-              to="/mentor"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-paper/80 px-5 py-2.5 text-sm font-semibold text-foreground backdrop-blur transition-colors hover:bg-paper"
-            >
-              Chat with Mentor
-            </Link>
-          </div>
-        </div>
-      </GlassCard>
-    </section>
-  );
-}
