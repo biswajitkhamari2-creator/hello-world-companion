@@ -424,13 +424,6 @@ function InstitutionPage() {
               {mode === "comprehensive" && comprehensive && (
                 <ComprehensiveNotesView notes={comprehensive} />
               )}
-              {(crisp || comprehensive) && !showFull && (
-                <div className="mt-6 flex justify-center">
-                  <Button size="sm" variant="outline" onClick={loadFullArticle}>
-                    <BookOpen className="mr-1.5 h-3.5 w-3.5" /> Load full article (optional)
-                  </Button>
-                </div>
-              )}
               {showFull && articleMut.isPending && (
                 <div className="mt-6 flex items-center gap-2 py-4 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> Fetching full article…
@@ -443,6 +436,13 @@ function InstitutionPage() {
                 />
               )}
               </div>
+              {(crisp || comprehensive) && !showFull && (
+                <div className="mt-6 flex justify-center print:hidden">
+                  <Button size="sm" variant="outline" onClick={loadFullArticle}>
+                    <BookOpen className="mr-1.5 h-3.5 w-3.5" /> Load full article (optional)
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
