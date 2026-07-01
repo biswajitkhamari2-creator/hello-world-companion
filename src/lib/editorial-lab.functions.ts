@@ -296,7 +296,7 @@ Rules:
       response_mime_type: "application/json",
       response_schema: schema,
       temperature: 0.3,
-      maxOutputTokens: 8192,
+      maxOutputTokens: 32768,
     },
   };
 
@@ -311,14 +311,26 @@ Rules:
     throw new Error(`Gemini editorial extract failed: ${r.status} ${txt.slice(0, 240)}`);
   }
   const j: any = await r.json();
+  const finishReason = j?.candidates?.[0]?.finishReason;
   const text = j?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text ?? "").join("") ?? "";
+  if (finishReason === "MAX_TOKENS") {
+    throw new Error(
+      "Editorial too large — Gemini hit the output token limit. Try a smaller PDF (single day / editorial pages only) and retry.",
+    );
+  }
   let parsed: EditorialAnalysisFull;
   try {
     parsed = JSON.parse(text);
   } catch {
     const m = text.match(/\{[\s\S]*\}/);
     if (!m) throw new Error("Gemini returned invalid JSON");
-    parsed = JSON.parse(m[0]);
+    try {
+      parsed = JSON.parse(m[0]);
+    } catch (e) {
+      throw new Error(
+        `Gemini returned malformed JSON (finishReason=${finishReason ?? "unknown"}). ${(e as Error).message}`,
+      );
+    }
   }
   if (!Array.isArray(parsed.editorials)) parsed.editorials = [];
   return parsed;
