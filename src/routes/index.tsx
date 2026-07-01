@@ -440,7 +440,7 @@ function UpscNews() {
 
       {active && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm" onClick={() => setActive(null)}>
-          <div className="relative my-6 w-full max-w-3xl rounded-2xl border border-border bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="relative my-6 w-full max-w-3xl rounded-2xl border border-border bg-card text-foreground shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-t-2xl border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs uppercase tracking-wider text-muted-foreground">{active.source}</p>
