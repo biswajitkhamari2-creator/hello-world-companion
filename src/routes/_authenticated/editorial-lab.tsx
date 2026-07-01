@@ -42,7 +42,7 @@ import {
 } from "@/lib/editorial-lab.functions";
 import { deleteInboxItem } from "@/lib/telegram-inbox.functions";
 import { deleteDocument } from "@/lib/documents.functions";
-import { Brain, PenLine, HelpCircle } from "lucide-react";
+import { Brain, PenLine, HelpCircle, FileText, Palette } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/editorial-lab")({
   head: () => ({
