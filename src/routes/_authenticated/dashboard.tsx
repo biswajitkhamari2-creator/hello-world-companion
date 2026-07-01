@@ -843,7 +843,7 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
             <p className="mt-3 text-xs text-muted-foreground">All outputs are disabled in Processing options.</p>
           )}
           {Object.entries(results).map(([type, content]) => (
-            <GeneratedResult key={type} type={type as OutputType} content={content} docTitle={doc.title} />
+            <GeneratedResult key={type} type={type as OutputType} content={content} docTitle={doc.title} docId={doc.id} />
           ))}
           {prefs.runFinalChecker && <FinalChecker documentId={doc.id} documentTitle={doc.title} />}
           <HistoryPanel
@@ -887,19 +887,40 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
   );
 }
 
-function GeneratedResult({ type, content, docTitle }: { type: OutputType; content: any; docTitle: string }) {
+const VERIFIED_KEY_PREFIX = "verified-export:";
+function verifiedStorageKey(docId: string, type: OutputType) {
+  return `${VERIFIED_KEY_PREFIX}${docId}:${type}`;
+}
+function isAlreadyVerified(docId: string, type: OutputType): boolean {
+  if (typeof window === "undefined") return false;
+  try { return !!window.localStorage.getItem(verifiedStorageKey(docId, type)); } catch { return false; }
+}
+function markVerified(docId: string, type: OutputType) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(verifiedStorageKey(docId, type), new Date().toISOString()); } catch {}
+}
+
+function GeneratedResult({ type, content, docTitle, docId }: { type: OutputType; content: any; docTitle: string; docId: string }) {
   const previewRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [verified, setVerified] = useState(() => isAlreadyVerified(docId, type));
 
   const handleVerify = async () => {
     if (!previewRef.current) return;
+    if (verified) {
+      const { toast } = await import("sonner");
+      toast.success("Already verified ✓ — sent to history. Download will not re-verify.");
+      return;
+    }
     setVerifying(true);
     try {
       const { verifyPreviewExport } = await import("@/lib/preview-pdf");
       const report = await verifyPreviewExport(previewRef.current);
       const { toast } = await import("sonner");
       if (report.ok) {
+        markVerified(docId, type);
+        setVerified(true);
         toast.success(`Verified ✓ ${report.pages} page${report.pages === 1 ? "" : "s"}, ${Math.round(report.coverageRatio * 100)}% content coverage.`);
       } else {
         toast.error(`Verify export found ${report.issues.length} issue(s)`, { description: report.issues.join(" ") });
@@ -917,9 +938,13 @@ function GeneratedResult({ type, content, docTitle }: { type: OutputType; conten
     setExporting(true);
     try {
       const { downloadPreviewAsPdf } = await import("@/lib/preview-pdf");
-      const report = await downloadPreviewAsPdf(previewRef.current, `${docTitle}-${OUTPUT_LABELS[type].label}`, { verifyBefore: true });
+      const shouldVerify = !verified;
+      const report = await downloadPreviewAsPdf(previewRef.current, `${docTitle}-${OUTPUT_LABELS[type].label}`, { verifyBefore: shouldVerify });
+      if (shouldVerify) { markVerified(docId, type); setVerified(true); }
       const { toast } = await import("sonner");
-      toast.success(`Saved ${report.pages} page${report.pages === 1 ? "" : "s"} (verified ${Math.round(report.coverageRatio * 100)}%).`);
+      toast.success(shouldVerify
+        ? `Saved ${report.pages} page${report.pages === 1 ? "" : "s"} (verified ${Math.round(report.coverageRatio * 100)}%). Future downloads will skip verify.`
+        : `Saved ${report.pages} page${report.pages === 1 ? "" : "s"} — used cached verification.`);
     } catch (e) {
       console.error("[download] failed", e);
       const { toast } = await import("sonner");
@@ -933,11 +958,14 @@ function GeneratedResult({ type, content, docTitle }: { type: OutputType; conten
   return (
     <section className="mt-4 rounded-lg border border-border bg-background p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h4 className="font-serif text-base font-semibold">{OUTPUT_LABELS[type].label}</h4>
+        <h4 className="font-serif text-base font-semibold">
+          {OUTPUT_LABELS[type].label}
+          {verified && <span className="ml-2 text-xs font-normal text-emerald-600">✓ Verified</span>}
+        </h4>
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={handleVerify} disabled={verifying || exporting}>
+          <Button size="sm" variant="outline" onClick={handleVerify} disabled={verifying || exporting || verified}>
             {verifying ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-            {verifying ? "Verifying…" : "Verify export"}
+            {verifying ? "Verifying…" : verified ? "Verified ✓" : "Verify export"}
           </Button>
           <Button size="sm" onClick={handleDownload} disabled={exporting || verifying}>
             <Download className="mr-2 h-3.5 w-3.5" />
