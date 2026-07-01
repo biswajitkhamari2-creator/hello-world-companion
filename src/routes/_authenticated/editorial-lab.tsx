@@ -544,6 +544,16 @@ function EditorialCard({
   const [open, setOpen] = useState(false);
   const items = row.analysis?.editorials ?? [];
   const [dlBusy, setDlBusy] = useState<"md" | "pdf" | null>(null);
+  const removePiece = useServerFn(removeEditorialPiece);
+  const qc = useQueryClient();
+  const pieceDeleteMut = useMutation({
+    mutationFn: (index: number) => removePiece({ data: { id: row.id, index } }),
+    onSuccess: () => {
+      toast.success("Editorial removed");
+      qc.invalidateQueries({ queryKey: ["editorial-lab", "notes"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Delete failed"),
+  });
 
   const baseName = `${(row.newspaper || "Editorial").replace(/[^\w-]+/g, "_")}_${row.edition_date || row.created_at?.slice(0, 10) || "notes"}`;
 
@@ -642,7 +652,16 @@ function EditorialCard({
             </div>
           )}
           {items.map((it, i) => (
-            <EditorialPiece key={i} item={it} idx={i} rowId={row.id} />
+            <EditorialPiece
+              key={i}
+              item={it}
+              idx={i}
+              rowId={row.id}
+              rowMeta={{ newspaper: row.newspaper, edition_date: row.edition_date, created_at: row.created_at }}
+              onDeletePiece={() => {
+                if (confirm("Delete this editorial from history?")) pieceDeleteMut.mutate(i);
+              }}
+            />
           ))}
         </div>
       )}
