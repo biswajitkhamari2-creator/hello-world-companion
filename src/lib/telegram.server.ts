@@ -1,19 +1,25 @@
-// Telegram Bot API helpers — talks directly to api.telegram.org with your bot token.
-// Required env vars (set in Vercel):
-//   TELEGRAM_BOT_TOKEN       — from @BotFather
-//   TELEGRAM_WEBHOOK_SECRET  — random 32+ char string you generate; used to verify webhook authenticity
-import { timingSafeEqual } from "node:crypto";
+// Telegram helpers — routed through the Lovable connector gateway so we don't
+// need a raw bot token. Required env vars (provided by the Telegram connector
+// + Lovable runtime): TELEGRAM_API_KEY, LOVABLE_API_KEY.
+import { createHash, timingSafeEqual } from "node:crypto";
 
-function botToken(): string {
-  const t = process.env.TELEGRAM_BOT_TOKEN?.trim();
-  if (!t) throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
+const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
+
+function connectionKey(): string {
+  const t = process.env.TELEGRAM_API_KEY?.trim();
+  if (!t) throw new Error("TELEGRAM_API_KEY is not configured (link the Telegram connector).");
   return t;
 }
 
+function lovableKey(): string {
+  const t = process.env.LOVABLE_API_KEY?.trim();
+  if (!t) throw new Error("LOVABLE_API_KEY is not configured.");
+  return t;
+}
+
+/** Derived from TELEGRAM_API_KEY so both webhook register and verify agree without a manual secret. */
 export function getTelegramWebhookSecret(): string {
-  const s = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
-  if (!s) throw new Error("TELEGRAM_WEBHOOK_SECRET is not configured.");
-  return s;
+  return createHash("sha256").update(`telegram-webhook:${connectionKey()}`).digest("base64url");
 }
 
 export function safeEqual(a: string, b: string): boolean {
@@ -23,19 +29,28 @@ export function safeEqual(a: string, b: string): boolean {
 }
 
 export async function tgCall<T = unknown>(method: string, body?: unknown): Promise<T> {
-  const res = await fetch(`https://api.telegram.org/bot${botToken()}/${method}`, {
+  const res = await fetch(`${GATEWAY_URL}/${method}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: body ? JSON.stringify(body) : undefined,
+    headers: {
+      Authorization: `Bearer ${lovableKey()}`,
+      "X-Connection-Api-Key": connectionKey(),
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : "{}",
   });
-  const data = (await res.json()) as { ok: boolean; result?: T; description?: string };
-  if (!res.ok || !data.ok) throw new Error(`Telegram ${method} failed: ${data.description || res.status}`);
+  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: T; description?: string };
+  if (!res.ok || !data.ok) throw new Error(`Telegram ${method} failed [${res.status}]: ${data.description || JSON.stringify(data)}`);
   return data.result as T;
 }
 
 export async function tgDownload(fileId: string): Promise<{ bytes: ArrayBuffer; path: string }> {
   const file = await tgCall<{ file_path: string }>("getFile", { file_id: fileId });
-  const res = await fetch(`https://api.telegram.org/file/bot${botToken()}/${file.file_path}`);
+  const res = await fetch(`${GATEWAY_URL}/file/${file.file_path}`, {
+    headers: {
+      Authorization: `Bearer ${lovableKey()}`,
+      "X-Connection-Api-Key": connectionKey(),
+    },
+  });
   if (!res.ok) throw new Error(`Telegram file download failed (${res.status})`);
   return { bytes: await res.arrayBuffer(), path: file.file_path };
 }
