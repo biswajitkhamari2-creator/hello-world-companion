@@ -78,7 +78,10 @@ function StampLogoEditor({ onDone }: { onDone: () => void }) {
       setLogo(pngUrl);
       // Auto-enable on first upload so the user sees it apply immediately.
       patch({ enabled: true });
-      toast.success("Logo uploaded", { description: "It will stamp onto every generated PDF." });
+      toast.success("Logo uploaded", { description: "Stamping enabled — applying to your existing PDFs now…" });
+      // One-click behaviour: immediately re-stamp existing generations so the
+      // user sees the logo in downloaded PDFs without any extra step.
+      void applyToExisting({ silent: false, logoOverride: pngUrl });
     } catch (err: any) {
       toast.error(err?.message || "Could not load logo.");
     } finally {
@@ -93,11 +96,15 @@ function StampLogoEditor({ onDone }: { onDone: () => void }) {
     toast("Logo removed");
   }
 
-  async function applyToExisting() {
-    if (!logo || !settings.enabled) {
-      toast.error("Enable your logo first.");
+  async function applyToExisting(opts?: { silent?: boolean; logoOverride?: string }) {
+    const activeLogo = opts?.logoOverride ?? logo;
+    if (!activeLogo) {
+      if (!opts?.silent) toast.error("Upload a logo first.");
       return;
     }
+    // Force-enable so the pdf-export watermark path picks up the user logo
+    // even if the toggle hasn't been flipped yet.
+    if (!settings.enabled) patch({ enabled: true });
     setApplyingExisting(true);
     try {
       const docs = (await listDocs()) as any[];
@@ -115,7 +122,11 @@ function StampLogoEditor({ onDone }: { onDone: () => void }) {
           }
         }
       }
-      toast.success(`Re-stamped ${total} existing document${total === 1 ? "" : "s"}.`);
+      if (total === 0) {
+        toast("No existing generations to stamp — new ones will be stamped automatically.");
+      } else {
+        toast.success(`Re-stamped ${total} existing document${total === 1 ? "" : "s"}.`);
+      }
     } catch (err: any) {
       toast.error(err?.message || "Could not re-stamp existing files.");
     } finally {
@@ -286,9 +297,9 @@ function StampLogoEditor({ onDone }: { onDone: () => void }) {
       </div>
 
       <DialogFooter className="md:col-span-2">
-        <Button variant="outline" onClick={applyToExisting} disabled={applyingExisting || !logo || !settings.enabled}>
+        <Button variant="outline" onClick={() => applyToExisting()} disabled={applyingExisting || !logo}>
           {applyingExisting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Wand2 className="mr-2 h-3.5 w-3.5" />}
-          Apply Logo to Existing Files
+          Stamp Now (Re-download all)
         </Button>
         <Button onClick={onDone}>Done</Button>
       </DialogFooter>
