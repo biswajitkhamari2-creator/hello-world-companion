@@ -60,13 +60,14 @@ function DownloadsPage() {
             {q.data.map((d: any, i: number) => (
               <li
                 key={d.id}
-                className="group flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md animate-fade-in"
+                className="group flex flex-col gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md animate-fade-in sm:flex-row sm:items-center"
                 style={{ animationDelay: `${i * 40}ms`, animationFillMode: "both" }}
               >
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white">
-                  <FileText className="h-5 w-5" />
-                </span>
-                <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white">
+                    <FileText className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{d.title || "Untitled"}</p>
                   <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
                     {d.subject && <Badge variant="outline">{d.subject}</Badge>}
@@ -74,6 +75,8 @@ function DownloadsPage() {
                     {d.size_bytes ? <span>· {Math.round(d.size_bytes / 1024).toLocaleString()} KB</span> : null}
                   </div>
                 </div>
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
                 {d.drive_view_link ? (
                   <Button size="sm" variant="outline" asChild>
                     <a href={d.drive_view_link} target="_blank" rel="noreferrer">
@@ -103,14 +106,16 @@ function DownloadsPage() {
                 ) : (
                   <Button
                     size="sm"
-                    variant="ghost"
-                    className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                    variant="outline"
+                    className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                     onClick={() => setConfirmId(d.id)}
                     title="Delete"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5 sm:mr-0 mr-1.5" />
+                    <span className="sm:hidden">Delete</span>
                   </Button>
                 )}
+                </div>
               </li>
             ))}
           </ul>
