@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import {
   Sparkles,
   Search,
-  Rocket,
-  Play,
   Newspaper,
   ExternalLink,
   Sun,
@@ -32,15 +30,6 @@ import {
   AuroraBackdrop,
   AiMentorArt,
   HeroStatChips,
-  FeaturesGrid,
-  ChatDemoSection,
-  RoadmapSection,
-  ToolsGrid,
-  CountersSection,
-  Testimonials,
-  Pricing,
-  Faq,
-  FinalCta,
   PremiumFooter,
   useRotatingPlaceholder,
 } from "@/components/landing-premium";
@@ -172,16 +161,7 @@ function Landing() {
         <main className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:py-14">
           <Hero />
           <PcsDigestPreview />
-          <section id="features"><FeaturesGrid /></section>
-          <section id="demo"><ChatDemoSection /></section>
-          <section id="roadmap"><RoadmapSection /></section>
-          <section id="tools"><ToolsGrid /></section>
-          <CountersSection />
           <UpscNews />
-          <Testimonials />
-          <section id="pricing"><Pricing /></section>
-          <Faq />
-          <FinalCta />
         </main>
         <PremiumFooter />
       </div>
@@ -220,16 +200,6 @@ function Hero() {
           <p className="mx-auto mt-4 max-w-xl text-base text-white/70 lg:mx-0 sm:text-lg">
             Your personal AI mentor for Prelims, Mains, Optional, Current Affairs, Answer Writing and Interview Preparation.
           </p>
-
-          {/* CTA */}
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-            <a href="/auth" className="group inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#2563EB] via-[#7C3AED] to-[#F97316] px-5 py-3 text-sm font-bold text-white shadow-[0_15px_40px_-10px_rgba(124,58,237,0.6)] transition-transform hover:scale-[1.03] active:scale-95">
-              <Rocket className="h-4 w-4" /> Start Learning Free
-            </a>
-            <a href="#demo" className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-3 text-sm font-bold text-white backdrop-blur transition-all hover:bg-white/10">
-              <Play className="h-4 w-4" /> Explore AI Demo
-            </a>
-          </div>
 
           {/* AI Search bar */}
           <form
