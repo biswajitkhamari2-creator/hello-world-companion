@@ -67,9 +67,9 @@ function getAdmin() {
 // ---------- List newspaper PDFs from the Telegram inbox ----------
 export const listInboxNewspapers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
     const supabase = getAdmin();
-    const { data, error } = await supabase
+    const { data: inboxRows, error: inboxError } = await supabase
       .from("telegram_inbox")
       .select("id,file_name,caption,posted_at,size_bytes,drive_file_id,drive_view_link")
       .eq("kind", "pdf")
@@ -77,8 +77,40 @@ export const listInboxNewspapers = createServerFn({ method: "GET" })
       .is("archived_at", null)
       .order("posted_at", { ascending: false })
       .limit(50);
-    if (error) throw new Error(error.message);
-    return data ?? [];
+    if (inboxError) throw new Error(inboxError.message);
+
+    const { data: docRows, error: docError } = await supabase
+      .from("documents")
+      .select("id,title,file_name,created_at,size_bytes,drive_file_id,drive_view_link,mime,source_type,status")
+      .eq("user_id", context.userId)
+      .not("drive_file_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (docError) throw new Error(docError.message);
+
+    const inboxIds = new Set((inboxRows ?? []).map((r: any) => r.drive_file_id).filter(Boolean));
+    const documentPdfs = (docRows ?? [])
+      .filter((r: any) => {
+        const name = String(r.file_name || r.title || "").toLowerCase();
+        const mime = String(r.mime || "").toLowerCase();
+        return mime.includes("pdf") || name.endsWith(".pdf") || r.source_type === "telegram";
+      })
+      .filter((r: any) => !inboxIds.has(r.drive_file_id))
+      .map((r: any) => ({
+        id: r.id,
+        file_name: r.file_name || r.title || "Uploaded newspaper PDF",
+        caption: r.title || null,
+        posted_at: r.created_at,
+        size_bytes: r.size_bytes,
+        drive_file_id: r.drive_file_id,
+        drive_view_link: r.drive_view_link,
+        source: "documents",
+      }));
+
+    return [
+      ...((inboxRows ?? []) as any[]).map((r) => ({ ...r, source: "telegram_inbox" })),
+      ...documentPdfs,
+    ].sort((a: any, b: any) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime());
   });
 
 // ---------- List / get / delete editorials ----------
@@ -303,23 +335,62 @@ export const analyseEditorialFromInbox = createServerFn({ method: "POST" })
       .eq("id", data.inboxId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!inbox?.drive_file_id) throw new Error("Newspaper PDF has no Drive file id");
+
+    let source: {
+      id: string;
+      inboxId: string | null;
+      fileName: string | null;
+      caption: string | null;
+      postedAt: string;
+      driveFileId: string | null;
+    } | null = inbox
+      ? {
+          id: inbox.id as string,
+          inboxId: inbox.id as string,
+          fileName: inbox.file_name as string | null,
+          caption: inbox.caption as string | null,
+          postedAt: inbox.posted_at as string,
+          driveFileId: inbox.drive_file_id as string | null,
+        }
+      : null;
+
+    if (!source?.driveFileId) {
+      const { data: doc, error: docError } = await supabase
+        .from("documents")
+        .select("id,title,file_name,created_at,drive_file_id,mime,source_type")
+        .eq("id", data.inboxId)
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      if (docError) throw new Error(docError.message);
+      if (doc?.drive_file_id) {
+        source = {
+          id: doc.id as string,
+          inboxId: null,
+          fileName: doc.file_name as string | null,
+          caption: doc.title as string | null,
+          postedAt: doc.created_at as string,
+          driveFileId: doc.drive_file_id as string,
+        };
+      }
+    }
+
+    if (!source?.driveFileId) throw new Error("Newspaper PDF has no Drive file id");
 
     const { downloadDriveFile } = await import("./gdrive.server");
-    const { buffer } = await downloadDriveFile(inbox.drive_file_id as string);
+    const { buffer } = await downloadDriveFile(source.driveFileId);
     const analysis = await callGeminiOnPdf(buffer);
 
     const sourceLabel =
-      inbox.file_name || inbox.caption || analysis.detectedNewspaper || "Newspaper";
+      source.fileName || source.caption || analysis.detectedNewspaper || "Newspaper";
     const editionDate = analysis.editionDate?.match(/^\d{4}-\d{2}-\d{2}$/)
       ? analysis.editionDate
-      : String(inbox.posted_at).slice(0, 10);
+      : String(source.postedAt).slice(0, 10);
 
     const { data: inserted, error: insErr } = await supabase
       .from("editorials")
       .insert({
         user_id: context.userId,
-        inbox_id: inbox.id,
+        inbox_id: source.inboxId,
         source_label: sourceLabel,
         newspaper: analysis.detectedNewspaper || "Unknown",
         edition_date: editionDate,
