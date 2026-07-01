@@ -45,7 +45,67 @@ export const importInboxItem = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!item) throw new Error("Inbox item not found");
     if (item.kind === "link") throw new Error("Link items cannot be imported as documents — open the URL directly.");
-    if (!item.drive_file_id) throw new Error("This item has no stored file.");
+
+    let driveFileId = item.drive_file_id as string | null;
+    let driveViewLink = item.drive_view_link as string | null;
+    let mime = item.mime as string | null;
+    let sizeBytes = item.size_bytes as number | null;
+
+    async function repairFromTelegram() {
+      const rawMsg = (item.raw as any)?.message || (item.raw as any)?.channel_post || (item.raw as any)?.edited_message || (item.raw as any)?.edited_channel_post || {};
+      const telegramFileId = item.kind === "pdf"
+        ? rawMsg.document?.file_id
+        : Array.isArray(rawMsg.photo)
+          ? rawMsg.photo.at(-1)?.file_id
+          : null;
+      if (!telegramFileId) {
+        throw new Error("This Telegram item has no recoverable file id. Please resend it to the bot.");
+      }
+      try {
+        const { tgDownload } = await import("@/lib/telegram.server");
+        const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { bytes } = await tgDownload(telegramFileId);
+        const uploaded = await uploadBufferToDrive({
+          userId: "telegram-inbox",
+          fileName: item.file_name || `telegram-${item.message_id}.${item.kind === "image" ? "jpg" : "pdf"}`,
+          mime: item.mime || (item.kind === "image" ? "image/jpeg" : "application/pdf"),
+          data: bytes,
+        });
+        driveFileId = uploaded.fileId;
+        driveViewLink = uploaded.webViewLink;
+        mime = uploaded.mimeType;
+        sizeBytes = uploaded.size;
+        await supabaseAdmin
+          .from("telegram_inbox")
+          .update({
+            drive_file_id: driveFileId,
+            drive_view_link: driveViewLink,
+            mime,
+            size_bytes: sizeBytes,
+            status: "ready",
+            error_message: null,
+          })
+          .eq("id", item.id);
+      } catch (e) {
+        throw new Error(
+          `Telegram file could not be fetched anymore. Please resend the PDF/image to the bot, then import the new inbox item. Details: ${(e as Error).message}`,
+        );
+      }
+    }
+
+    if (driveFileId) {
+      try {
+        const { getDriveFileMetadata } = await import("@/lib/gdrive.server");
+        await getDriveFileMetadata(driveFileId);
+      } catch {
+        await repairFromTelegram();
+      }
+    } else {
+      await repairFromTelegram();
+    }
+
+    if (!driveFileId) throw new Error("This item has no stored file. Please resend it to the bot.");
 
     const title = item.file_name || (item.caption?.slice(0, 80) ?? "Telegram import");
     const { data: doc, error: insertErr } = await supabase
@@ -55,11 +115,11 @@ export const importInboxItem = createServerFn({ method: "POST" })
         title,
         file_name: item.file_name,
         source_type: item.kind === "pdf" ? "pdf" : "image",
-        mime: item.mime,
-        size_bytes: item.size_bytes,
+        mime,
+        size_bytes: sizeBytes,
         storage_provider: "google_drive",
-        drive_file_id: item.drive_file_id,
-        drive_view_link: item.drive_view_link,
+        drive_file_id: driveFileId,
+        drive_view_link: driveViewLink,
         status: "uploaded",
       })
       .select("id")
