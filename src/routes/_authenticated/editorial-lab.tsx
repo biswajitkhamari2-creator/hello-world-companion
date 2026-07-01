@@ -31,6 +31,7 @@ import {
   type EditorialRow,
   type EditorialItem,
 } from "@/lib/editorial-lab.functions";
+import { deleteInboxItem } from "@/lib/telegram-inbox.functions";
 
 export const Route = createFileRoute("/_authenticated/editorial-lab")({
   head: () => ({
@@ -51,6 +52,7 @@ function EditorialLabPage() {
   const listNotes = useServerFn(listEditorials);
   const analyse = useServerFn(analyseEditorialFromInbox);
   const remove = useServerFn(deleteEditorial);
+  const removePdf = useServerFn(deleteInboxItem);
   const qc = useQueryClient();
 
   const pdfsQ = useQuery({
@@ -77,6 +79,15 @@ function EditorialLabPage() {
     onSuccess: () => {
       toast.success("Deleted");
       qc.invalidateQueries({ queryKey: ["editorial-lab", "notes"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Delete failed"),
+  });
+
+  const deletePdfMut = useMutation({
+    mutationFn: (itemId: string) => removePdf({ data: { itemId } }),
+    onSuccess: () => {
+      toast.success("Newspaper removed from inbox");
+      qc.invalidateQueries({ queryKey: ["editorial-lab", "pdfs"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Delete failed"),
   });
@@ -151,6 +162,19 @@ function EditorialLabPage() {
                           Open PDF
                         </a>
                       )}
+                      <button
+                        onClick={() => {
+                          if (confirm("Delete this newspaper from the Telegram inbox?")) {
+                            deletePdfMut.mutate(p.id);
+                          }
+                        }}
+                        disabled={deletePdfMut.isPending && deletePdfMut.variables === p.id}
+                        className="ml-auto rounded-full p-1.5 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50"
+                        aria-label="Delete newspaper"
+                        title="Delete newspaper"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 );
