@@ -26,6 +26,10 @@ import "@fontsource-variable/ibm-plex-sans/index.css";
 import "@fontsource/kalam/400.css";
 import "@fontsource/kalam/700.css";
 import "@fontsource/patrick-hand/400.css";
+import "@fontsource/playfair-display/700.css";
+import "@fontsource/playfair-display/700-italic.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
 
 
 import { reportLovableError } from "../lib/lovable-error-reporting";

@@ -154,238 +154,299 @@ function EditorialLabPage() {
     }
   };
 
+  const now2 = new Date();
+  const vol = `Vol. ${String(now2.getMonth() + 1).padStart(2, "0")} / ${now2.getFullYear()}`;
+  const totalPdfs = (pdfsQ.data ?? []).length;
+
   return (
     <AppShell>
-      <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-10">
-        {/* Compact floating header */}
-        <div className="mb-5 flex items-center gap-3 rounded-2xl border bg-card/70 p-3 shadow-sm backdrop-blur sm:mb-8 sm:p-4">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 text-white shadow-md sm:h-12 sm:w-12 sm:rounded-2xl">
-            <FileEdit className="h-5 w-5 sm:h-6 sm:w-6" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h1 className="font-serif text-[20px] font-bold leading-tight sm:text-3xl sm:font-semibold">
-              Editorial Lab
+      <main
+        className="mx-auto max-w-6xl bg-[#fdfdfc] text-[#1a1a1a] dark:bg-[#0c0c0c] dark:text-[#e5e5e5] sm:border-x sm:border-stone-200 sm:dark:border-stone-800"
+        style={{ fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif' }}
+      >
+        {/* NOIR NEWSROOM MASTHEAD */}
+        <header className="border-b-4 border-stone-900 px-5 pt-7 pb-5 dark:border-stone-100 sm:px-8 sm:pt-10">
+          <div className="mb-1 flex items-end justify-between gap-3">
+            <h1
+              className="text-[34px] font-bold italic leading-none tracking-tight sm:text-5xl"
+              style={{ fontFamily: '"Playfair Display", ui-serif, Georgia, serif' }}
+            >
+              Editorial <span className="not-italic">Lab</span>
             </h1>
-            <p className="mt-0.5 line-clamp-1 text-[12px] text-muted-foreground sm:line-clamp-none sm:text-sm">
-              Forward newspapers to the Telegram bot · Gemini 2.5 Pro extracts editorials.
-            </p>
-          </div>
-        </div>
-
-        {/* Floating Telegram Inbox */}
-        <section className="mb-6 sm:mb-8">
-          <div className="mb-2 flex items-center gap-2 px-1">
-            <Newspaper className="h-4 w-4 text-indigo-500" />
-            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Telegram Inbox
-            </h2>
-            <span className="ml-auto text-[11px] text-muted-foreground">
-              {(pdfsQ.data ?? []).length} PDF{(pdfsQ.data ?? []).length === 1 ? "" : "s"}
+            <span
+              className="pb-1 text-[10px] uppercase tracking-widest opacity-60"
+              style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
+            >
+              {vol}
             </span>
-            {(pdfsQ.data ?? []).length > 0 && (
-              <button
-                onClick={() => {
-                  const all = (pdfsQ.data ?? []).map((p: any) => p.id as string);
-                  setPdfSel((prev) => (prev.size === all.length ? new Set() : new Set(all)));
-                }}
-                className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-background"
-              >
-                {pdfSel.size === (pdfsQ.data ?? []).length ? "clear" : "select all"}
-              </button>
-            )}
           </div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500 dark:text-stone-400">
+            Automated Research &amp; Synthesis · Gemini 2.5 Pro
+          </p>
+        </header>
 
-          {pdfsQ.isLoading ? (
-            <div className="flex items-center gap-2 rounded-2xl border bg-card/60 p-3 text-[13px] text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </div>
-          ) : (pdfsQ.data ?? []).length === 0 ? (
-            <div className="rounded-2xl border border-dashed bg-card/40 p-4 text-center text-[13px] text-muted-foreground">
-              No newspapers yet. Forward today's edition to the bot.
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2 sm:grid sm:grid-cols-2 sm:gap-3">
-              {(pdfsQ.data ?? []).map((p: any) => {
-                const busy = analyseMut.isPending && analyseMut.variables === p.id;
-                const delBusy = deletePdfMut.isPending && deletePdfMut.variables === p.id;
-                const selected = pdfSel.has(p.id);
-                return (
-                  <div
-                    key={p.id}
-                    className={
-                      "group flex items-center gap-3 rounded-2xl border p-2.5 shadow-sm backdrop-blur transition hover:shadow-md sm:p-3 " +
-                      (selected
-                        ? "border-indigo-400 bg-indigo-500/10"
-                        : "border-border bg-card/70")
-                    }
+        {/* MAIN */}
+        <div className="pb-32">
+          {/* TELEGRAM INBOX */}
+          <section className="pt-6">
+            <div className="mb-3 flex items-center justify-between px-5 sm:px-8">
+              <h2 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-blue-600" />
+                Telegram Inbox
+              </h2>
+              <div className="flex items-center gap-2">
+                <span
+                  className="border border-stone-200 bg-stone-100 px-2 py-0.5 text-[10px] uppercase tracking-widest dark:border-stone-800 dark:bg-stone-900"
+                  style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
+                >
+                  {totalPdfs} {totalPdfs === 1 ? "Pdf" : "Pdfs"}
+                </span>
+                {totalPdfs > 0 && (
+                  <button
+                    onClick={() => {
+                      const all = (pdfsQ.data ?? []).map((p: any) => p.id as string);
+                      setPdfSel((prev) => (prev.size === all.length ? new Set() : new Set(all)));
+                    }}
+                    className="text-[10px] font-bold uppercase tracking-widest underline underline-offset-4 opacity-70 hover:opacity-100"
                   >
-                    <button
-                      onClick={() => togglePdf(p.id)}
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500/15 via-fuchsia-500/15 to-amber-500/15 text-indigo-500 hover:from-indigo-500/25 hover:to-amber-500/25"
-                      aria-label={selected ? "Unselect" : "Select"}
-                      title={selected ? "Unselect" : "Select"}
+                    {pdfSel.size === totalPdfs ? "Clear" : "Select all"}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {pdfsQ.isLoading ? (
+              <div className="mx-5 flex items-center gap-2 border border-stone-200 bg-white p-3 text-[13px] text-stone-500 dark:border-stone-800 dark:bg-[#121212] sm:mx-8">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+              </div>
+            ) : totalPdfs === 0 ? (
+              <div className="mx-5 border border-dashed border-stone-300 bg-white/50 p-6 text-center text-[13px] text-stone-500 dark:border-stone-700 dark:bg-[#121212]/50 sm:mx-8">
+                No newspapers yet. Forward today&apos;s edition to the bot.
+              </div>
+            ) : (
+              <div className="space-y-px border-y border-stone-200 bg-stone-200 dark:border-stone-800 dark:bg-stone-800">
+                {(pdfsQ.data ?? []).map((p: any) => {
+                  const busy = analyseMut.isPending && analyseMut.variables === p.id;
+                  const delBusy = deletePdfMut.isPending && deletePdfMut.variables === p.id;
+                  const selected = pdfSel.has(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      className={
+                        "flex gap-4 px-5 py-4 sm:px-8 " +
+                        (selected
+                          ? "bg-stone-50 ring-1 ring-inset ring-stone-900 dark:bg-[#1a1a1a] dark:ring-stone-100"
+                          : "bg-white dark:bg-[#121212]")
+                      }
                     >
-                      {selected ? (
-                        <CheckSquare className="h-4 w-4" />
-                      ) : (
-                        <Newspaper className="h-4 w-4" />
-                      )}
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-semibold sm:text-sm">
-                        {p.file_name || p.caption || "Newspaper"}
-                      </div>
-                      <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                        {new Date(p.posted_at).toLocaleDateString()}
-                        {p.size_bytes ? " · " + (p.size_bytes / 1024 / 1024).toFixed(1) + " MB" : ""}
-                        {p.drive_view_link ? (
-                          <>
-                            {" · "}
-                            <a
-                              href={p.drive_view_link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="underline underline-offset-2 hover:text-indigo-500"
-                            >
-                              open
-                            </a>
-                          </>
-                        ) : null}
+                      {/* stamp / select */}
+                      <button
+                        onClick={() => togglePdf(p.id)}
+                        className={
+                          "relative grid h-10 w-10 shrink-0 place-items-center border transition-colors " +
+                          (selected
+                            ? "border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-black"
+                            : "border-stone-900 bg-transparent dark:border-stone-100")
+                        }
+                        aria-label={selected ? "Unselect" : "Select"}
+                        title={selected ? "Unselect" : "Select"}
+                      >
+                        {selected ? (
+                          <CheckSquare className="h-5 w-5" strokeWidth={2.5} />
+                        ) : (
+                          <Newspaper className="h-5 w-5" strokeWidth={1.5} />
+                        )}
+                        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border border-white bg-stone-900 dark:border-black dark:bg-stone-100" />
+                      </button>
+
+                      {/* body */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="min-w-0 flex-1 truncate pr-2 text-sm font-semibold">
+                            {p.file_name || p.caption || "Newspaper"}
+                          </h3>
+                          <button
+                            onClick={() => {
+                              if (confirm("Delete this newspaper from the Telegram inbox?")) {
+                                deletePdfMut.mutate(p.id);
+                              }
+                            }}
+                            disabled={delBusy}
+                            className="shrink-0 text-stone-300 hover:text-rose-600 disabled:opacity-40 dark:text-stone-700 dark:hover:text-rose-400"
+                            aria-label="Delete newspaper"
+                            title="Delete"
+                          >
+                            <X className="h-4 w-4" strokeWidth={2} />
+                          </button>
+                        </div>
+                        <div
+                          className="mt-1 flex items-center gap-2 text-[10px] uppercase text-stone-500"
+                          style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
+                        >
+                          <span>{formatShortDate(p.posted_at)}</span>
+                          <span className="opacity-30">|</span>
+                          <span>
+                            {p.size_bytes ? (p.size_bytes / 1024 / 1024).toFixed(1) + " MB" : "—"}
+                          </span>
+                          {p.drive_view_link && (
+                            <>
+                              <span className="opacity-30">|</span>
+                              <a
+                                href={p.drive_view_link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="underline text-stone-900 dark:text-stone-200"
+                              >
+                                Open
+                              </a>
+                            </>
+                          )}
+                        </div>
+                        <div className="mt-3">
+                          <button
+                            onClick={() => analyseMut.mutate(p.id)}
+                            disabled={busy}
+                            className="inline-flex items-center gap-1.5 rounded-sm bg-gradient-to-r from-indigo-600 to-blue-500 px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+                          >
+                            {busy ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-3 w-3" />
+                            )}
+                            {busy ? "Extracting…" : "Extract Content"}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => analyseMut.mutate(p.id)}
-                      disabled={busy}
-                      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 px-3 text-[12px] font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60"
-                      title="Extract editorial + notes + downloadable PDF"
-                    >
-                      {busy ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-3.5 w-3.5" />
-                      )}
-                      Extract
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm("Delete this newspaper from the Telegram inbox?")) {
-                          deletePdfMut.mutate(p.id);
-                        }
-                      }}
-                      disabled={delBusy}
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full border text-muted-foreground hover:border-rose-300 hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50"
-                      aria-label="Delete newspaper"
-                      title="Delete"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* Recent extracts */}
-        <section className="space-y-3">
-          <div className="flex items-center gap-2 px-1">
-            <Sparkles className="h-4 w-4 text-fuchsia-500" />
-            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Recent Extracts
-            </h2>
-            <span className="ml-auto text-[11px] text-muted-foreground">
-              last 3 days · {recent.length}
-            </span>
-            {recent.length > 0 && (
-              <button
-                onClick={() => {
-                  const ids = recent.map((r) => r.id);
-                  const allSelected = ids.every((id) => noteSel.has(id));
-                  setNoteSel((prev) => {
-                    const n = new Set(prev);
-                    if (allSelected) ids.forEach((id) => n.delete(id));
-                    else ids.forEach((id) => n.add(id));
-                    return n;
-                  });
-                }}
-                className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-background"
-              >
-                {recent.every((r) => noteSel.has(r.id)) ? "clear" : "select all"}
-              </button>
+                  );
+                })}
+              </div>
             )}
-          </div>
-          {notesQ.isLoading && (
-            <div className="text-[13px] text-muted-foreground">Loading…</div>
-          )}
-          {!notesQ.isLoading && recent.length === 0 && (
-            <div className="rounded-2xl border border-dashed bg-card/40 p-6 text-center text-[13px] text-muted-foreground">
-              No recent editorials. Hit <span className="font-semibold">Extract</span> on any inbox
-              PDF above.
+          </section>
+
+          {/* RECENT EXTRACTS */}
+          <section className="mt-8">
+            <div className="mb-3 flex items-baseline justify-between px-5 sm:px-8">
+              <h2 className="text-[11px] font-bold uppercase tracking-widest">Recent Extracts</h2>
+              <div className="flex items-center gap-3">
+                <span
+                  className="text-[10px] uppercase tracking-widest opacity-60"
+                  style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
+                >
+                  3d · {recent.length}
+                </span>
+                {recent.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const ids = recent.map((r) => r.id);
+                      const allSelected = ids.every((id) => noteSel.has(id));
+                      setNoteSel((prev) => {
+                        const n = new Set(prev);
+                        if (allSelected) ids.forEach((id) => n.delete(id));
+                        else ids.forEach((id) => n.add(id));
+                        return n;
+                      });
+                    }}
+                    className="text-[10px] font-bold uppercase tracking-widest underline underline-offset-4 opacity-70 hover:opacity-100"
+                  >
+                    {recent.every((r) => noteSel.has(r.id)) ? "Clear" : "Select all"}
+                  </button>
+                )}
+              </div>
+            </div>
+            {notesQ.isLoading && (
+              <div className="px-5 text-[13px] text-stone-500 sm:px-8">Loading…</div>
+            )}
+            {!notesQ.isLoading && recent.length === 0 && (
+              <div className="mx-5 border border-dashed border-stone-300 bg-white/50 p-6 text-center text-[13px] text-stone-500 dark:border-stone-700 dark:bg-[#121212]/50 sm:mx-8">
+                No recent editorials. Hit <span className="font-bold">Extract</span> on any inbox
+                PDF above.
+              </div>
+            )}
+            <div className="space-y-3 px-5 sm:px-8">
+              {recent.map((row) => (
+                <EditorialCard
+                  key={row.id}
+                  row={row}
+                  onDelete={() => deleteMut.mutate(row.id)}
+                  selected={noteSel.has(row.id)}
+                  onToggleSelect={() => toggleNote(row.id)}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* HISTORY */}
+          {history.length > 0 && (
+            <div className="mt-8 px-5 sm:px-8">
+              <HistorySection
+                items={history}
+                onDelete={(id) => deleteMut.mutate(id)}
+                selected={noteSel}
+                onToggleSelect={toggleNote}
+              />
             </div>
           )}
-          {recent.map((row) => (
-            <EditorialCard
-              key={row.id}
-              row={row}
-              onDelete={() => deleteMut.mutate(row.id)}
-              selected={noteSel.has(row.id)}
-              onToggleSelect={() => toggleNote(row.id)}
-            />
-          ))}
-        </section>
+        </div>
 
-        {/* History (older) */}
-        {history.length > 0 && (
-          <HistorySection
-            items={history}
-            onDelete={(id) => deleteMut.mutate(id)}
-            selected={noteSel}
-            onToggleSelect={toggleNote}
-          />
-        )}
-
-        {/* Floating bulk-action bar */}
+        {/* FLOATING PRESS TRAY */}
         {(pdfSel.size > 0 || noteSel.size > 0) && (
           <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-3 sm:bottom-6">
-            <div className="flex w-full max-w-lg items-center gap-2 rounded-full border bg-card/95 p-2 shadow-2xl backdrop-blur">
-              <div className="ml-2 flex-1 text-[12px] font-semibold">
-                {pdfSel.size > 0 && <span>{pdfSel.size} PDF</span>}
-                {pdfSel.size > 0 && noteSel.size > 0 && <span className="mx-1">·</span>}
-                {noteSel.size > 0 && <span>{noteSel.size} editorial{noteSel.size === 1 ? "" : "s"}</span>}
-                <span className="text-muted-foreground"> selected</span>
+            <div className="flex w-full max-w-[380px] items-center justify-between gap-3 bg-stone-950 px-5 py-3 text-white shadow-2xl dark:bg-white dark:text-black">
+              <div className="flex flex-col">
+                <span
+                  className="text-[10px] uppercase tracking-widest opacity-60"
+                  style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
+                >
+                  Selected
+                </span>
+                <span className="text-sm font-bold">
+                  {pdfSel.size + noteSel.size} {pdfSel.size + noteSel.size === 1 ? "Item" : "Items"}
+                </span>
               </div>
-              <button
-                onClick={() => {
-                  setPdfSel(new Set());
-                  setNoteSel(new Set());
-                }}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full border text-muted-foreground hover:bg-background"
-                aria-label="Clear selection"
-                title="Clear"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              <button
-                onClick={async () => {
-                  if (pdfSel.size > 0) await bulkDeletePdfs();
-                  if (noteSel.size > 0) await bulkDeleteNotes();
-                }}
-                disabled={bulkBusy}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-rose-500 px-4 text-[12px] font-semibold text-white shadow-sm hover:bg-rose-600 disabled:opacity-60"
-              >
-                {bulkBusy ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
-                )}
-                Delete
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setPdfSel(new Set());
+                    setNoteSel(new Set());
+                  }}
+                  className="grid h-9 w-9 place-items-center border border-white/20 text-white/70 hover:text-white dark:border-black/20 dark:text-black/60 dark:hover:text-black"
+                  aria-label="Clear selection"
+                  title="Clear"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={async () => {
+                    if (pdfSel.size > 0) await bulkDeletePdfs();
+                    if (noteSel.size > 0) await bulkDeleteNotes();
+                  }}
+                  disabled={bulkBusy}
+                  className="inline-flex items-center gap-1.5 bg-red-600 px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-white hover:bg-red-700 disabled:opacity-60"
+                >
+                  {bulkBusy ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  Delete Bulk
+                </button>
+              </div>
             </div>
           </div>
         )}
       </main>
     </AppShell>
   );
+}
+
+function formatShortDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: "short", day: "2-digit" }).toUpperCase();
+  } catch {
+    return "—";
+  }
 }
 
 function HistorySection({

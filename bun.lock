@@ -12,9 +12,11 @@
         "@fontsource/caveat": "^5.2.8",
         "@fontsource/fraunces": "^5.2.9",
         "@fontsource/inter": "^5.2.8",
+        "@fontsource/jetbrains-mono": "^5.2.8",
         "@fontsource/kalam": "^5.2.8",
         "@fontsource/libre-baskerville": "^5.2.10",
         "@fontsource/patrick-hand": "^5.2.8",
+        "@fontsource/playfair-display": "^5.2.8",
         "@hookform/resolvers": "^5.2.2",
         "@pdf-lib/fontkit": "^1.1.1",
         "@radix-ui/react-accordion": "^1.2.12",
@@ -272,11 +274,15 @@
 
     "@fontsource/inter": ["@fontsource/inter@5.2.8", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@fontsource/inter/-/inter-5.2.8.tgz", {}, "sha512-P6r5WnJoKiNVV+zvW2xM13gNdFhAEpQ9dQJHt3naLvfg+LkF2ldgSLiF4T41lf1SQCM9QmkqPTn4TH568IRagg=="],
 
+    "@fontsource/jetbrains-mono": ["@fontsource/jetbrains-mono@5.2.8", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@fontsource/jetbrains-mono/-/jetbrains-mono-5.2.8.tgz", {}, "sha512-6w8/SG4kqvIMu7xd7wt6x3idn1Qux3p9N62s6G3rfldOUYHpWcc2FKrqf+Vo44jRvqWj2oAtTHrZXEP23oSKwQ=="],
+
     "@fontsource/kalam": ["@fontsource/kalam@5.2.8", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@fontsource/kalam/-/kalam-5.2.8.tgz", {}, "sha512-9WDYPX1llS28xRjrqAoz3IOLeaBhCtL3HCtNanYnF1fthFPmSD5aESL6s7C1SJxAlxq/qzTlpIpw4S1W9+q3OA=="],
 
     "@fontsource/libre-baskerville": ["@fontsource/libre-baskerville@5.2.10", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@fontsource/libre-baskerville/-/libre-baskerville-5.2.10.tgz", {}, "sha512-Y/bGj4cOdWhAxU4+sBPen3MB5Og3t/WvezVL+05CJ7cvhDQUKpQFUuw/hm1IQKRc9u0lWs8VP2MKDOK2uQtloQ=="],
 
     "@fontsource/patrick-hand": ["@fontsource/patrick-hand@5.2.8", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@fontsource/patrick-hand/-/patrick-hand-5.2.8.tgz", {}, "sha512-FZx34VLuiF+Pjv/A/m1bTxjR6hAvmL6vdCp62uypVdgFvSrPrBOxX+vCXVy8lfNVFqvKfm/ghun+aaYVYqfBEg=="],
+
+    "@fontsource/playfair-display": ["@fontsource/playfair-display@5.2.8", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@fontsource/playfair-display/-/playfair-display-5.2.8.tgz", {}, "sha512-fUEhib70SszNhQVsGbUMSsWJhr7Je0rdeuZdtGpDNu0GKF1xJM8QhpI/y0pckU25GcChXm9TLOmeZupkvvZo2g=="],
 
     "@hookform/resolvers": ["@hookform/resolvers@5.2.2", "", { "dependencies": { "@standard-schema/utils": "^0.3.0" }, "peerDependencies": { "react-hook-form": "^7.55.0" } }, "sha512-A/IxlMLShx3KjV/HeTcTfaMxdwy690+L/ZADoeaTltLx+CVuzkeVIPuybK3jrRfw7YZnmdKsVVHAlEPIAEUNlA=="],
 
