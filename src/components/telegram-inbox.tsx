@@ -12,7 +12,7 @@ export function TelegramInbox({ onImported }: { onImported?: (documentId: string
   const importer = useServerFn(importInboxItem);
   const extract = useServerFn(extractDocument);
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["telegram-inbox"], queryFn: () => list() as Promise<InboxItem[]>, refetchInterval: 20_000 });
+  const q = useQuery({ queryKey: ["telegram-inbox"], queryFn: () => list() as Promise<InboxItem[]>, refetchInterval: 60_000 });
 
   const m = useMutation({
     mutationFn: (itemId: string) => importer({ data: { itemId } }),
