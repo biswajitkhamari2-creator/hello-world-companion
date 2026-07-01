@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, RefreshCw, Sparkles, Flame, ArrowLeft } from "lucide-react";
-import { Link, useRouter } from "@tanstack/react-router";
+import { useRouter } from "@tanstack/react-router";
 import {
   listNewsItems,
   extractPendingInboxNews,
