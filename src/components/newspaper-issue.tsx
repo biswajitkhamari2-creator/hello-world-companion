@@ -430,7 +430,6 @@ export function NewspaperIssue({ content, onRetry }: { content: Issue; onRetry?:
   const [fImportance, setFImportance] = useState<number>(0);
 
   const allSubjects = useMemo(() => Array.from(new Set(issue.articles.map((a) => a.subject).filter(Boolean))).sort(), [issue.articles]);
-  const allGs = useMemo(() => Array.from(new Set(issue.articles.flatMap((a) => a.gs_papers))).sort(), [issue.articles]);
 
   const visible = issue.articles.filter((a) => {
     if (fGs && !a.gs_papers.includes(fGs)) return false;
@@ -470,7 +469,6 @@ export function NewspaperIssue({ content, onRetry }: { content: Issue; onRetry?:
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <Select label="GS Paper" value={fGs} onChange={setFGs} options={["", ...allGs]} />
           <Select label="Subject" value={fSubject} onChange={setFSubject} options={["", ...allSubjects]} />
           <Select label="Priority" value={fPriority} onChange={setFPriority} options={["", "high", "medium", "low"]} />
           <Select
