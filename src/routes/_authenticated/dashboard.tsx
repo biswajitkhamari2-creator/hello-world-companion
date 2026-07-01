@@ -578,14 +578,9 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
   }
 
   async function runChunked(type: OutputType) {
-    const activeId = typeof window !== "undefined" ? sessionStorage.getItem("active_doc_id") : null;
-    if (!activeId || activeId !== doc.id) {
-      console.error("[ActivePDF] BLOCKED stale generation", { activeDocumentId: activeId, requestedDocumentId: doc.id });
-      toast.error("Please upload a PDF first.");
-      try { sessionStorage.removeItem("active_doc_id"); } catch {}
-      qc.invalidateQueries({ queryKey: ["documents"] });
-      return;
-    }
+    // Any ready doc from the library can be (re)generated. Promote it to
+    // "active" so downstream helpers that read active_doc_id keep working.
+    try { sessionStorage.setItem("active_doc_id", doc.id); } catch {}
     console.log("[ActivePDF] AI query starting", { activeDocumentId: doc.id, outputType: type });
 
     setPending(type);
@@ -685,14 +680,7 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
 
   async function run(type: OutputType) {
     if (type === "infographics" || type === "newspaper") return runChunked(type);
-    const activeId = typeof window !== "undefined" ? sessionStorage.getItem("active_doc_id") : null;
-    if (!activeId || activeId !== doc.id) {
-      console.error("[ActivePDF] BLOCKED stale generation", { activeDocumentId: activeId, requestedDocumentId: doc.id });
-      toast.error("Please upload a PDF first.");
-      try { sessionStorage.removeItem("active_doc_id"); } catch {}
-      qc.invalidateQueries({ queryKey: ["documents"] });
-      return;
-    }
+    try { sessionStorage.setItem("active_doc_id", doc.id); } catch {}
     console.log("[ActivePDF] AI query starting", { activeDocumentId: doc.id, outputType: type });
     setPending(type);
     try {
