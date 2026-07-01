@@ -1324,7 +1324,7 @@ function InboxRowActions({
           <button
             onClick={() => setMenu((v) => !v)}
             disabled={busy || working !== null}
-            className="inline-flex items-center gap-1 rounded-sm border border-stone-700/60 bg-stone-900 px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-white hover:bg-stone-800 disabled:opacity-60 dark:border-stone-300/60 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
+            className="inline-flex items-center gap-1 rounded-sm border border-emerald-400/70 bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-600 px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-white shadow-[0_0_12px_rgba(16,185,129,0.7)] animate-pulse hover:from-emerald-400 hover:via-green-400 hover:to-emerald-500 disabled:opacity-60"
           >
             {working ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
             {working === "pdf" ? "PDF…" : working === "info" ? "Infographic…" : working === "hand" ? "Handwritten…" : "Download"}
