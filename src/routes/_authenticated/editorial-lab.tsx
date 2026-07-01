@@ -1239,6 +1239,192 @@ function esc(s: unknown): string {
     .replace(/>/g, "&gt;");
 }
 
+function InboxRowActions({
+  pdfId,
+  busy,
+  linked,
+  onExtract,
+}: {
+  pdfId: string;
+  busy: boolean;
+  linked: EditorialRow | null;
+  onExtract: () => Promise<{ id: string; editorialCount: number; cached?: boolean }>;
+}) {
+  const [menu, setMenu] = useState(false);
+  const [pyqOpen, setPyqOpen] = useState(false);
+  const [working, setWorking] = useState<null | "pdf" | "info" | "hand">(null);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setMenu(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [menu]);
+
+  const ensureExtracted = async (): Promise<EditorialRow | null> => {
+    if (linked) return linked;
+    toast.message("Extracting editorial first…");
+    try {
+      await onExtract();
+      toast.info("Extraction complete — click the format again to download");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Extract failed");
+    }
+    return null;
+  };
+
+  const doDownload = async (kind: "pdf" | "info" | "hand") => {
+    setMenu(false);
+    const row = await ensureExtracted();
+    if (!row) return;
+    setWorking(kind);
+    try {
+      const baseName = `${(row.newspaper || "Editorial").replace(/[^\w-]+/g, "_")}_${row.edition_date || row.created_at?.slice(0, 10) || "notes"}`;
+      if (kind === "pdf") {
+        const { editorialsToPdf } = await import("@/lib/editorial-pdf");
+        triggerDownload(await editorialsToPdf(row), `${baseName}.pdf`);
+      } else if (kind === "info") {
+        const { editorialsToInfographicPdf } = await import("@/lib/editorial-infographic");
+        triggerDownload(await editorialsToInfographicPdf(row), `${baseName}_infographic.pdf`);
+      } else {
+        const html = buildHandwrittenAllHtml(row);
+        const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=1000");
+        if (!w) return toast.error("Popup blocked — allow popups to save handwritten notes");
+        w.document.open();
+        w.document.write(html);
+        w.document.close();
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Download failed");
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const pieces = linked?.analysis?.editorials ?? [];
+  const hasPyq = pieces.some(
+    (it) => (it.pyqLinks?.length ?? 0) > 0 || it.probablePrelimsMCQ || it.probableMainsQuestion,
+  );
+
+  return (
+    <div className="mt-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          onClick={() => onExtract().catch((e) => toast.error(e?.message ?? "Extract failed"))}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 rounded-sm bg-gradient-to-r from-amber-700 via-orange-600 to-rose-600 px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+        >
+          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+          {busy ? "Extracting…" : linked ? "Re-extract" : "Extract Content"}
+        </button>
+
+        <div className="relative" ref={ref}>
+          <button
+            onClick={() => setMenu((v) => !v)}
+            disabled={busy || working !== null}
+            className="inline-flex items-center gap-1 rounded-sm border border-stone-700/60 bg-stone-900 px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-white hover:bg-stone-800 disabled:opacity-60 dark:border-stone-300/60 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
+          >
+            {working ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+            {working === "pdf" ? "PDF…" : working === "info" ? "Infographic…" : working === "hand" ? "Handwritten…" : "Download"}
+            <ChevronDown className="h-3 w-3" />
+          </button>
+          {menu && (
+            <div className="absolute right-0 z-30 mt-1 w-44 overflow-hidden rounded-md border border-stone-300 bg-white text-[11px] shadow-xl dark:border-stone-700 dark:bg-stone-900">
+              <button
+                onClick={() => doDownload("pdf")}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-stone-100 dark:hover:bg-stone-800"
+              >
+                <FileText className="h-3.5 w-3.5" /> Notes PDF
+              </button>
+              <button
+                onClick={() => doDownload("info")}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-stone-100 dark:hover:bg-stone-800"
+              >
+                <Palette className="h-3.5 w-3.5" /> Infographic PDF
+              </button>
+              <button
+                onClick={() => doDownload("hand")}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-stone-100 dark:hover:bg-stone-800"
+              >
+                <PenLine className="h-3.5 w-3.5" /> Handwritten
+              </button>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={async () => {
+            const row = await ensureExtracted();
+            if (row) setPyqOpen((v) => !v);
+          }}
+          className="inline-flex items-center gap-1 rounded-sm border border-amber-700/60 bg-amber-50 px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-amber-900 hover:bg-amber-100 dark:border-amber-300/40 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          <HelpCircle className="h-3 w-3" /> PYQ &amp; Mains
+        </button>
+
+        <span className="text-[9px] uppercase tracking-widest text-stone-400 dark:text-stone-500">
+          {linked ? `${pieces.length} editorial${pieces.length === 1 ? "" : "s"} · stamped` : "auto-stamped on every download"}
+        </span>
+      </div>
+
+      {pyqOpen && linked && (
+        <div className="rounded-md border border-amber-200 bg-amber-50/60 p-3 text-[12px] dark:border-amber-900/40 dark:bg-amber-950/20">
+          {!hasPyq && (
+            <p className="text-stone-600 dark:text-stone-400">
+              No verifiable PYQ theme detected for these editorials.
+            </p>
+          )}
+          {pieces.map((it, i) =>
+            (it.pyqLinks?.length ?? 0) === 0 && !it.probableMainsQuestion ? null : (
+              <div key={i} className="mb-3 last:mb-0">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-200">
+                  {it.title}
+                </div>
+                {it.pyqLinks?.length ? (
+                  <ul className="mt-1 space-y-0.5 text-stone-700 dark:text-stone-300">
+                    {it.pyqLinks.map((p, j) => (
+                      <li key={j}>
+                        • {p.year ? <b>{p.year} </b> : null}
+                        {p.paper ? `(${p.paper}) ` : ""}
+                        {p.question}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {it.probableMainsQuestion && (
+                  <div className="mt-1 text-stone-700 dark:text-stone-300">
+                    <span className="font-semibold text-amber-800 dark:text-amber-200">Probable Mains: </span>
+                    {it.probableMainsQuestion.q}{" "}
+                    <span className="opacity-70">
+                      ({it.probableMainsQuestion.paper} · {it.probableMainsQuestion.marks}m)
+                    </span>
+                  </div>
+                )}
+              </div>
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function buildHandwrittenAllHtml(row: EditorialRow): string {
+  const items = row.analysis?.editorials ?? [];
+  const meta = { newspaper: row.newspaper, edition_date: row.edition_date, created_at: row.created_at };
+  const parts = items.map((it) => buildHandwrittenHtml(it, meta));
+  // Concatenate the <body> content of each page for a single printable doc.
+  const bodies = parts
+    .map((h) => {
+      const m = h.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      return m ? m[1] : "";
+    })
+    .join('<div style="page-break-before: always;"></div>');
+  return parts[0]?.replace(/<body[^>]*>[\s\S]*?<\/body>/i, `<body>${bodies}</body>`) ?? "<html><body>No editorials</body></html>";
+}
+
 function buildHandwrittenHtml(
   item: EditorialItem,
   meta?: { newspaper: string | null; edition_date: string | null; created_at: string },
