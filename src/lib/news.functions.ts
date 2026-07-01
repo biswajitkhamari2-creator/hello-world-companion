@@ -11,6 +11,7 @@ export interface NewsItem {
 const FEEDS: { url: string; source: string }[] = [
   { url: "https://news.google.com/rss/search?q=UPSC+OR+%22civil+services%22+OR+%22current+affairs+India%22&hl=en-IN&gl=IN&ceid=IN:en", source: "Google News" },
   { url: "https://www.thehindu.com/news/national/feeder/default.rss", source: "The Hindu" },
+  { url: "https://www.thehindu.com/opinion/editorial/feeder/default.rss", source: "The Hindu Editorial" },
   { url: "https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3", source: "PIB" },
 ];
 
@@ -42,7 +43,10 @@ function parseRss(xml: string, source: string): Omit<NewsItem, "gs">[] {
   return items;
 }
 
-const UPSC_KEYWORDS = /\b(upsc|ias|civil services|prelims|mains|gs[- ]?[i1-4]|parliament|supreme court|constitution|policy|scheme|sc\/st|governance|economy|budget|monsoon|isro|drdo|defence|geopolitic|un[a-z]*|g20|brics|climate|biodiversity|environment|ministry|cabinet|niti aayog|rbi|inflation|gdp|census)\b/i;
+// Off-syllabus noise: horoscope, entertainment, sports, celebrity, lifestyle, crime blotter
+const NOISE_RE = /\b(horoscope|zodiac|astrolog|rashifal|numerolog|tarot|vastu|feng shui|bollywood|hollywood|tollywood|kollywood|celebrity|actor|actress|singer|film|movie|trailer|box office|ott|web series|netflix|prime video|recipe|fashion|lifestyle|beauty|makeup|skincare|weight loss|diet plan|yoga tips|sex|dating|relationship|marriage tips|cricket|ipl|fifa|football|tennis|olympics|match|score|wicket|goal|viral video|trending|meme|photo gallery|photos:|watch:|birthday|wedding|divorce|breakup|gossip|kardashian|kohli|dhoni|shah rukh|salman|deepika|priyanka)\b/i;
+
+const UPSC_KEYWORDS = /\b(upsc|ias|civil services|prelims|mains|gs[- ]?[i1-4]|parliament|supreme court|constitution|policy|scheme|governance|economy|budget|isro|drdo|defence|geopolitic|g20|brics|climate|biodiversity|environment|ministry|cabinet|niti aayog|rbi|inflation|gdp|census|bill\b|act\b|amendment|treaty|summit|tribunal|commission|committee|report|index|ranking|scheme|yojana|mission|policy|reform|law\b|judgment|verdict|supreme|high court)\b/i;
 
 // GS syllabus classifiers (order matters — GS4 first as it's most specific)
 const GS_RULES: { gs: NewsItem["gs"]; re: RegExp }[] = [
@@ -87,7 +91,8 @@ export const getUpscNews = createServerFn({ method: "GET" }).handler(async () =>
   // Filter to UPSC-relevant AND classifiable into GS1–GS4
   const filtered: NewsItem[] = [];
   for (const it of all) {
-    if (it.source !== "Google News" && !UPSC_KEYWORDS.test(it.title)) continue;
+    if (NOISE_RE.test(it.title)) continue;
+    if (!UPSC_KEYWORDS.test(it.title)) continue;
     const gs = classifyGs(it.title);
     if (!gs) continue;
     filtered.push({ ...it, gs });
