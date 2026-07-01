@@ -392,33 +392,32 @@ async function callGeminiOnPdf(pdfBytes: ArrayBuffer): Promise<EditorialAnalysis
     required: ["detectedNewspaper", "editorials"],
   } as const;
 
-  const prompt = `You are UPSC Genius. The attached PDF is a full newspaper (e.g. The Hindu, Indian Express).
-STRICT TASK: Locate ONLY the EDITORIAL / OP-ED pages (usually labelled "EDITORIAL", "COMMENT", "OPINION", "OP-ED", "Ideas"). Ignore news, sports, advertisements, business tickers, obituaries and city briefs entirely.
+  const prompt = `You are UPSC Genius. The attached PDF is a full newspaper.
+STRICT SCOPE — READ THIS TWICE:
+- Process ONLY the EDITORIAL and OP-ED pages (headers labelled "EDITORIAL", "COMMENT", "OPINION", "OP-ED", "Ideas", "Leaders").
+- Completely IGNORE: front page, news, city, sports, business, markets, advertisements, obituaries, letters to the editor, cartoons, weather, TV listings, classifieds.
+- Do NOT summarise a news article even if it looks analytical. Only pieces printed under the editorial/op-ed masthead qualify.
+- Cover EVERY distinct editorial / op-ed piece present on those pages (typically 3-6 per issue). Do not skip any.
 
-For EACH distinct editorial / op-ed piece you find, produce a rich UPSC-oriented note:
+For each qualifying piece, output:
+- title: exact headline.
+- newspaper: detected name.
+- pageHint: page label if visible.
+- syllabus: Prelims/Mains stage + GS paper + subject + topic (+ subTopic if useful).
+- crispNotes: 5-7 tight bullets.
+- comprehensiveNotes: 160-220 words in Markdown with ## Context / ## Core Argument / ## Analysis / ## Way Forward.
+- keyFacts, vocabulary (3-5 items), argumentsFor, argumentsAgainst, wayForward (3 items).
+- diagramMermaid: short valid mermaid (flowchart TD or mindmap), quoted labels, only when it truly aids understanding.
+- pyqLinks: real PYQ themes only — omit year if unsure. No fabrication.
+- probablePrelimsMCQ + probableMainsQuestion grounded in the piece.
+- importance.
 
-- title: exact headline of the editorial.
-- newspaper: detected newspaper name (e.g. "The Hindu").
-- pageHint: page label if visible ("Page 8", "Editorial page").
-- syllabus: Prelims/Mains stage + GS paper mapping + fine subject + specific syllabus topic (and sub-topic if meaningful). MUST be tagged for every editorial.
-- crispNotes: 5-7 sharp bullet points — the fastest possible read of the piece.
-- comprehensiveNotes: 180-260 words in Markdown with headings (## Context, ## Core Argument, ## Analysis, ## Way Forward). Grounded in the editorial.
-- keyFacts: hard data / dates / articles / schemes / court cases mentioned.
-- vocabulary: 4-6 exam-useful terms with crisp meanings.
-- argumentsFor / argumentsAgainst: balanced sides of the debate.
-- wayForward: 3-4 actionable ideas.
-- diagramMermaid: a VALID mermaid diagram (prefer 'flowchart TD' or 'mindmap') that visualises the argument or cause-effect chain. Keep node labels short, no special characters that break mermaid. Wrap labels with quotes if they contain spaces. This field is REQUIRED whenever a diagram meaningfully aids understanding.
-- pyqLinks: link to *actual* UPSC/State PSC PYQ themes if the topic has genuinely appeared before. Do NOT fabricate years or exact wordings — if unsure, omit the year and describe the theme only.
-- probablePrelimsMCQ + probableMainsQuestion: exam-ready questions grounded in the editorial.
-- importance: Low | Medium | High | Very High.
-
-Rules:
-- Do NOT invent facts, schemes, judgements or statistics.
-- Everything must be in English (translate if source is Hindi/Odia).
-- Return valid JSON ONLY that matches the provided schema.
-- Hard cap: process AT MOST 4 distinct editorials (pick the highest-value ones). Skip the rest to keep output compact.
-- Keep every string field concise. No prose padding.
-- If the PDF has NO editorial pages, return { "detectedNewspaper": "...", "editorials": [] }.`;
+Hard rules:
+- Never invent facts, schemes, judgements or statistics.
+- English only (translate if source is Hindi/Odia).
+- Return valid JSON ONLY matching the schema. No prose outside JSON.
+- Keep every string tight — no padding — to stay within the token budget.
+- If the PDF has NO editorial/op-ed pages, return { "detectedNewspaper": "...", "editorials": [] }.`;
 
   const body = {
     contents: [
@@ -432,8 +431,8 @@ Rules:
     generationConfig: {
       response_mime_type: "application/json",
       response_schema: schema,
-      temperature: 0.2,
-      maxOutputTokens: 24576,
+      temperature: 0.15,
+      maxOutputTokens: 16384,
     },
   };
 
