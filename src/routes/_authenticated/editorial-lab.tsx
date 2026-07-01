@@ -20,6 +20,8 @@ import {
   CheckSquare,
   Square,
   X,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -115,6 +117,17 @@ function EditorialLabPage() {
   const [pdfSel, setPdfSel] = useState<Set<string>>(new Set());
   const [noteSel, setNoteSel] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+
+  // --- Global expand/collapse ---
+  const [expandAll, setExpandAll] = useState(true);
+  const [expandSignal, setExpandSignal] = useState(0);
+  const toggleExpandAll = () => {
+    setExpandAll((v) => {
+      const next = !v;
+      setExpandSignal((s) => s + 1);
+      return next;
+    });
+  };
 
   const togglePdf = (id: string) =>
     setPdfSel((prev) => {
@@ -350,6 +363,18 @@ function EditorialLabPage() {
                 >
                   3d · {recent.length}
                 </span>
+                <button
+                  onClick={toggleExpandAll}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest underline underline-offset-4 opacity-70 hover:opacity-100"
+                  title={expandAll ? "Collapse all" : "Expand all"}
+                >
+                  {expandAll ? (
+                    <ChevronsDownUp className="h-3 w-3" />
+                  ) : (
+                    <ChevronsUpDown className="h-3 w-3" />
+                  )}
+                  {expandAll ? "Collapse all" : "Expand all"}
+                </button>
                 {recent.length > 0 && (
                   <button
                     onClick={() => {
@@ -386,6 +411,8 @@ function EditorialLabPage() {
                   onDelete={() => deleteMut.mutate(row.id)}
                   selected={noteSel.has(row.id)}
                   onToggleSelect={() => toggleNote(row.id)}
+                  openSignal={expandSignal}
+                  openTarget={expandAll}
                 />
               ))}
             </div>
@@ -399,6 +426,8 @@ function EditorialLabPage() {
                 onDelete={(id) => deleteMut.mutate(id)}
                 selected={noteSel}
                 onToggleSelect={toggleNote}
+                openSignal={expandSignal}
+                openTarget={expandAll}
               />
             </div>
           )}
@@ -469,13 +498,20 @@ function HistorySection({
   onDelete,
   selected,
   onToggleSelect,
+  openSignal,
+  openTarget,
 }: {
   items: EditorialRow[];
   onDelete: (id: string) => void;
   selected: Set<string>;
   onToggleSelect: (id: string) => void;
+  openSignal: number;
+  openTarget: boolean;
 }) {
   const [open, setOpen] = useState(true);
+  useEffect(() => {
+    setOpen(openTarget);
+  }, [openSignal, openTarget]);
   // Group by YYYY-MM
   const groups = items.reduce<Record<string, EditorialRow[]>>((acc, r) => {
     const key = (r.edition_date || r.created_at || "").slice(0, 7) || "older";
@@ -513,6 +549,8 @@ function HistorySection({
                   onDelete={() => onDelete(row.id)}
                   selected={selected.has(row.id)}
                   onToggleSelect={() => onToggleSelect(row.id)}
+                  openSignal={openSignal}
+                  openTarget={openTarget}
                 />
               ))}
             </div>
@@ -535,14 +573,21 @@ function EditorialCard({
   onDelete,
   selected,
   onToggleSelect,
+  openSignal,
+  openTarget,
 }: {
   row: EditorialRow;
   onDelete: () => void;
   selected?: boolean;
   onToggleSelect?: () => void;
+  openSignal?: number;
+  openTarget?: boolean;
 }) {
   const items = row.analysis?.editorials ?? [];
   const [open, setOpen] = useState(true);
+  useEffect(() => {
+    if (typeof openTarget === "boolean") setOpen(openTarget);
+  }, [openSignal, openTarget]);
   const [dlBusy, setDlBusy] = useState<"md" | "pdf" | null>(null);
   const removePiece = useServerFn(removeEditorialPiece);
   const qc = useQueryClient();
