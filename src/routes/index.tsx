@@ -368,6 +368,7 @@ function OdishaPcsDigest() {
   const [extract, setExtract] = useState<string>("");
   const [extracting, setExtracting] = useState(false);
   const [extractErr, setExtractErr] = useState<string | null>(null);
+  const [tab, setTab] = useState<string>("All");
 
   useEffect(() => {
     let alive = true;
@@ -429,16 +430,37 @@ function OdishaPcsDigest() {
       )}
 
       {!loading && !err && items.length > 0 && (
+        <>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {(["All", ...Array.from(new Set(items.map((i) => i.category)))]).map((c) => {
+            const count = c === "All" ? items.length : items.filter((i) => i.category === c).length;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setTab(c)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${tab === c ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow" : "border border-border/60 bg-background/60 text-muted-foreground hover:text-foreground"}`}
+              >
+                {c} <span className="opacity-70">· {count}</span>
+              </button>
+            );
+          })}
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {items.slice(0, 12).map((n) => (
+          {items.filter((n) => tab === "All" || n.category === tab).slice(0, 14).map((n) => (
             <div
               key={n.link}
               className="group relative rounded-2xl border border-white/40 bg-white/60 p-4 shadow-[0_8px_30px_-12px_rgba(31,38,135,0.18)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(16,185,129,0.45)] dark:border-white/10 dark:bg-white/5"
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="inline-flex items-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
-                  {n.source}
-                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                    {n.category}
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    {n.source}
+                  </span>
+                </div>
                 <a href={n.link} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" title="Open source">
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
@@ -456,6 +478,7 @@ function OdishaPcsDigest() {
             </div>
           ))}
         </div>
+        </>
       )}
 
       {active && (
