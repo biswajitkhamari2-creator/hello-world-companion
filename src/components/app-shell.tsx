@@ -83,15 +83,6 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "General Studies",
-    items: [
-      { title: "GS-I", url: "/dashboard?paper=gs1", icon: Landmark },
-      { title: "GS-II", url: "/dashboard?paper=gs2", icon: Scale },
-      { title: "GS-III", url: "/dashboard?paper=gs3", icon: Banknote },
-      { title: "GS-IV", url: "/dashboard?paper=gs4", icon: HeartHandshake },
-    ],
-  },
-  {
     label: "Daily Practice",
     items: [
       { title: "Current Affairs", url: "/dashboard?tab=current-affairs", icon: CalendarClock },
