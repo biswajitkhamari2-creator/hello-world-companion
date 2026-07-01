@@ -154,19 +154,6 @@ function Landing() {
 function Hero() {
   const [q, setQ] = useState("");
   const { theme, toggle } = useTheme();
-  const fullName = "Pintu";
-  const [typed, setTyped] = useState("");
-  useEffect(() => {
-    let i = 0;
-    let timer: ReturnType<typeof setTimeout>;
-    const tick = () => {
-      i = i < fullName.length ? i + 1 : 0;
-      setTyped(fullName.slice(0, i));
-      timer = setTimeout(tick, i === 0 ? 1400 : i === fullName.length ? 2200 : 280);
-    };
-    timer = setTimeout(tick, 400);
-    return () => clearTimeout(timer);
-  }, []);
   return (
     <section className="relative">
       <div className="flex flex-col items-center text-center">
@@ -179,9 +166,7 @@ function Hero() {
           Welcome back to{" "}
           <span className="inline-flex items-center gap-2 align-middle">
             <span className="bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 bg-clip-text text-transparent">
-              <span aria-label="Pintu">{typed}</span>
-              <span className="inline-block w-[2px] translate-y-[-2px] animate-pulse bg-fuchsia-500 align-middle" style={{ height: "0.9em" }} />
-              {typed === fullName && <span>&nbsp;Genius&nbsp;AI</span>}
+              Genius&nbsp;AI
             </span>
             <button
               type="button"
