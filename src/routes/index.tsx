@@ -17,6 +17,7 @@ import { AppShell } from "@/components/app-shell";
 import { cn } from "@/lib/utils";
 import { getUpscNews, type NewsItem } from "@/lib/news.functions";
 import { getOdishaNews, type OdishaNewsItem } from "@/lib/odisha-news.functions";
+import { HomeHighlights } from "@/components/home-highlights";
 import {
   getArticleCrispNotes,
   getArticleComprehensiveNotes,
@@ -160,6 +161,7 @@ function Landing() {
         <AuroraBackdrop />
         <main className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:py-14">
           <Hero />
+          <HomeHighlights />
           <PcsDigestPreview />
           <UpscNews />
         </main>
