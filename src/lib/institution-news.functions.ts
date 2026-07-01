@@ -71,6 +71,8 @@ function pickTag(xml: string, tag: string): string {
 }
 
 function parseDrishtiRss(xml: string): InstitutionItem[] {
+  // Drishti's /rss.rss is dominated by quizzes/PDFs. Kept as a light fallback:
+  // only include items that clearly link to real articles (news-analysis / editorials / to-the-points).
   const items: InstitutionItem[] = [];
   const blocks = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
   for (const raw of blocks) {
@@ -78,25 +80,50 @@ function parseDrishtiRss(xml: string): InstitutionItem[] {
     const link = pickTag(raw, "link");
     const pubDate = pickTag(raw, "pubDate");
     if (!title || !link) continue;
-    // Skip quizzes / practice / MCQ links — user wants news, not quiz portals.
-    if (/quiz|mcq|practice|test series|notification|answer key/i.test(title)) continue;
-    if (/\/quiz\/|prelims-test-series|\.pdf$/i.test(link)) continue;
+    if (!/\/(daily-updates\/(daily-news-analysis|daily-news-editorials|prelims-facts)|to-the-points)\//i.test(link)) continue;
+    if (/\.pdf$/i.test(link)) continue;
     const d = new Date(pubDate);
     const date = isNaN(d.getTime()) ? new Date().toISOString().slice(0, 10) : d.toISOString().slice(0, 10);
-    const isWeekly = /\bweekly\b/i.test(title);
-    // Rough category from URL path segment
-    const seg = link.replace(/^https?:\/\/[^/]+\//, "").split("/")[0] || "News";
-    const category = seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const isWeekly = /to-the-points/i.test(link);
     items.push({
       title,
       link,
-      category,
+      category: isWeekly ? "To The Points" : /editorial/i.test(link) ? "Editorial" : "Daily News",
       date,
-      source: isWeekly ? "Drishti IAS · Weekly" : "Drishti IAS · Daily",
+      source: isWeekly ? "Drishti IAS · To The Points" : "Drishti IAS · Daily",
       kind: isWeekly ? "weekly" : "daily",
     });
   }
   return items;
+}
+
+function scrapeDrishtiListing(
+  html: string,
+  pattern: RegExp,
+  category: string,
+  source: string,
+  kind: "daily" | "weekly",
+): InstitutionItem[] {
+  const out: InstitutionItem[] = [];
+  const seen = new Set<string>();
+  const today = new Date().toISOString().slice(0, 10);
+  let m: RegExpExecArray | null;
+  while ((m = pattern.exec(html))) {
+    const link = m[1];
+    if (seen.has(link)) continue;
+    seen.add(link);
+    const slug = link.split("/").pop() || "";
+    if (!slug) continue;
+    out.push({
+      title: slugToTitle(slug),
+      link,
+      category,
+      date: today,
+      source,
+      kind,
+    });
+  }
+  return out;
 }
 
 export const getInstitutionNews = createServerFn({ method: "GET" }).handler(
@@ -142,14 +169,78 @@ export const getInstitutionNews = createServerFn({ method: "GET" }).handler(
       for (const it of r.value) (it.kind === "daily" ? daily : weekly).push(it);
     }
 
-    // Drishti IAS via RSS feed
+    // Drishti IAS — scrape listing pages (their /rss/* feeds return 404 HTML;
+    // /rss.rss only contains quizzes). We hit the actual current-affairs pages.
+    const drishtiTargets: Array<{
+      url: string;
+      pattern: RegExp;
+      category: string;
+      source: string;
+      kind: "daily" | "weekly";
+    }> = [
+      {
+        url: "https://www.drishtiias.com/daily-updates/daily-news-analysis",
+        pattern: /href="(https:\/\/www\.drishtiias\.com\/daily-updates\/daily-news-analysis\/[a-z0-9-]+)"/gi,
+        category: "Daily News",
+        source: "Drishti IAS · Daily",
+        kind: "daily",
+      },
+      {
+        url: "https://www.drishtiias.com/daily-updates/daily-news-editorials",
+        pattern: /href="(https:\/\/www\.drishtiias\.com\/daily-updates\/daily-news-editorials\/[a-z0-9-]+)"/gi,
+        category: "Editorial",
+        source: "Drishti IAS · Editorial",
+        kind: "daily",
+      },
+      {
+        url: "https://www.drishtiias.com/to-the-points/paper1",
+        pattern: /href="(https:\/\/www\.drishtiias\.com\/to-the-points\/paper1\/[a-z0-9-]+)"/gi,
+        category: "GS Paper 1",
+        source: "Drishti IAS · To The Points",
+        kind: "weekly",
+      },
+      {
+        url: "https://www.drishtiias.com/to-the-points/paper2",
+        pattern: /href="(https:\/\/www\.drishtiias\.com\/to-the-points\/paper2\/[a-z0-9-]+)"/gi,
+        category: "GS Paper 2",
+        source: "Drishti IAS · To The Points",
+        kind: "weekly",
+      },
+      {
+        url: "https://www.drishtiias.com/to-the-points/paper3",
+        pattern: /href="(https:\/\/www\.drishtiias\.com\/to-the-points\/paper3\/[a-z0-9-]+)"/gi,
+        category: "GS Paper 3",
+        source: "Drishti IAS · To The Points",
+        kind: "weekly",
+      },
+      {
+        url: "https://www.drishtiias.com/to-the-points/paper4",
+        pattern: /href="(https:\/\/www\.drishtiias\.com\/to-the-points\/paper4\/[a-z0-9-]+)"/gi,
+        category: "GS Paper 4",
+        source: "Drishti IAS · To The Points",
+        kind: "weekly",
+      },
+    ];
+
+    const drishtiResults = await Promise.allSettled(
+      drishtiTargets.map(async (t) => {
+        const html = await fetchHtml(t.url);
+        return scrapeDrishtiListing(html, t.pattern, t.category, t.source, t.kind);
+      }),
+    );
+    for (const r of drishtiResults) {
+      if (r.status !== "fulfilled") continue;
+      for (const it of r.value) (it.kind === "daily" ? daily : weekly).push(it);
+    }
+
+    // Also try the generic RSS as a lightweight supplement.
     try {
       const dr = await fetchHtml("https://www.drishtiias.com/rss.rss");
       for (const it of parseDrishtiRss(dr)) {
         (it.kind === "daily" ? daily : weekly).push(it);
       }
     } catch {
-      // ignore Drishti failure — Vision IAS still works
+      // best-effort
     }
 
     const dedupe = (arr: InstitutionItem[]) => {
