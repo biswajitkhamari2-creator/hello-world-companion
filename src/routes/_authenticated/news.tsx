@@ -49,6 +49,7 @@ function timeAgo(iso: string) {
 }
 
 function NewsPage() {
+  const router = useRouter();
   const [items, setItems] = useState<NewsItem[] | null>(null);
   const [filter, setFilter] = useState<GsPaper | "all">("all");
   const [err, setErr] = useState<string | null>(null);
