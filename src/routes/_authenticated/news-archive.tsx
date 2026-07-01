@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarIcon, Loader2, Search, Sparkles, X, Flame } from "lucide-react";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
@@ -44,6 +44,9 @@ function ArchivePage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [dates, setDates] = useState<Set<string>>(new Set());
+  const [visible, setVisible] = useState(24);
+  const PAGE = 24;
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     listArchiveDates()
@@ -65,10 +68,11 @@ function ArchivePage() {
               : undefined,
           gs: gs === "all" ? undefined : gs,
           q: q.trim() || undefined,
-          limit: 300,
+          limit: 1000,
         },
       });
       setItems(res);
+      setVisible(PAGE);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -88,6 +92,22 @@ function ArchivePage() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range?.from, range?.to, gs]);
+
+  // Infinite scroll: reveal more when sentinel enters viewport
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !items) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible((v) => Math.min(v + PAGE, items.length));
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [items]);
 
   const label = useMemo(() => {
     if (!range?.from) return "All dates";
@@ -200,10 +220,10 @@ function ArchivePage() {
         {items && items.length > 0 && (
           <>
             <p className="mb-3 text-xs text-muted-foreground">
-              {items.length} result{items.length === 1 ? "" : "s"}
+              Showing {Math.min(visible, items.length)} of {items.length} result{items.length === 1 ? "" : "s"}
             </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((it) => {
+              {items.slice(0, visible).map((it) => {
                 const hot = it.importance >= 4;
                 return (
                   <div
@@ -255,6 +275,18 @@ function ArchivePage() {
                 );
               })}
             </div>
+            {visible < items.length && (
+              <div ref={sentinelRef} className="mt-6 flex items-center justify-center py-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setVisible((v) => Math.min(v + PAGE, items.length))}
+                >
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading more…
+                </Button>
+              </div>
+            )}
           </>
         )}
       </main>
