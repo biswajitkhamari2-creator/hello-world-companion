@@ -22,7 +22,7 @@ import "@fontsource/caveat/600.css";
 import "@fontsource/caveat/700.css";
 import "@fontsource/libre-baskerville/400.css";
 import "@fontsource/libre-baskerville/700.css";
-import "@fontsource-variable/ibm-plex-sans";
+import "@fontsource-variable/ibm-plex-sans/index.css";
 import "@fontsource/kalam/400.css";
 import "@fontsource/kalam/700.css";
 import "@fontsource/patrick-hand/400.css";
