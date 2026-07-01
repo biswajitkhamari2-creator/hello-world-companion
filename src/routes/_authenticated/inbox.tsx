@@ -71,7 +71,7 @@ function InboxPage() {
     queryKey: ["telegram-inbox", showArchived ? "archived" : "active"],
     queryFn: () => list({ data: { archived: showArchived } }) as Promise<InboxItem[]>,
     enabled: ready,
-    refetchInterval: 20_000,
+    refetchInterval: 60_000,
   });
 
   const [busyId, setBusyId] = useState<string | null>(null);

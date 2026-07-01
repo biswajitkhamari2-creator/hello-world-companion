@@ -72,9 +72,9 @@ function NewsPage() {
     };
   }, [reloadKey]);
 
-  // Auto-refresh every minute.
+  // Auto-refresh every 5 minutes (credit-friendly).
   useEffect(() => {
-    const id = setInterval(() => setReloadKey((k) => k + 1), 60_000);
+    const id = setInterval(() => setReloadKey((k) => k + 1), 5 * 60_000);
     return () => clearInterval(id);
   }, []);
 
@@ -85,8 +85,8 @@ function NewsPage() {
     setAnalysing(true);
     (async () => {
       try {
-        // Cap at 5 per visit so we don't hammer credits.
-        for (let i = 0; i < 5; i++) {
+        // Cap at 2 per visit so we don't hammer credits.
+        for (let i = 0; i < 2; i++) {
           const r = await extractPendingInboxNews();
           const fresh = await listNewsItems({ data: { limit: 200 } });
           setItems(fresh);
