@@ -475,7 +475,7 @@ function HistorySection({
   selected: Set<string>;
   onToggleSelect: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   // Group by YYYY-MM
   const groups = items.reduce<Record<string, EditorialRow[]>>((acc, r) => {
     const key = (r.edition_date || r.created_at || "").slice(0, 7) || "older";
