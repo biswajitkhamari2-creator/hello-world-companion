@@ -46,7 +46,6 @@ import { FinalChecker } from "@/components/final-checker";
 import { StampLogoButton } from "@/components/stamp-logo";
 import { ProcessingOptionsButton, useProcessingPrefs } from "@/components/processing-options";
 import { prefsToOptions } from "@/lib/processing-prefs";
-import { BrandMark } from "@/components/brand-mark";
 import { NewspaperIssue } from "@/components/newspaper-issue";
 import { TelegramInbox } from "@/components/telegram-inbox";
 import { AppShell } from "@/components/app-shell";
