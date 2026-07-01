@@ -166,17 +166,25 @@ export const extractPcsPoints = createServerFn({ method: "POST" })
     // If we couldn't scrape (JS-heavy site), fall back to just title
     const context = articleText.length > 400 ? articleText : `Headline: ${data.title}\n(No body text available.)`;
 
-    const prompt = `You are an exam mentor for the Odisha Public Service Commission (OPSC) and other State PCS exams.
-From the news content below, extract the most exam-relevant points a State PCS aspirant should remember.
+    const prompt = `You are a mentor for the Odisha Public Service Commission (OPSC) Civil Services Exam.
+Extract exam-relevant points from the news below, mapped to the official OPSC syllabus.
 
-Return clean Markdown with these sections:
+OPSC SYLLABUS ANCHORS (map the story to whichever apply):
+- Prelims Paper I: Current events; Indian & Odisha history (Kalinga, Kharavela, Bhauma-Karas, Somavamasis, Gangas, Gajapatis, Paik Rebellion, Vir Surendra Sai, Praja Mandal, creation of Odisha Province); Indian & Odisha geography (physiography, Mahanadi/Brahmani/Baitarani, Chilika, Similipal, Bhitarkanika, minerals, forests); Polity & Governance (Constitution, PRIs, Odisha Lokayukta, Odisha Right to Public Services Act); Economy & Social Development; Environment & Climate Change; General Science.
+- Mains GS-I: Indian & Odisha heritage & culture (Jagannath, Konark, Odissi, Pattachitra, Odia language & literature, Bhakti Movement in Odisha, festivals like Bali Yatra, Rath Yatra); society, tribes, women, urbanisation in Odisha.
+- Mains GS-II: Constitution, Union-State relations, PRIs in Odisha, welfare schemes (KALIA, Mission Shakti, BSKY, Ama Odisha Nabin Odisha), Odisha & neighbourhood relations, social justice.
+- Mains GS-III: Economy, agriculture, irrigation (Hirakud), industrialisation of Odisha, MSMEs & SHGs, science & tech, biodiversity, disaster management (cyclones like Fani/Yaas), left-wing extremism in Odisha, internal security, cyber security.
+- Mains GS-IV: Ethics angle only if the story clearly involves probity, corruption, or public-service values.
+
+Return clean Markdown with these sections and NOTHING else:
 ## Summary (2-3 lines)
-## Key Facts (bullet points — names, numbers, dates, places, schemes, articles/sections of law)
-## OPSC / State PCS Angle (why this matters — Odisha polity, geography, economy, culture, environment, current affairs)
-## Possible Prelims MCQ (1 question with 4 options and the correct answer marked)
-## Possible Mains Question (1 short answer-writing question)
+## Syllabus Mapping (bullet list — e.g. "Prelims Paper I → Odisha Geography", "Mains GS-III → Disaster Management"; only list buckets the story actually touches)
+## Key Facts (bullets — names, numbers, dates, places, schemes, articles/sections of law, rivers, dynasties, tribes)
+## OPSC Angle (why an OPSC aspirant should remember this — link to Odisha specifically)
+## Prelims MCQ (1 question, 4 options, mark the correct answer with **bold**)
+## Mains Question (1 short answer-writing question, 150 words, tag the GS paper)
 
-Keep it factual. Do not invent numbers. If a detail is not in the source, say "not stated".
+Rules: Stay strictly on the OPSC syllabus. Do not add horoscope, entertainment, cricket, or celebrity content. Do not invent numbers — if a detail is not in the source, write "not stated".
 
 SOURCE:
 """
