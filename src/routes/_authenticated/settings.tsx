@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 type Prefs = {
-  language: "en" | "hi" | "hinglish";
+  language: "en" | "hi" | "hinglish" | "or";
   theme: "light" | "dark" | "system";
   fontSize: "sm" | "md" | "lg";
   notifications: boolean;
@@ -149,6 +149,7 @@ function SettingsPage() {
                 { v: "en", l: "English" },
                 { v: "hi", l: "हिन्दी (Hindi)" },
                 { v: "hinglish", l: "Hinglish (Mixed)" },
+                { v: "or", l: "ଓଡ଼ିଆ (Odia)" },
               ]}
             />
             <TextField
