@@ -242,61 +242,57 @@ function EditorialCard({ row, onDelete }: { row: EditorialRow; onDelete: () => v
 
   return (
     <Card className="overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 bg-gradient-to-r from-indigo-500/10 via-fuchsia-500/10 to-amber-500/10 p-4 text-left"
-      >
-        <div className="min-w-0">
-          <div className="truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {row.newspaper || "Newspaper"} · {row.edition_date || row.created_at?.slice(0, 10)}
+      <div className="bg-gradient-to-r from-indigo-500/10 via-fuchsia-500/10 to-amber-500/10 p-4 sm:p-4">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex w-full items-start justify-between gap-3 text-left"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:truncate sm:text-[11px]">
+              {row.newspaper || "Newspaper"} · {row.edition_date || row.created_at?.slice(0, 10)}
+            </div>
+            <div className="mt-1 break-words font-serif text-[20px] font-bold leading-tight sm:mt-0 sm:truncate sm:text-lg sm:font-semibold">
+              {row.source_label || "Editorial batch"} · {items.length} pieces
+            </div>
           </div>
-          <div className="truncate font-serif text-lg font-semibold">
-            {row.source_label || "Editorial batch"} · {items.length} pieces
+          <div className="shrink-0 rounded-full border bg-background/60 p-2 text-muted-foreground">
+            {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
           </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              downloadMd();
-            }}
-            className="rounded-full p-1.5 text-muted-foreground hover:bg-background hover:text-indigo-500"
+        </button>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+          <button
+            onClick={downloadMd}
+            className="inline-flex h-12 min-h-[48px] items-center justify-center gap-2 rounded-md border bg-background/60 px-3 text-[15px] font-semibold text-muted-foreground hover:text-indigo-500 sm:h-auto sm:min-h-0 sm:py-1.5 sm:text-xs"
             aria-label="Download markdown"
             title="Download as Markdown (.md)"
           >
-            <Download className="h-4 w-4" />
-          </span>
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
+            <Download className="h-5 w-5 sm:h-4 sm:w-4" />
+            <span>Markdown</span>
+          </button>
+          <button
+            onClick={() => {
               if (dlBusy) return;
               downloadPdf();
             }}
-            className="rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-background hover:text-indigo-500"
+            className="inline-flex h-12 min-h-[48px] items-center justify-center gap-2 rounded-md border bg-background/60 px-3 text-[15px] font-semibold text-muted-foreground hover:text-indigo-500 sm:h-auto sm:min-h-0 sm:py-1.5 sm:text-xs"
             aria-label="Download PDF"
             title="Download as PDF"
           >
-            {dlBusy === "pdf" ? "…" : "PDF"}
-          </span>
+            <Download className="h-5 w-5 sm:h-4 sm:w-4" />
+            <span>{dlBusy === "pdf" ? "Working…" : "PDF"}</span>
+          </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="rounded-full p-1.5 text-muted-foreground hover:bg-background hover:text-rose-500"
+            onClick={onDelete}
+            className="col-span-2 inline-flex h-12 min-h-[48px] items-center justify-center gap-2 rounded-md border bg-background/60 px-3 text-[15px] font-semibold text-muted-foreground hover:text-rose-500 sm:col-span-1 sm:h-auto sm:min-h-0 sm:py-1.5 sm:text-xs"
             aria-label="Delete"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-5 w-5 sm:h-4 sm:w-4" />
+            <span>Delete</span>
           </button>
-          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
-      </button>
+      </div>
       {open && (
-        <div className="space-y-5 border-t p-5">
+        <div className="space-y-6 border-t p-4 sm:space-y-5 sm:p-5">
           {items.length === 0 && (
             <div className="text-sm text-muted-foreground">
               No editorial pages were detected in this PDF.
