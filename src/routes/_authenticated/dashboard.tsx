@@ -843,7 +843,20 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
             <p className="mt-3 text-xs text-muted-foreground">All outputs are disabled in Processing options.</p>
           )}
           {Object.entries(results).map(([type, content]) => (
-            <GeneratedResult key={type} type={type as OutputType} content={content} docTitle={doc.title} docId={doc.id} />
+            <GeneratedResult
+              key={type}
+              type={type as OutputType}
+              content={content}
+              docTitle={doc.title}
+              docId={doc.id}
+              onDelete={() =>
+                setResults((r) => {
+                  const n = { ...r };
+                  delete n[type as OutputType];
+                  return n;
+                })
+              }
+            />
           ))}
           {prefs.runFinalChecker && <FinalChecker documentId={doc.id} documentTitle={doc.title} />}
           <HistoryPanel
