@@ -31,6 +31,8 @@ import {
   Settings,
   Menu,
   GraduationCap,
+  Sun,
+  Moon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -48,6 +50,7 @@ import {
 } from "@/components/ui/sidebar";
 import { BrandMark } from "@/components/brand-mark";
 import { AiQuotaBanner } from "@/components/ai-quota-banner";
+import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -267,6 +270,21 @@ function HamburgerTrigger() {
   );
 }
 
+function ThemeToggle() {
+  const { theme, toggle } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className="group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/50 bg-white/70 text-foreground shadow-sm backdrop-blur-xl transition-all hover:scale-110 hover:shadow-md dark:border-white/10 dark:bg-white/5"
+    >
+      {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-600" />}
+    </button>
+  );
+}
+
 export function AppShell({
   children,
   topbarRight,
@@ -285,7 +303,10 @@ export function AppShell({
             <Link to="/" className="ml-1 block min-w-0">
               <BrandMark size="sm" />
             </Link>
-            <div className="ml-auto flex items-center gap-2">{topbarRight}</div>
+            <div className="ml-auto flex items-center gap-2">
+              {topbarRight}
+              <ThemeToggle />
+            </div>
           </div>
           <div className="flex-1 min-w-0">{children}</div>
         </div>
