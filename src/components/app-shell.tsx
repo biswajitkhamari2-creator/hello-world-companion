@@ -29,7 +29,6 @@ import {
   Bookmark,
   User,
   Settings,
-  Shield,
   Menu,
 } from "lucide-react";
 import {
