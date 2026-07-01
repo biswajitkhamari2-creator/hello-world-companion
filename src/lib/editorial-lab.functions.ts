@@ -156,6 +156,42 @@ export const deleteEditorial = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Remove a single editorial piece from a row's analysis JSON. If it was the
+// last remaining piece, the entire row is deleted so it disappears from
+// history as the user expects.
+export const removeEditorialPiece = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; index: number }) =>
+    z.object({ id: z.string().uuid(), index: z.number().int().min(0) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = getAdmin();
+    const { data: row, error: readErr } = await supabase
+      .from("editorials")
+      .select("id,user_id,analysis")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!row) throw new Error("Editorial not found");
+    const analysis = (row.analysis as EditorialAnalysisFull) || { editorials: [] as EditorialItem[], detectedNewspaper: "" };
+    const items = Array.isArray(analysis.editorials) ? analysis.editorials : [];
+    if (data.index < 0 || data.index >= items.length) throw new Error("Piece index out of range");
+    const nextItems = items.filter((_, i) => i !== data.index);
+    if (nextItems.length === 0) {
+      const { error } = await supabase.from("editorials").delete().eq("id", data.id).eq("user_id", context.userId);
+      if (error) throw new Error(error.message);
+      return { ok: true, rowDeleted: true };
+    }
+    const { error } = await supabase
+      .from("editorials")
+      .update({ analysis: { ...analysis, editorials: nextItems } })
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true, rowDeleted: false };
+  });
+
 // ---------- Analyse editorial from an inbox PDF (paid Gemini) ----------
 function bufferToBase64(buf: ArrayBuffer): string {
   return Buffer.from(buf).toString("base64");
