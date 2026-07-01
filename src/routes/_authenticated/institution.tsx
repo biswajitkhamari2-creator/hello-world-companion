@@ -2,11 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { GraduationCap, CalendarDays, CalendarRange, Download, ExternalLink, Loader2, RefreshCcw, X } from "lucide-react";
+import { GraduationCap, CalendarDays, CalendarRange, Download, ExternalLink, Loader2, RefreshCcw, X, Sparkles, BookOpen } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getInstitutionNews, getInstitutionArticle, type InstitutionItem } from "@/lib/institution-news.functions";
+import { getInstitutionNews, getInstitutionArticle, getInstitutionCrispNotes, type InstitutionItem, type InstitutionCrispNotes } from "@/lib/institution-news.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/institution")({
@@ -14,15 +14,126 @@ export const Route = createFileRoute("/_authenticated/institution")({
   component: InstitutionPage,
 });
 
+function gsColor(gs: string): string {
+  switch (gs) {
+    case "GS-1": return "from-amber-500 to-orange-500";
+    case "GS-2": return "from-sky-500 to-blue-600";
+    case "GS-3": return "from-emerald-500 to-teal-600";
+    case "GS-4": return "from-fuchsia-500 to-pink-600";
+    case "Essay": return "from-violet-500 to-indigo-600";
+    default: return "from-slate-500 to-slate-700";
+  }
+}
+
+function CrispNotesView({ notes }: { notes: InstitutionCrispNotes }) {
+  return (
+    <div className="space-y-5">
+      <div className={`rounded-2xl bg-gradient-to-br ${gsColor(notes.gsPaper)} p-[1px] shadow-sm`}>
+        <div className="rounded-2xl bg-card p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`rounded-full bg-gradient-to-r ${gsColor(notes.gsPaper)} px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white shadow`}>{notes.gsPaper}</span>
+            <Badge variant="secondary" className="text-[10px]">{notes.subject}</Badge>
+            <Badge variant="outline" className="text-[10px]">{notes.topic}</Badge>
+          </div>
+          <h2 className="mt-2 font-serif text-lg font-bold leading-snug">{notes.title}</h2>
+          <p className="mt-1 text-xs italic text-muted-foreground">Syllabus anchor: {notes.syllabusAnchor}</p>
+          <p className="mt-3 text-sm leading-relaxed">{notes.oneLine}</p>
+        </div>
+      </div>
+
+      {notes.whyInNews?.length > 0 && (
+        <Section title="Why in News">
+          {notes.whyInNews.map((b, i) => <Bullet key={i}>{b}</Bullet>)}
+        </Section>
+      )}
+
+      {notes.keyPoints?.length > 0 && (
+        <Section title="Key Points">
+          {notes.keyPoints.map((b, i) => <Bullet key={i}>{b}</Bullet>)}
+        </Section>
+      )}
+
+      {notes.facts?.length > 0 && (
+        <Section title="Facts & Figures">
+          {notes.facts.map((b, i) => <Bullet key={i} accent="amber">{b}</Bullet>)}
+        </Section>
+      )}
+
+      {notes.keyTerms?.length > 0 && (
+        <Section title="Key Terms">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {notes.keyTerms.map((t, i) => (
+              <div key={i} className="rounded-lg border border-border bg-muted/30 p-2.5">
+                <p className="text-xs font-semibold">{t.term}</p>
+                <p className="text-xs text-muted-foreground">{t.meaning}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {notes.prelimsAngle?.length > 0 && (
+          <Section title="Prelims Angle" tone="sky">
+            {notes.prelimsAngle.map((b, i) => <Bullet key={i}>{b}</Bullet>)}
+          </Section>
+        )}
+        {notes.mainsAngle?.length > 0 && (
+          <Section title="Mains Angle" tone="emerald">
+            {notes.mainsAngle.map((b, i) => <Bullet key={i}>{b}</Bullet>)}
+          </Section>
+        )}
+      </div>
+
+      {notes.probableQuestion && (
+        <div className="rounded-xl border-l-4 border-fuchsia-500 bg-fuchsia-50 p-3.5 text-sm dark:bg-fuchsia-950/30">
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-fuchsia-700 dark:text-fuchsia-300">Probable Question</p>
+          <p className="italic">{notes.probableQuestion}</p>
+        </div>
+      )}
+
+      <p className="text-[11px] text-muted-foreground">
+        Source: <a className="underline" href={notes.sourceUrl} target="_blank" rel="noreferrer">{notes.sourceUrl}</a>
+      </p>
+    </div>
+  );
+}
+
+function Section({ title, tone, children }: { title: string; tone?: "sky" | "emerald"; children: React.ReactNode }) {
+  const ring =
+    tone === "sky" ? "border-sky-200 dark:border-sky-900/50" :
+    tone === "emerald" ? "border-emerald-200 dark:border-emerald-900/50" :
+    "border-border";
+  return (
+    <div className={`rounded-xl border ${ring} bg-card p-3.5`}>
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{title}</p>
+      <div className="space-y-1.5">{children}</div>
+    </div>
+  );
+}
+
+function Bullet({ children, accent }: { children: React.ReactNode; accent?: "amber" }) {
+  const dot = accent === "amber" ? "bg-amber-500" : "bg-emerald-500";
+  return (
+    <div className="flex gap-2 text-sm leading-snug">
+      <span className={`mt-1.5 h-1.5 w-1.5 flex-none rounded-full ${dot}`} />
+      <span>{children}</span>
+    </div>
+  );
+}
+
 type Tab = "daily" | "weekly";
 
 function InstitutionPage() {
   const fetchNews = useServerFn(getInstitutionNews);
   const fetchArticle = useServerFn(getInstitutionArticle);
+  const fetchCrisp = useServerFn(getInstitutionCrispNotes);
   const [tab, setTab] = useState<Tab>("daily");
   const [open, setOpen] = useState<InstitutionItem | null>(null);
   const [articleHtml, setArticleHtml] = useState<string>("");
   const [articleTitle, setArticleTitle] = useState<string>("");
+  const [crisp, setCrisp] = useState<InstitutionCrispNotes | null>(null);
+  const [showFull, setShowFull] = useState(false);
 
   const q = useQuery({
     queryKey: ["institution-news"],
@@ -38,6 +149,14 @@ function InstitutionPage() {
     },
     onError: (e: unknown) => {
       toast.error(e instanceof Error ? e.message : "Could not load article");
+    },
+  });
+
+  const crispMut = useMutation({
+    mutationFn: (url: string) => fetchCrisp({ data: { url } }),
+    onSuccess: (res) => setCrisp(res),
+    onError: (e: unknown) => {
+      toast.error(e instanceof Error ? e.message : "Could not generate crisp notes");
     },
   });
 
@@ -60,7 +179,14 @@ function InstitutionPage() {
     setOpen(it);
     setArticleHtml("");
     setArticleTitle(it.title);
-    articleMut.mutate(it.link);
+    setCrisp(null);
+    setShowFull(false);
+    crispMut.mutate(it.link);
+  }
+
+  function loadFullArticle() {
+    setShowFull(true);
+    if (!articleHtml && !articleMut.isPending) articleMut.mutate(open!.link);
   }
 
   function saveAsPdf() {
@@ -189,14 +315,29 @@ function InstitutionPage() {
                 </p>
                 <hr className="my-3" />
               </div>
-              {articleMut.isPending && (
+              {crispMut.isPending && (
                 <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Fetching article from Vision IAS…
+                  <Loader2 className="h-4 w-4 animate-spin" /> Crisping notes & tagging GS paper…
                 </div>
               )}
-              {articleHtml && (
+              {crisp && (
+                <CrispNotesView notes={crisp} />
+              )}
+              {crisp && !showFull && (
+                <div className="mt-6 flex justify-center print:hidden">
+                  <Button size="sm" variant="outline" onClick={loadFullArticle}>
+                    <BookOpen className="mr-1.5 h-3.5 w-3.5" /> Load full article (optional)
+                  </Button>
+                </div>
+              )}
+              {showFull && articleMut.isPending && (
+                <div className="mt-6 flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Fetching full article…
+                </div>
+              )}
+              {showFull && articleHtml && (
                 <article
-                  className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-a:text-primary"
+                  className="prose prose-sm mt-6 max-w-none border-t border-border pt-6 dark:prose-invert prose-headings:font-serif prose-a:text-primary"
                   dangerouslySetInnerHTML={{ __html: articleHtml }}
                 />
               )}

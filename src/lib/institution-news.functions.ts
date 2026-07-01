@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 
 export interface InstitutionItem {
   title: string;
@@ -308,4 +309,134 @@ export const getInstitutionArticle = createServerFn({ method: "POST" })
       .replace(/<a /gi, '<a target="_blank" rel="noopener" ');
 
     return { title, html: cleaned };
+  });
+
+// ------------------------------------------------------------------
+// Crisp AI notes for an Institution article.
+// Never dumps the raw article. Always tags GS paper + subject + topic.
+// ------------------------------------------------------------------
+
+export type InstitutionCrispNotes = {
+  title: string;
+  gsPaper: "GS-1" | "GS-2" | "GS-3" | "GS-4" | "Prelims" | "Essay";
+  subject: string; // e.g. Polity, Economy, Geography, Ethics, IR
+  topic: string;   // e.g. Governor, Fiscal Federalism, Chilika Lake
+  syllabusAnchor: string; // exact syllabus phrase this maps to
+  oneLine: string;         // ≤ 30 words, what happened
+  whyInNews: string[];     // 2-3 bullets
+  keyPoints: string[];     // 5-8 crisp bullets
+  facts: string[];         // hard data / figures / dates
+  keyTerms: Array<{ term: string; meaning: string }>;
+  prelimsAngle: string[];  // 2-3 bullets
+  mainsAngle: string[];    // 2-3 bullets, framed as Mains hooks
+  probableQuestion: string; // 1 Mains-style question
+  sourceUrl: string;
+};
+
+function htmlToPlain(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#39;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export const getInstitutionCrispNotes = createServerFn({ method: "POST" })
+  .inputValidator((data: { url: string }) => {
+    return z
+      .object({
+        url: z
+          .string()
+          .regex(/^https:\/\/(visionias\.in|www\.drishtiias\.com)\//, "Only Vision IAS or Drishti IAS URLs are allowed"),
+      })
+      .parse(data);
+  })
+  .handler(async ({ data }): Promise<InstitutionCrispNotes> => {
+    const html = await fetchHtml(data.url);
+    const isDrishti = /drishtiias\.com/i.test(data.url);
+    const stripped = html
+      .replace(/<head[\s\S]*?<\/head>/gi, "")
+      .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+      .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+      .replace(/<header[\s\S]*?<\/header>/gi, "");
+    const mainMatch =
+      stripped.match(/<article[\s\S]*?<\/article>/i) ||
+      stripped.match(/<main[\s\S]*?<\/main>/i) ||
+      stripped.match(/<div[^>]+class=["'][^"']*(?:article|content|post|entry)[^"']*["'][\s\S]*?<\/div>/i);
+    const bodyHtml = mainMatch ? mainMatch[0] : stripped;
+    const text = htmlToPlain(bodyHtml).slice(0, 18000);
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+    const rawTitle = titleMatch ? titleMatch[1].trim() : "";
+
+    const { createGateway, DEFAULT_MODEL, UPSC_SYSTEM_PROMPT } = await import("./ai-gateway.server");
+    const { generateText } = await import("ai");
+    const gw = createGateway();
+
+    const prompt = `You are preparing CRISP UPSC/State-PCS notes from a coaching-institute article. DO NOT copy sentences verbatim. Rewrite in tight, aspirant-friendly bullets. Every note MUST be tagged with the correct UPSC GS Paper + Subject + Topic per the official UPSC Civil Services syllabus.
+
+UPSC syllabus mapping (mandatory):
+- GS-1 → History, Art & Culture, Indian Society, Geography (Physical/Human/Economic)
+- GS-2 → Polity, Constitution, Governance, Social Justice, International Relations
+- GS-3 → Economy, Agriculture, Science & Tech, Environment/Ecology/Biodiversity, Internal Security, Disaster Management
+- GS-4 → Ethics, Integrity & Aptitude, Case Studies
+- Prelims → only when clearly a factual/current-affairs prelims item with no Mains hook
+- Essay → philosophical/abstract themes
+
+Return STRICT JSON only, no markdown fences, matching this TypeScript type:
+{
+  "title": string,                         // clean short title, not the site's <title>
+  "gsPaper": "GS-1"|"GS-2"|"GS-3"|"GS-4"|"Prelims"|"Essay",
+  "subject": string,                       // e.g. "Polity", "Economy", "Environment"
+  "topic": string,                         // specific topic e.g. "Governor's Discretionary Powers"
+  "syllabusAnchor": string,                // exact phrase from UPSC syllabus this hits
+  "oneLine": string,                       // ≤30 words, what happened
+  "whyInNews": string[],                   // 2-3 bullets, why it matters NOW
+  "keyPoints": string[],                   // 5-8 crisp bullets, the core content in your own words
+  "facts": string[],                       // hard data, dates, numbers, article numbers, case names
+  "keyTerms": Array<{term:string, meaning:string}>, // 3-6 exam terms
+  "prelimsAngle": string[],                // 2-3 factual hooks for Prelims
+  "mainsAngle": string[],                  // 2-3 analytical hooks for Mains
+  "probableQuestion": string               // 1 Mains-style question with directive verb (Discuss/Examine/Analyse)
+}
+
+Hard rules:
+- Do NOT paste paragraphs from the source. Rewrite tightly.
+- Do NOT fabricate facts, articles, judgements, or schemes. If unsure, omit.
+- Every bullet ≤ 25 words.
+- gsPaper/subject/topic/syllabusAnchor are MANDATORY — never leave blank.
+- Output JSON ONLY.
+
+Source: ${isDrishti ? "Drishti IAS" : "Vision IAS"}
+Site title: ${rawTitle}
+URL: ${data.url}
+
+ARTICLE:
+"""
+${text}
+"""`;
+
+    const { text: out } = await generateText({
+      model: gw(DEFAULT_MODEL),
+      system: UPSC_SYSTEM_PROMPT,
+      prompt,
+      maxRetries: 1,
+    });
+
+    const cleaned = out.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "");
+    let parsed: Omit<InstitutionCrispNotes, "sourceUrl">;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      const m = cleaned.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error("AI returned non-JSON response");
+      parsed = JSON.parse(m[0]);
+    }
+    return { ...parsed, sourceUrl: data.url };
   });
