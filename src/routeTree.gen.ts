@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiMentorRouteImport } from './routes/api/mentor'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedNewsArchiveRouteImport } from './routes/_authenticated/news-archive'
 import { Route as AuthenticatedNewsRouteImport } from './routes/_authenticated/news'
 import { Route as AuthenticatedMocksRouteImport } from './routes/_authenticated/mocks'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
@@ -69,6 +70,12 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedNewsArchiveRoute =
+  AuthenticatedNewsArchiveRouteImport.update({
+    id: '/news-archive',
+    path: '/news-archive',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedNewsRoute = AuthenticatedNewsRouteImport.update({
   id: '/news',
   path: '/news',
@@ -146,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/mentor': typeof AuthenticatedMentorRoute
   '/mocks': typeof AuthenticatedMocksRoute
   '/news': typeof AuthenticatedNewsRoute
+  '/news-archive': typeof AuthenticatedNewsArchiveRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
@@ -167,6 +175,7 @@ export interface FileRoutesByTo {
   '/mentor': typeof AuthenticatedMentorRoute
   '/mocks': typeof AuthenticatedMocksRoute
   '/news': typeof AuthenticatedNewsRoute
+  '/news-archive': typeof AuthenticatedNewsArchiveRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
@@ -190,6 +199,7 @@ export interface FileRoutesById {
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
   '/_authenticated/mocks': typeof AuthenticatedMocksRoute
   '/_authenticated/news': typeof AuthenticatedNewsRoute
+  '/_authenticated/news-archive': typeof AuthenticatedNewsArchiveRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
@@ -213,6 +223,7 @@ export interface FileRouteTypes {
     | '/mentor'
     | '/mocks'
     | '/news'
+    | '/news-archive'
     | '/profile'
     | '/settings'
     | '/api/mentor'
@@ -234,6 +245,7 @@ export interface FileRouteTypes {
     | '/mentor'
     | '/mocks'
     | '/news'
+    | '/news-archive'
     | '/profile'
     | '/settings'
     | '/api/mentor'
@@ -256,6 +268,7 @@ export interface FileRouteTypes {
     | '/_authenticated/mentor'
     | '/_authenticated/mocks'
     | '/_authenticated/news'
+    | '/_authenticated/news-archive'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
     | '/api/mentor'
@@ -332,6 +345,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/news-archive': {
+      id: '/_authenticated/news-archive'
+      path: '/news-archive'
+      fullPath: '/news-archive'
+      preLoaderRoute: typeof AuthenticatedNewsArchiveRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/news': {
@@ -431,6 +451,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
   AuthenticatedMocksRoute: typeof AuthenticatedMocksRoute
   AuthenticatedNewsRoute: typeof AuthenticatedNewsRoute
+  AuthenticatedNewsArchiveRoute: typeof AuthenticatedNewsArchiveRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
@@ -445,6 +466,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
   AuthenticatedMocksRoute: AuthenticatedMocksRoute,
   AuthenticatedNewsRoute: AuthenticatedNewsRoute,
+  AuthenticatedNewsArchiveRoute: AuthenticatedNewsArchiveRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }

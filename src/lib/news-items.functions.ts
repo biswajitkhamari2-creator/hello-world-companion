@@ -70,6 +70,56 @@ export const countPendingInbox = createServerFn({ method: "GET" }).handler(async
   return { pending: count ?? 0 };
 });
 
+// ---------- Archive: search by date range + keyword ----------
+export const searchNewsArchive = createServerFn({ method: "GET" })
+  .inputValidator(
+    (input: { from?: string; to?: string; gs?: string; q?: string; limit?: number } | undefined) =>
+      z
+        .object({
+          from: z.string().optional(), // ISO date "YYYY-MM-DD"
+          to: z.string().optional(),
+          gs: z.enum(["GS1", "GS2", "GS3", "GS4", "General", "all"]).optional(),
+          q: z.string().max(200).optional(),
+          limit: z.number().int().min(1).max(500).optional(),
+        })
+        .optional()
+        .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getAdmin();
+    let q = supabase
+      .from("telegram_news_items")
+      .select("id, inbox_id, gs_paper, subject, title, summary, importance, posted_at")
+      .order("posted_at", { ascending: false })
+      .order("importance", { ascending: false })
+      .limit(data?.limit ?? 200);
+    if (data?.from) q = q.gte("posted_at", `${data.from}T00:00:00Z`);
+    if (data?.to) q = q.lte("posted_at", `${data.to}T23:59:59Z`);
+    if (data?.gs && data.gs !== "all") q = q.eq("gs_paper", data.gs);
+    if (data?.q && data.q.trim()) {
+      const term = data.q.trim().replace(/[%,]/g, " ");
+      q = q.or(`title.ilike.%${term}%,summary.ilike.%${term}%,subject.ilike.%${term}%`);
+    }
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as NewsItem[];
+  });
+
+export const listArchiveDates = createServerFn({ method: "GET" }).handler(async () => {
+  const supabase = getAdmin();
+  const { data, error } = await supabase
+    .from("telegram_news_items")
+    .select("posted_at")
+    .order("posted_at", { ascending: false })
+    .limit(2000);
+  if (error) throw new Error(error.message);
+  const set = new Set<string>();
+  for (const r of (data ?? []) as Array<{ posted_at: string }>) {
+    set.add(r.posted_at.slice(0, 10));
+  }
+  return Array.from(set);
+});
+
 // ---------- Extract (one PDF per call) ----------
 
 function bufferToBase64(buf: ArrayBuffer): string {
