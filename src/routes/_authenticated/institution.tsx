@@ -1,12 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { GraduationCap, CalendarDays, CalendarRange, Download, ExternalLink, Loader2, RefreshCcw, X, Sparkles, BookOpen } from "lucide-react";
+import { GraduationCap, CalendarDays, CalendarRange, Download, ExternalLink, Loader2, RefreshCcw, X, Sparkles, BookOpen, Wand2, ChevronDown } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getInstitutionNews, getInstitutionArticle, getInstitutionCrispNotes, type InstitutionItem, type InstitutionCrispNotes } from "@/lib/institution-news.functions";
+import {
+  getInstitutionNews,
+  getInstitutionArticle,
+  getInstitutionCrispNotes,
+  getInstitutionComprehensiveNotes,
+  type InstitutionItem,
+  type InstitutionCrispNotes,
+  type InstitutionComprehensiveNotes,
+} from "@/lib/institution-news.functions";
+import { downloadPreviewAsPdf } from "@/lib/preview-pdf";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/institution")({
@@ -128,12 +137,18 @@ function InstitutionPage() {
   const fetchNews = useServerFn(getInstitutionNews);
   const fetchArticle = useServerFn(getInstitutionArticle);
   const fetchCrisp = useServerFn(getInstitutionCrispNotes);
+  const fetchComprehensive = useServerFn(getInstitutionComprehensiveNotes);
   const [tab, setTab] = useState<Tab>("daily");
   const [open, setOpen] = useState<InstitutionItem | null>(null);
   const [articleHtml, setArticleHtml] = useState<string>("");
   const [articleTitle, setArticleTitle] = useState<string>("");
   const [crisp, setCrisp] = useState<InstitutionCrispNotes | null>(null);
+  const [comprehensive, setComprehensive] = useState<InstitutionComprehensiveNotes | null>(null);
+  const [mode, setMode] = useState<"crisp" | "comprehensive">("crisp");
   const [showFull, setShowFull] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [downloading, setDownloading] = useState(false);
+  const printRef = useRef<HTMLDivElement | null>(null);
 
   const q = useQuery({
     queryKey: ["institution-news"],
@@ -160,6 +175,14 @@ function InstitutionPage() {
     },
   });
 
+  const comprehensiveMut = useMutation({
+    mutationFn: (url: string) => fetchComprehensive({ data: { url } }),
+    onSuccess: (res) => setComprehensive(res),
+    onError: (e: unknown) => {
+      toast.error(e instanceof Error ? e.message : "Could not generate comprehensive notes");
+    },
+  });
+
   const items = useMemo(() => {
     if (!q.data) return [] as InstitutionItem[];
     return tab === "daily" ? q.data.daily : q.data.weekly;
@@ -175,13 +198,23 @@ function InstitutionPage() {
     return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
   }, [items]);
 
-  function openArticle(it: InstitutionItem) {
+  function openArticle(it: InstitutionItem, initialMode: "crisp" | "comprehensive" = "crisp") {
     setOpen(it);
     setArticleHtml("");
     setArticleTitle(it.title);
     setCrisp(null);
+    setComprehensive(null);
     setShowFull(false);
-    crispMut.mutate(it.link);
+    setMode(initialMode);
+    if (initialMode === "comprehensive") comprehensiveMut.mutate(it.link);
+    else crispMut.mutate(it.link);
+  }
+
+  function switchMode(next: "crisp" | "comprehensive") {
+    if (!open) return;
+    setMode(next);
+    if (next === "crisp" && !crisp && !crispMut.isPending) crispMut.mutate(open.link);
+    if (next === "comprehensive" && !comprehensive && !comprehensiveMut.isPending) comprehensiveMut.mutate(open.link);
   }
 
   function loadFullArticle() {
@@ -189,10 +222,26 @@ function InstitutionPage() {
     if (!articleHtml && !articleMut.isPending) articleMut.mutate(open!.link);
   }
 
-  function saveAsPdf() {
-    if (typeof window === "undefined") return;
-    window.print();
+  async function saveAsPdf() {
+    if (!printRef.current || !open) return;
+    const notesReady = mode === "crisp" ? !!crisp : !!comprehensive;
+    if (!notesReady) {
+      toast.error("Notes are still loading — hang on a second.");
+      return;
+    }
+    setDownloading(true);
+    const t = toast.loading("Building your PDF with your logo…");
+    try {
+      await downloadPreviewAsPdf(printRef.current, `${open.title}-${mode}`, { verifyBefore: false });
+      toast.success("PDF saved to your downloads", { id: t });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "PDF export failed", { id: t });
+    } finally {
+      setDownloading(false);
+    }
   }
+
+  const INITIAL_PER_GROUP = 6;
 
   return (
     <AppShell>
@@ -262,8 +311,13 @@ function InstitutionPage() {
                 </span>
                 <div className="h-px flex-1 bg-border" />
               </div>
+              {(() => {
+                const isOpen = !!expanded[date];
+                const shown = isOpen ? list : list.slice(0, INITIAL_PER_GROUP);
+                return (
+                  <>
               <ul className="grid gap-2.5 sm:grid-cols-2">
-                {list.map((it, i) => (
+                {shown.map((it, i) => (
                   <li
                     key={it.link}
                     className="group flex flex-col rounded-xl border border-border bg-card p-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-400/60 hover:shadow-md animate-fade-in"
@@ -274,9 +328,17 @@ function InstitutionPage() {
                       <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{it.source}</span>
                     </div>
                     <p className="mb-3 line-clamp-3 text-sm font-medium leading-snug">{it.title}</p>
-                    <div className="mt-auto flex items-center gap-1.5">
-                      <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => openArticle(it)}>
+                    <div className="mt-auto flex flex-wrap items-center gap-1.5">
+                      <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => openArticle(it, "crisp")}>
                         <Download className="h-3 w-3" /> Read & Save PDF
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 gap-1 bg-gradient-to-r from-fuchsia-500 to-indigo-500 text-xs text-white hover:opacity-90"
+                        onClick={() => openArticle(it, "comprehensive")}
+                        title="Generate comprehensive AI notes"
+                      >
+                        <Sparkles className="h-3 w-3" /> AI Notes
                       </Button>
                       <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" asChild>
                         <a href={it.link} target="_blank" rel="noreferrer">
@@ -287,44 +349,83 @@ function InstitutionPage() {
                   </li>
                 ))}
               </ul>
+                    {list.length > INITIAL_PER_GROUP && (
+                      <div className="mt-3 flex justify-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setExpanded((e) => ({ ...e, [date]: !isOpen }))}
+                          className="gap-1.5"
+                        >
+                          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                          {isOpen ? "Show less" : `View ${list.length - INITIAL_PER_GROUP} more`}
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </section>
           ))}
         </div>
       </main>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm print:static print:block print:overflow-visible print:bg-white print:p-0">
-          <div className="relative w-full max-w-3xl rounded-2xl border border-border bg-card shadow-2xl print:max-w-none print:rounded-none print:border-0 print:shadow-none">
-            <div className="sticky top-0 z-10 flex items-center gap-2 rounded-t-2xl border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur print:hidden">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm">
+          <div className="relative w-full max-w-3xl rounded-2xl border border-border bg-card shadow-2xl">
+            <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-t-2xl border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs uppercase tracking-wider text-muted-foreground">{open.source}</p>
                 <p className="truncate text-sm font-semibold">{articleTitle || open.title}</p>
               </div>
-              <Button size="sm" onClick={saveAsPdf} disabled={!articleHtml}>
-                <Download className="mr-1.5 h-3.5 w-3.5" /> Save as PDF
+              <div className="inline-flex rounded-full border border-border p-0.5 text-xs">
+                <button
+                  onClick={() => switchMode("crisp")}
+                  className={`rounded-full px-2.5 py-1 font-medium transition ${mode === "crisp" ? "bg-emerald-500 text-white" : "text-muted-foreground"}`}
+                >
+                  Crisp
+                </button>
+                <button
+                  onClick={() => switchMode("comprehensive")}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium transition ${mode === "comprehensive" ? "bg-gradient-to-r from-fuchsia-500 to-indigo-500 text-white" : "text-muted-foreground"}`}
+                >
+                  <Wand2 className="h-3 w-3" /> Comprehensive
+                </button>
+              </div>
+              <Button size="sm" onClick={saveAsPdf} disabled={downloading || (mode === "crisp" ? !crisp : !comprehensive)}>
+                {downloading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1.5 h-3.5 w-3.5" />} Download PDF
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setOpen(null)}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div id="institution-print-area" className="max-h-[75vh] overflow-y-auto px-6 py-5 print:max-h-none print:overflow-visible">
-              <div className="mb-4 hidden print:block">
+            <div className="max-h-[75vh] overflow-y-auto px-6 py-5">
+              <div ref={printRef} className="bg-white p-2 text-slate-900">
+              <div className="mb-4">
                 <h1 className="text-2xl font-bold">{articleTitle || open.title}</h1>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-xs text-slate-500">
                   {open.source} · {new Date(open.date).toLocaleDateString()} · {open.link}
                 </p>
                 <hr className="my-3" />
               </div>
-              {crispMut.isPending && (
+              {mode === "crisp" && crispMut.isPending && (
                 <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> Crisping notes & tagging GS paper…
                 </div>
               )}
-              {crisp && (
+              {mode === "crisp" && crisp && (
                 <CrispNotesView notes={crisp} />
               )}
-              {crisp && !showFull && (
-                <div className="mt-6 flex justify-center print:hidden">
+              {mode === "comprehensive" && comprehensiveMut.isPending && (
+                <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Building comprehensive 360° notes…
+                </div>
+              )}
+              {mode === "comprehensive" && comprehensive && (
+                <ComprehensiveNotesView notes={comprehensive} />
+              )}
+              {(crisp || comprehensive) && !showFull && (
+                <div className="mt-6 flex justify-center">
                   <Button size="sm" variant="outline" onClick={loadFullArticle}>
                     <BookOpen className="mr-1.5 h-3.5 w-3.5" /> Load full article (optional)
                   </Button>
@@ -341,19 +442,68 @@ function InstitutionPage() {
                   dangerouslySetInnerHTML={{ __html: articleHtml }}
                 />
               )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Print styles: only show the article area when printing */}
-      <style>{`
-        @media print {
-          body * { visibility: hidden !important; }
-          #institution-print-area, #institution-print-area * { visibility: visible !important; }
-          #institution-print-area { position: absolute; inset: 0; padding: 24px !important; }
-        }
-      `}</style>
     </AppShell>
+  );
+}
+
+function ComprehensiveNotesView({ notes }: { notes: InstitutionComprehensiveNotes }) {
+  return (
+    <div className="space-y-5">
+      <CrispNotesView notes={notes} />
+      {notes.background?.length > 0 && (
+        <Section title="Background & Evolution">
+          {notes.background.map((b, i) => <Bullet key={i}>{b}</Bullet>)}
+        </Section>
+      )}
+      {notes.currentStatus?.length > 0 && (
+        <Section title="Current Status">
+          {notes.currentStatus.map((b, i) => <Bullet key={i}>{b}</Bullet>)}
+        </Section>
+      )}
+      {notes.stakeholders?.length > 0 && (
+        <Section title="Stakeholders">
+          {notes.stakeholders.map((b, i) => <Bullet key={i}>{b}</Bullet>)}
+        </Section>
+      )}
+      {notes.challenges?.length > 0 && (
+        <Section title="Challenges" tone="sky">
+          {notes.challenges.map((b, i) => <Bullet key={i}>{b}</Bullet>)}
+        </Section>
+      )}
+      {notes.wayForward?.length > 0 && (
+        <Section title="Way Forward" tone="emerald">
+          {notes.wayForward.map((b, i) => <Bullet key={i}>{b}</Bullet>)}
+        </Section>
+      )}
+      {notes.relatedSchemes?.length > 0 && (
+        <Section title="Related Schemes / Acts / Reports">
+          {notes.relatedSchemes.map((b, i) => <Bullet key={i} accent="amber">{b}</Bullet>)}
+        </Section>
+      )}
+      {notes.internationalAngle?.length > 0 && (
+        <Section title="International / Global Angle">
+          {notes.internationalAngle.map((b, i) => <Bullet key={i}>{b}</Bullet>)}
+        </Section>
+      )}
+      {notes.quotes?.length > 0 && (
+        <div className="rounded-xl border-l-4 border-indigo-500 bg-indigo-50 p-3.5 text-sm dark:bg-indigo-950/30">
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Quotable Lines for Mains</p>
+          <ul className="space-y-1.5">
+            {notes.quotes.map((q, i) => <li key={i} className="italic">“{q}”</li>)}
+          </ul>
+        </div>
+      )}
+      {notes.mindMap && (
+        <Section title="Mind Map (One-shot Recap)">
+          <p className="text-sm leading-relaxed">{notes.mindMap}</p>
+        </Section>
+      )}
+    </div>
   );
 }
