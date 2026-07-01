@@ -2,11 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { GraduationCap, CalendarDays, CalendarRange, Download, ExternalLink, Loader2, RefreshCcw, X } from "lucide-react";
+import { GraduationCap, CalendarDays, CalendarRange, Download, ExternalLink, Loader2, RefreshCcw, X, Sparkles, BookOpen } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getInstitutionNews, getInstitutionArticle, type InstitutionItem } from "@/lib/institution-news.functions";
+import { getInstitutionNews, getInstitutionArticle, getInstitutionCrispNotes, type InstitutionItem, type InstitutionCrispNotes } from "@/lib/institution-news.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/institution")({
@@ -19,10 +19,13 @@ type Tab = "daily" | "weekly";
 function InstitutionPage() {
   const fetchNews = useServerFn(getInstitutionNews);
   const fetchArticle = useServerFn(getInstitutionArticle);
+  const fetchCrisp = useServerFn(getInstitutionCrispNotes);
   const [tab, setTab] = useState<Tab>("daily");
   const [open, setOpen] = useState<InstitutionItem | null>(null);
   const [articleHtml, setArticleHtml] = useState<string>("");
   const [articleTitle, setArticleTitle] = useState<string>("");
+  const [crisp, setCrisp] = useState<InstitutionCrispNotes | null>(null);
+  const [showFull, setShowFull] = useState(false);
 
   const q = useQuery({
     queryKey: ["institution-news"],
@@ -38,6 +41,14 @@ function InstitutionPage() {
     },
     onError: (e: unknown) => {
       toast.error(e instanceof Error ? e.message : "Could not load article");
+    },
+  });
+
+  const crispMut = useMutation({
+    mutationFn: (url: string) => fetchCrisp({ data: { url } }),
+    onSuccess: (res) => setCrisp(res),
+    onError: (e: unknown) => {
+      toast.error(e instanceof Error ? e.message : "Could not generate crisp notes");
     },
   });
 
@@ -60,7 +71,14 @@ function InstitutionPage() {
     setOpen(it);
     setArticleHtml("");
     setArticleTitle(it.title);
-    articleMut.mutate(it.link);
+    setCrisp(null);
+    setShowFull(false);
+    crispMut.mutate(it.link);
+  }
+
+  function loadFullArticle() {
+    setShowFull(true);
+    if (!articleHtml && !articleMut.isPending) articleMut.mutate(open!.link);
   }
 
   function saveAsPdf() {
@@ -189,14 +207,29 @@ function InstitutionPage() {
                 </p>
                 <hr className="my-3" />
               </div>
-              {articleMut.isPending && (
+              {crispMut.isPending && (
                 <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Fetching article from Vision IAS…
+                  <Loader2 className="h-4 w-4 animate-spin" /> Crisping notes & tagging GS paper…
                 </div>
               )}
-              {articleHtml && (
+              {crisp && (
+                <CrispNotesView notes={crisp} />
+              )}
+              {crisp && !showFull && (
+                <div className="mt-6 flex justify-center print:hidden">
+                  <Button size="sm" variant="outline" onClick={loadFullArticle}>
+                    <BookOpen className="mr-1.5 h-3.5 w-3.5" /> Load full article (optional)
+                  </Button>
+                </div>
+              )}
+              {showFull && articleMut.isPending && (
+                <div className="mt-6 flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Fetching full article…
+                </div>
+              )}
+              {showFull && articleHtml && (
                 <article
-                  className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-a:text-primary"
+                  className="prose prose-sm mt-6 max-w-none border-t border-border pt-6 dark:prose-invert prose-headings:font-serif prose-a:text-primary"
                   dangerouslySetInnerHTML={{ __html: articleHtml }}
                 />
               )}
