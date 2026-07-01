@@ -46,7 +46,6 @@ import { FinalChecker } from "@/components/final-checker";
 import { StampLogoButton } from "@/components/stamp-logo";
 import { ProcessingOptionsButton, useProcessingPrefs } from "@/components/processing-options";
 import { prefsToOptions } from "@/lib/processing-prefs";
-import { BrandMark } from "@/components/brand-mark";
 import { NewspaperIssue } from "@/components/newspaper-issue";
 import { TelegramInbox } from "@/components/telegram-inbox";
 import { AppShell } from "@/components/app-shell";
@@ -278,25 +277,7 @@ function Dashboard() {
 
   return (
     <AppShell><div className="min-h-dvh bg-background">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-paper/80 backdrop-blur">
-        <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6">
-          <Link to="/" aria-label="UPSC Mitra — home" className="min-w-0">
-            <BrandMark />
-          </Link>
-          <nav aria-label="Primary" className="flex items-center gap-1.5 sm:gap-2 text-sm">
-            <Button asChild size="sm" variant="outline" className="gap-1.5">
-              <Link to="/mentor" aria-label="AI Mentor chat">
-                <Sparkles className="h-4 w-4 text-accent" aria-hidden="true" />
-                <span className="hidden sm:inline">AI Mentor</span>
-              </Link>
-            </Button>
-            <ProcessingOptionsButton />
-            <StampLogoButton />
-            <Link to="/" className="hidden rounded-md px-2 py-1 text-muted-foreground hover:text-foreground sm:inline">Home</Link>
-          </nav>
-        </div>
-      </header>
-
+      {/* Duplicate brand header removed — AppShell already renders the primary BrandMark */}
       {activeDoc && (
         <div className="border-b border-accent/30 bg-gradient-to-r from-primary/5 via-accent/10 to-primary/5">
           <div className="mx-auto grid max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 py-2 text-sm sm:px-6">
@@ -310,13 +291,29 @@ function Dashboard() {
         </div>
       )}
 
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-          <div className="min-w-0 w-full sm:w-auto">
-            <h1 className="truncate font-serif text-2xl font-semibold sm:text-3xl">Your study library</h1>
-            <p className="text-sm text-muted-foreground">One active PDF at a time. Uploading a new file replaces the previous one.</p>
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+        <section
+          aria-label="Study library"
+          className="relative overflow-hidden rounded-3xl border border-primary/30 gradient-hero p-6 text-primary-foreground shadow-paper sm:p-10"
+        >
+          <div className="pointer-events-none absolute inset-0 gradient-emerald-glow opacity-90" aria-hidden="true" />
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-accent/20 blur-3xl animate-float-slow" aria-hidden="true" />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-primary/40 blur-3xl" aria-hidden="true" />
+
+          <div className="relative max-w-2xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-primary/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              UPSC Genius Studio
+            </span>
+            <h1 className="mt-4 font-serif text-3xl leading-tight sm:text-4xl md:text-5xl">
+              Your <span className="text-gold-shimmer">study library</span>
+            </h1>
+            <p className="mt-3 max-w-xl text-sm text-primary-foreground/80 sm:text-base">
+              Upload a PDF, sync from Drive, or pick a newspaper date — then let the mentor turn it into notes, MCQs, mains &amp; more.
+            </p>
           </div>
-          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+
+          <div className="relative mt-8 flex flex-wrap gap-2 sm:gap-3">
             <input
               ref={fileRef}
               type="file"
@@ -327,15 +324,24 @@ function Dashboard() {
                 if (f) onPick(f);
               }}
             />
-            <Button asChild variant="outline" className="min-h-11 shrink-0 border-rose-300 text-rose-700 hover:bg-rose-50">
-              <Link to="/inbox">📅 Pick newspaper date</Link>
+            <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="min-h-11 shrink-0 bg-accent text-accent-foreground shadow-gold hover:bg-accent/90">
+              {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="mr-2 h-4 w-4" aria-hidden="true" />}
+              <span className="hidden sm:inline">
+                {uploading ? `Uploading… ${uploadProgress}%` : activeDoc ? "Replace PDF" : "Upload material"}
+              </span>
+              <span className="sm:hidden">
+                {uploading ? `${uploadProgress}%` : activeDoc ? "Replace" : "Upload"}
+              </span>
+            </Button>
+            <Button asChild variant="outline" className="min-h-11 shrink-0 border-accent/40 bg-primary/30 text-primary-foreground backdrop-blur hover:bg-primary/50 hover:text-primary-foreground">
+              <Link to="/inbox">📅 Newspaper date</Link>
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={onSyncFromDrive}
               disabled={syncing || uploading}
-              className="min-h-11 shrink-0"
+              className="min-h-11 shrink-0 border-accent/40 bg-primary/30 text-primary-foreground backdrop-blur hover:bg-primary/50 hover:text-primary-foreground"
               title="Scan your Google Drive folder for files not yet in your library"
             >
               {syncing ? (
@@ -351,35 +357,35 @@ function Dashboard() {
               variant="ghost"
               size="icon"
               onClick={() => setShowDriveAccessInfo(true)}
-              className="min-h-11 shrink-0"
+              className="min-h-11 shrink-0 text-primary-foreground/80 hover:bg-primary/40 hover:text-primary-foreground"
               title="Why don't I see my manually-uploaded Drive files?"
               aria-label="Drive access info"
             >
               <Info className="h-4 w-4" aria-hidden="true" />
             </Button>
-            <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="min-h-11 shrink-0">
-              {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="mr-2 h-4 w-4" aria-hidden="true" />}
-              <span className="hidden sm:inline">
-                {uploading ? `Uploading… ${uploadProgress}%` : activeDoc ? "Replace PDF" : "Upload material"}
-              </span>
-              <span className="sm:hidden">
-                {uploading ? `${uploadProgress}%` : activeDoc ? "Replace" : "Upload"}
-              </span>
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              <ProcessingOptionsButton />
+              <StampLogoButton />
+              <Button asChild size="sm" className="gap-1.5 bg-accent text-accent-foreground hover:bg-accent/90">
+                <Link to="/mentor" aria-label="AI Mentor chat">
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  <span className="hidden sm:inline">AI Mentor</span>
+                </Link>
+              </Button>
+            </div>
           </div>
+
           {uploading && (
-            <div className="mt-3">
-              <Progress value={uploadProgress} className="h-2" />
-              <p className="mt-1 text-xs text-muted-foreground">
+            <div className="relative mt-4">
+              <Progress value={uploadProgress} className="h-2 bg-primary/40" />
+              <p className="mt-1 text-xs text-primary-foreground/80">
                 Uploading directly to Google Drive — {uploadProgress}% complete. Resumes automatically on network drops.
               </p>
             </div>
           )}
+        </section>
 
-        </div>
-
-
-        <div className="mt-6">
+        <div className="mt-8">
           <TelegramInbox onImported={(id) => setActiveDocId(id)} />
         </div>
 
@@ -389,13 +395,21 @@ function Dashboard() {
           <ActivePdfPanel doc={activeDoc} onClear={() => clearActive()} />
         )}
 
-        <div className="mt-6 grid gap-4">
+        <div className="mt-8 grid gap-4">
           {docsQ.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
           {!docsQ.isLoading && !activeDoc && (
-            <div className="rounded-xl border border-dashed border-border bg-paper p-10 text-center">
-              <FileText className="mx-auto h-8 w-8 text-muted-foreground" />
-              <h3 className="mt-3 font-serif text-lg">No active document</h3>
-              <p className="text-sm text-muted-foreground">Upload a PDF, DOCX, or text file to begin.</p>
+            <div className="relative overflow-hidden rounded-3xl border-2 border-dashed border-primary/25 bg-card p-12 text-center shadow-paper">
+              <div className="pointer-events-none absolute inset-0 gradient-emerald-glow opacity-30" aria-hidden="true" />
+              <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full gradient-gold shadow-gold">
+                <FileText className="h-8 w-8 text-accent-foreground" />
+              </div>
+              <h3 className="relative mt-4 font-serif text-2xl">No active document</h3>
+              <p className="relative mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                Upload a PDF, DOCX, or text file — or pick a newspaper date to start crafting mentor-grade notes.
+              </p>
+              <Button onClick={() => fileRef.current?.click()} className="relative mt-5 bg-primary text-primary-foreground shadow-paper hover:bg-primary/90">
+                <Upload className="mr-2 h-4 w-4" /> Upload your first PDF
+              </Button>
             </div>
           )}
           {activeDoc && (
