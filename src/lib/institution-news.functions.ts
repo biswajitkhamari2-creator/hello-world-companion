@@ -64,6 +64,41 @@ function extractArticles(
   return out;
 }
 
+function pickTag(xml: string, tag: string): string {
+  const m = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
+  if (!m) return "";
+  return m[1].replace(/<!\[CDATA\[|\]\]>/g, "").replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/&amp;/g, "&").trim();
+}
+
+function parseDrishtiRss(xml: string): InstitutionItem[] {
+  const items: InstitutionItem[] = [];
+  const blocks = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
+  for (const raw of blocks) {
+    const title = pickTag(raw, "title");
+    const link = pickTag(raw, "link");
+    const pubDate = pickTag(raw, "pubDate");
+    if (!title || !link) continue;
+    // Skip quizzes / practice / MCQ links — user wants news, not quiz portals.
+    if (/quiz|mcq|practice|test series|notification|answer key/i.test(title)) continue;
+    if (/\/quiz\/|prelims-test-series|\.pdf$/i.test(link)) continue;
+    const d = new Date(pubDate);
+    const date = isNaN(d.getTime()) ? new Date().toISOString().slice(0, 10) : d.toISOString().slice(0, 10);
+    const isWeekly = /\bweekly\b/i.test(title);
+    // Rough category from URL path segment
+    const seg = link.replace(/^https?:\/\/[^/]+\//, "").split("/")[0] || "News";
+    const category = seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    items.push({
+      title,
+      link,
+      category,
+      date,
+      source: isWeekly ? "Drishti IAS · Weekly" : "Drishti IAS · Daily",
+      kind: isWeekly ? "weekly" : "daily",
+    });
+  }
+  return items;
+}
+
 export const getInstitutionNews = createServerFn({ method: "GET" }).handler(
   async () => {
     const targets = [
@@ -107,6 +142,16 @@ export const getInstitutionNews = createServerFn({ method: "GET" }).handler(
       for (const it of r.value) (it.kind === "daily" ? daily : weekly).push(it);
     }
 
+    // Drishti IAS via RSS feed
+    try {
+      const dr = await fetchHtml("https://www.drishtiias.com/rss.rss");
+      for (const it of parseDrishtiRss(dr)) {
+        (it.kind === "daily" ? daily : weekly).push(it);
+      }
+    } catch {
+      // ignore Drishti failure — Vision IAS still works
+    }
+
     const dedupe = (arr: InstitutionItem[]) => {
       const seen = new Set<string>();
       return arr.filter((it) => {
@@ -130,13 +175,14 @@ export const getInstitutionNews = createServerFn({ method: "GET" }).handler(
 // Fetch full article content for PDF export / reading
 export const getInstitutionArticle = createServerFn({ method: "POST" })
   .inputValidator((data: { url: string }) => {
-    if (!/^https:\/\/visionias\.in\/current-affairs\//.test(data.url)) {
-      throw new Error("Only visionias.in URLs are allowed");
+    if (!/^https:\/\/(visionias\.in|www\.drishtiias\.com)\//.test(data.url)) {
+      throw new Error("Only Vision IAS or Drishti IAS URLs are allowed");
     }
     return data;
   })
   .handler(async ({ data }) => {
     const html = await fetchHtml(data.url);
+    const isDrishti = /drishtiias\.com/i.test(data.url);
     // Try to extract main content: strip head, scripts, styles, nav, footer.
     let body = html
       .replace(/<head[\s\S]*?<\/head>/gi, "")
@@ -163,10 +209,11 @@ export const getInstitutionArticle = createServerFn({ method: "POST" })
       .replace(/<img([^>]*)>/gi, (_m, attrs: string) => {
         const src = attrs.match(/src="([^"]+)"/i)?.[1];
         if (!src) return "";
-        const abs = src.startsWith("http") ? src : `https://visionias.in${src.startsWith("/") ? src : "/" + src}`;
+        const host = isDrishti ? "https://www.drishtiias.com" : "https://visionias.in";
+        const abs = src.startsWith("http") ? src : `${host}${src.startsWith("/") ? src : "/" + src}`;
         return `<img src="${abs}" style="max-width:100%;height:auto;" />`;
       })
-      .replace(/<a\s+href="\/([^"]+)"/gi, '<a href="https://visionias.in/$1"')
+      .replace(/<a\s+href="\/([^"]+)"/gi, `<a href="${isDrishti ? "https://www.drishtiias.com" : "https://visionias.in"}/$1"`)
       .replace(/<a /gi, '<a target="_blank" rel="noopener" ');
 
     return { title, html: cleaned };
