@@ -31,6 +31,7 @@ import {
   importInboxItem,
   archiveInboxItem,
   deleteInboxItem,
+  deleteInboxItems,
   type InboxItem,
 } from "@/lib/telegram-inbox.functions";
 import { extractDocument } from "@/lib/documents.functions";
@@ -64,6 +65,7 @@ function InboxPage() {
   const importer = useServerFn(importInboxItem);
   const archiver = useServerFn(archiveInboxItem);
   const deleter = useServerFn(deleteInboxItem);
+  const bulkDeleter = useServerFn(deleteInboxItems);
   const extract = useServerFn(extractDocument);
   const qc = useQueryClient();
 
@@ -76,6 +78,16 @@ function InboxPage() {
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function setActiveDoc(documentId: string) {
     try {
@@ -123,6 +135,16 @@ function InboxPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["telegram-inbox"] });
       toast.success("Deleted");
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const bulkDeleteMut = useMutation({
+    mutationFn: (itemIds: string[]) => bulkDeleter({ data: { itemIds } }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["telegram-inbox"] });
+      setSelected(new Set());
+      toast.success(`Deleted ${r?.deleted ?? ""} item(s)`);
     },
     onError: (e) => toast.error((e as Error).message),
   });
