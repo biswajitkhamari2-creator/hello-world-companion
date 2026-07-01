@@ -28,11 +28,15 @@ export function HomeHighlights() {
 
   useEffect(() => {
     let alive = true;
-    listNewsItems({ data: { limit: 6 } })
-      .then((r) => alive && setItems(r))
-      .catch((e) => alive && setErr((e as Error).message));
+    const load = () =>
+      listNewsItems({ data: { limit: 6 } })
+        .then((r) => alive && setItems(r))
+        .catch((e) => alive && setErr((e as Error).message));
+    load();
+    const id = setInterval(load, 60_000);
     return () => {
       alive = false;
+      clearInterval(id);
     };
   }, []);
 
