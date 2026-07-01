@@ -28,15 +28,15 @@ function providerBaseUrl(provider: AiProviderName) {
 
 export function getConfiguredAiProviders(): AiProviderName[] {
   const providers: AiProviderName[] = [];
+  if (getAiApiKey("gemini")) providers.push("gemini");
   if (getAiApiKey("nvidia")) providers.push("nvidia");
   if (getAiApiKey("groq")) providers.push("groq");
-  if (getAiApiKey("gemini")) providers.push("gemini");
   return providers;
 }
 
 export function getDefaultModel(provider?: AiProviderName) {
   const resolved =
-    provider ?? (getAiApiKey("nvidia") ? "nvidia" : getAiApiKey("groq") ? "groq" : "gemini");
+    provider ?? (getAiApiKey("gemini") ? "gemini" : getAiApiKey("nvidia") ? "nvidia" : "groq");
   if (resolved === "nvidia") return "meta/llama-3.3-70b-instruct";
   if (resolved === "groq") return "llama-3.1-8b-instant";
   return "gemini-2.0-flash";
@@ -67,7 +67,7 @@ export async function resolveAvailableAiProvider(preferredProvider?: AiProviderN
 
   const order: AiProviderName[] = preferredProvider
     ? [preferredProvider, ...configured.filter((provider) => provider !== preferredProvider)]
-    : (["nvidia", "groq", "gemini"] as AiProviderName[]).filter((provider) => configured.includes(provider));
+    : (["gemini", "nvidia", "groq"] as AiProviderName[]).filter((provider) => configured.includes(provider));
 
   const rejected: AiProviderName[] = [];
   for (const provider of order) {
@@ -158,6 +158,16 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
   // generation layer uses a deterministic local parser instead of sending a
   // huge prompt; keep Groq preferred because the user chose it over Gemini.
   if (task === "newspaper") {
+    if (hasGemini) {
+      return {
+        provider: "gemini",
+        model: "gemini-2.0-flash",
+        chunkSize: 60_000,
+        recommendedConcurrency: 4,
+        minGapMs: 250,
+        maxOutputTokens: 3_500,
+      };
+    }
     if (hasNvidia) {
       return {
         provider: "nvidia",
@@ -185,6 +195,17 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
       recommendedConcurrency: 1,
       minGapMs: hasGemini ? 8_000 : 65_000,
       maxOutputTokens: 3_000,
+    };
+  }
+
+  if (hasGemini) {
+    return {
+      provider: "gemini",
+      model: "gemini-2.0-flash",
+      chunkSize: task === "infographics" ? 60_000 : 80_000,
+      recommendedConcurrency: 4,
+      minGapMs: 250,
+      maxOutputTokens: task === "infographics" ? 3_500 : 3_000,
     };
   }
 
