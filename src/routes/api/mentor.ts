@@ -83,9 +83,16 @@ export const Route = createFileRoute("/api/mentor")({
               "AI_KEY_MISSING",
             );
           }
-          // Skip the /models probe (adds ~1–5s per request). Use first configured provider directly.
-          const gateway = createGateway(initialRunId);
-          const model = gateway(getDefaultModel());
+          // Doubts/chat run on FREE providers (Groq → NVIDIA → Gemini fallback)
+          // so paid Gemini credits are reserved for note generation.
+          const preferred: "groq" | "nvidia" | "gemini" =
+            process.env.GROQ_API_KEY?.trim()
+              ? "groq"
+              : process.env.NVIDIA_API_KEY?.trim()
+                ? "nvidia"
+                : "gemini";
+          const gateway = createGateway(initialRunId, preferred);
+          const model = gateway(getDefaultModel(preferred));
           const result = streamText({
             model,
             maxRetries: 0,
