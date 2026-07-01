@@ -73,8 +73,8 @@ export const listInboxNewspapers = createServerFn({ method: "GET" })
       .from("telegram_inbox")
       .select("id,file_name,caption,posted_at,size_bytes,drive_file_id,drive_view_link")
       .eq("kind", "pdf")
-      .eq("status", "ready")
       .not("drive_file_id", "is", null)
+      .is("archived_at", null)
       .order("posted_at", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);
