@@ -594,7 +594,8 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
       const MAX_RETRIES = 5;
       // Server returns AI-provider-safe pacing. Groq free TPM needs serialized calls.
       const CONCURRENCY = Math.max(1, Number(recommendedConcurrency || 1));
-      const MIN_GAP_MS = Math.max(1_500, Number(minGapMs || 8_000));
+      // Respect the server's pacing but don't floor it — NVIDIA/Gemini support sub-second gaps.
+      const MIN_GAP_MS = Math.max(0, Number(minGapMs || 0));
       let lastStartedAt = 0;
 
       let aborted: string | null = null;
