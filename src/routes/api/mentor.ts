@@ -10,7 +10,7 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 
-type Body = { messages?: unknown; mode?: "simple" | "advanced" };
+type Body = { messages?: unknown; mode?: "simple" | "advanced"; language?: string };
 
 const MODE_NOTES: Record<NonNullable<Body["mode"]>, string> = {
   simple:
@@ -63,13 +63,22 @@ export const Route = createFileRoute("/api/mentor")({
           return jsonError("Invalid request body. Please retry.", 400, "BAD_JSON");
         }
 
-        const { messages, mode } = body;
+        const { messages, mode, language } = body;
         if (!Array.isArray(messages)) {
           return jsonError("Please send a message before asking the mentor.", 400, "MESSAGES_REQUIRED");
         }
         if (mode && mode !== "simple" && mode !== "advanced") {
           return jsonError("Invalid mentor mode.", 400, "INVALID_MODE");
         }
+
+        const languageDirective =
+          language === "or"
+            ? "\n\nLANGUAGE MODE: PURE ODIA (ଓଡ଼ିଆ). You MUST respond ENTIRELY in the Odia script (ଓଡ଼ିଆ ଲିପି). Absolutely NO English words, NO Roman letters, NO Hindi/Devanagari, NO transliteration, NO code-mixing. Translate every technical term (Constitution → ସମ୍ବିଧାନ, Article → ଅନୁଚ୍ଛେଦ, Fundamental Rights → ମୌଳିକ ଅଧିକାର, etc.) into pure Odia. Use standard Odia punctuation (।). Numbers may be written in Odia numerals (୦-୯) or Arabic numerals. If you cannot express something in pure Odia, describe it in Odia rather than inserting English. Every single sentence — headings, bullets, examples, takeaways — must be in Odia script only."
+            : language === "hi"
+              ? "\n\nLanguage: Respond in Hindi (हिन्दी). Use Devanagari script. UPSC terminology may retain standard English/Sanskrit-origin terms when natural."
+              : language === "hinglish"
+                ? "\n\nLanguage: Respond in Hinglish — natural mix of Hindi and English as UPSC aspirants speak."
+                : "";
 
         try {
           const initialRunId = getLovableAiGatewayRunId(request);
@@ -99,7 +108,7 @@ export const Route = createFileRoute("/api/mentor")({
           const result = streamText({
             model,
             maxRetries: 0,
-            system: `${UPSC_SYSTEM_PROMPT}\n\nMentor mode: ${MODE_NOTES[mode ?? "simple"]}\n\nTeach like an experienced UPSC mentor: anchor concepts in the syllabus, link to PYQs and current affairs, and end with a one-line takeaway whenever useful.`,
+            system: `${UPSC_SYSTEM_PROMPT}\n\nMentor mode: ${MODE_NOTES[mode ?? "simple"]}\n\nTeach like an experienced UPSC mentor: anchor concepts in the syllabus, link to PYQs and current affairs, and end with a one-line takeaway whenever useful.${languageDirective}`,
             messages: await convertToModelMessages(messages as UIMessage[]),
             onError: ({ error }) => {
               console.error("[mentor stream]", error);
