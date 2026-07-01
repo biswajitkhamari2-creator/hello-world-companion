@@ -5,10 +5,13 @@ import {
   Search,
   Newspaper,
   ExternalLink,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { cn } from "@/lib/utils";
 import { getUpscNews, type NewsItem } from "@/lib/news.functions";
+import { useTheme } from "@/components/theme-provider";
 
 export const Route = createFileRoute("/")({
   head: () => ({
