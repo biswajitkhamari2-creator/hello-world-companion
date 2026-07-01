@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiMentorRouteImport } from './routes/api/mentor'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedNewsRouteImport } from './routes/_authenticated/news'
 import { Route as AuthenticatedMocksRouteImport } from './routes/_authenticated/mocks'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
 import { Route as AuthenticatedInstitutionRouteImport } from './routes/_authenticated/institution'
@@ -66,6 +67,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedNewsRoute = AuthenticatedNewsRouteImport.update({
+  id: '/news',
+  path: '/news',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMocksRoute = AuthenticatedMocksRouteImport.update({
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/institution': typeof AuthenticatedInstitutionRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/mocks': typeof AuthenticatedMocksRoute
+  '/news': typeof AuthenticatedNewsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByTo {
   '/institution': typeof AuthenticatedInstitutionRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/mocks': typeof AuthenticatedMocksRoute
+  '/news': typeof AuthenticatedNewsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/_authenticated/institution': typeof AuthenticatedInstitutionRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
   '/_authenticated/mocks': typeof AuthenticatedMocksRoute
+  '/_authenticated/news': typeof AuthenticatedNewsRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
     | '/institution'
     | '/mentor'
     | '/mocks'
+    | '/news'
     | '/profile'
     | '/settings'
     | '/api/mentor'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/institution'
     | '/mentor'
     | '/mocks'
+    | '/news'
     | '/profile'
     | '/settings'
     | '/api/mentor'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/_authenticated/institution'
     | '/_authenticated/mentor'
     | '/_authenticated/mocks'
+    | '/_authenticated/news'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
     | '/api/mentor'
@@ -320,6 +332,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/news': {
+      id: '/_authenticated/news'
+      path: '/news'
+      fullPath: '/news'
+      preLoaderRoute: typeof AuthenticatedNewsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/mocks': {
@@ -411,6 +430,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInstitutionRoute: typeof AuthenticatedInstitutionRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
   AuthenticatedMocksRoute: typeof AuthenticatedMocksRoute
+  AuthenticatedNewsRoute: typeof AuthenticatedNewsRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
@@ -424,6 +444,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInstitutionRoute: AuthenticatedInstitutionRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
   AuthenticatedMocksRoute: AuthenticatedMocksRoute,
+  AuthenticatedNewsRoute: AuthenticatedNewsRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }
@@ -445,13 +466,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
