@@ -25,8 +25,18 @@ function parseRss(xml: string, source: string): Omit<NewsItem, "gs">[] {
   const matches = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
   for (const raw of matches) {
     const title = pick(raw, "title");
-    const link = pick(raw, "link");
+    let link = pick(raw, "link");
     const pubDate = pick(raw, "pubDate") || pick(raw, "dc:date");
+    // Google News RSS links redirect through news.google.com which is blocked
+    // in iframes and often shows "refused to connect". The <description> field
+    // contains the real publisher URL as the first <a href="...">. Prefer it.
+    if (source === "Google News") {
+      const desc = pick(raw, "description");
+      const hrefMatch = desc.match(/<a[^>]+href=["']([^"']+)["']/i);
+      if (hrefMatch && !/news\.google\.com/i.test(hrefMatch[1])) {
+        link = hrefMatch[1];
+      }
+    }
     if (title && link) items.push({ title, link, source, pubDate });
   }
   return items;
