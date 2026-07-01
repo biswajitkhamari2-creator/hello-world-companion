@@ -48,6 +48,36 @@ function extractUrls(text: string): string[] {
   return Array.from(new Set(text.match(re) ?? []));
 }
 
+/** Download a public Google Drive file (shared as "Anyone with the link").
+ *  Handles the >100 MB virus-scan interstitial by parsing the confirm token. */
+async function fetchPublicDriveFile(fileId: string): Promise<{ bytes: ArrayBuffer; mime: string; name: string | null }> {
+  const primary = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`;
+  let res = await fetch(primary, { redirect: "follow" });
+  let ct = res.headers.get("content-type") || "";
+  // If Drive returns an HTML interstitial, parse the confirm token and retry.
+  if (res.ok && /text\/html/i.test(ct)) {
+    const html = await res.text();
+    const uuid = html.match(/name="uuid"\s+value="([^"]+)"/i)?.[1];
+    const confirm = html.match(/name="confirm"\s+value="([^"]+)"/i)?.[1] || "t";
+    if (uuid) {
+      const retry = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=${encodeURIComponent(confirm)}&uuid=${encodeURIComponent(uuid)}`;
+      res = await fetch(retry, { redirect: "follow" });
+      ct = res.headers.get("content-type") || "";
+    }
+  }
+  if (!res.ok) {
+    throw new Error(`Drive public download failed (${res.status}). Ensure the file is shared as "Anyone with the link — Viewer".`);
+  }
+  if (/text\/html/i.test(ct)) {
+    throw new Error(`Drive returned an HTML page instead of the file — sharing is likely still restricted. Set it to "Anyone with the link — Viewer" and resend.`);
+  }
+  const cd = res.headers.get("content-disposition") || "";
+  const nameMatch = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+  const name = nameMatch ? decodeURIComponent(nameMatch[1]) : null;
+  const bytes = await res.arrayBuffer();
+  return { bytes, mime: ct.split(";")[0].trim() || "application/pdf", name };
+}
+
 /** Extract a Google Drive file id from any share URL. Returns null if not a Drive file link. */
 function extractDriveFileId(url: string): string | null {
   try {
@@ -69,43 +99,46 @@ async function handleDrivePdfLink(url: string, driveId: string, base: {
   chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
 }) {
   try {
-    const { getDriveFileMetadata, downloadDriveFile, uploadBufferToDrive } = await import("@/lib/gdrive.server");
-    const meta = await getDriveFileMetadata(driveId);
-    const isPdf = (meta.mimeType || "").includes("pdf") || (meta.name || "").toLowerCase().endsWith(".pdf");
+    const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
+    // Public download — works for any "Anyone with the link" Drive file,
+    // no OAuth scope needed. The authenticated Drive API with drive.file
+    // scope can't see files this app didn't create itself.
+    const dl = await fetchPublicDriveFile(driveId);
+    const isPdf = (dl.mime || "").includes("pdf") || (dl.name || "").toLowerCase().endsWith(".pdf");
     if (!isPdf) {
       // Not a PDF — save as a plain link so the user can still open it.
       await handleLink(url, base);
       return;
     }
-    const fileName = meta.name || `drive-${driveId}.pdf`;
+    const fileName = dl.name || `drive-${driveId}.pdf`;
+    const sizeBytes = dl.bytes.byteLength;
     // Duplicate guard on file name + size.
-    if (INBOX_OWNER_USER_ID && meta.size) {
+    if (INBOX_OWNER_USER_ID) {
       const admin = await getAdmin();
       const { data: dupe } = await admin
         .from("documents")
         .select("id")
         .eq("user_id", INBOX_OWNER_USER_ID)
         .eq("file_name", fileName)
-        .eq("size_bytes", meta.size)
+        .eq("size_bytes", sizeBytes)
         .limit(1)
         .maybeSingle();
       if (dupe) {
         await upsertInbox({
           chat_id: base.chat_id, message_id: base.message_id, kind: "pdf",
           caption: base.caption, posted_at: base.posted_at,
-          file_name: fileName, mime: meta.mimeType, size_bytes: meta.size,
+          file_name: fileName, mime: dl.mime, size_bytes: sizeBytes,
           status: "duplicate", error_message: "Duplicate file — already imported.",
           source_url: url, raw: base.raw as any,
         });
         return;
       }
     }
-    const { buffer } = await downloadDriveFile(driveId);
-    const { bytes: shrunk } = await shrinkPdf(buffer);
+    const { bytes: shrunk } = await shrinkPdf(dl.bytes);
     const up = await uploadBufferToDrive({
       userId: SHARED_OWNER,
       fileName,
-      mime: meta.mimeType || "application/pdf",
+      mime: dl.mime || "application/pdf",
       data: shrunk,
     });
     if (INBOX_OWNER_USER_ID) {
