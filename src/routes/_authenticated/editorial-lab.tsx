@@ -16,6 +16,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -210,6 +211,29 @@ function EditorialLabPage() {
 function EditorialCard({ row, onDelete }: { row: EditorialRow; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
   const items = row.analysis?.editorials ?? [];
+  const [dlBusy, setDlBusy] = useState<"md" | "pdf" | null>(null);
+
+  const baseName = `${(row.newspaper || "Editorial").replace(/[^\w-]+/g, "_")}_${row.edition_date || row.created_at?.slice(0, 10) || "notes"}`;
+
+  const downloadMd = () => {
+    const md = buildEditorialMarkdown(row);
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    triggerDownload(blob, `${baseName}.md`);
+  };
+
+  const downloadPdf = async () => {
+    try {
+      setDlBusy("pdf");
+      const { editorialsToPdf } = await import("@/lib/editorial-pdf");
+      const blob = await editorialsToPdf(row);
+      triggerDownload(blob, `${baseName}.pdf`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "PDF export failed");
+    } finally {
+      setDlBusy(null);
+    }
+  };
+
   return (
     <Card className="overflow-hidden">
       <button
@@ -225,6 +249,33 @@ function EditorialCard({ row, onDelete }: { row: EditorialRow; onDelete: () => v
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              downloadMd();
+            }}
+            className="rounded-full p-1.5 text-muted-foreground hover:bg-background hover:text-indigo-500"
+            aria-label="Download markdown"
+            title="Download as Markdown (.md)"
+          >
+            <Download className="h-4 w-4" />
+          </span>
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (dlBusy) return;
+              downloadPdf();
+            }}
+            className="rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-background hover:text-indigo-500"
+            aria-label="Download PDF"
+            title="Download as PDF"
+          >
+            {dlBusy === "pdf" ? "…" : "PDF"}
+          </span>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -252,6 +303,103 @@ function EditorialCard({ row, onDelete }: { row: EditorialRow; onDelete: () => v
       )}
     </Card>
   );
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function buildEditorialMarkdown(row: EditorialRow): string {
+  const items = row.analysis?.editorials ?? [];
+  const lines: string[] = [];
+  lines.push(`# ${row.newspaper || "Newspaper"} — Editorial Notes`);
+  lines.push(`*${row.edition_date || row.created_at?.slice(0, 10) || ""} · ${items.length} editorials · UPSC Genius AI*`);
+  lines.push("");
+  items.forEach((it, i) => {
+    lines.push(`## ${i + 1}. ${it.title}`);
+    lines.push(
+      `**Syllabus:** ${it.syllabus.stage} · ${it.syllabus.paper} · ${it.syllabus.subject} · ${it.syllabus.topic}${it.syllabus.subTopic ? ` · ${it.syllabus.subTopic}` : ""}  `,
+    );
+    lines.push(`**Importance:** ${it.importance}`);
+    lines.push("");
+    if (it.crispNotes?.length) {
+      lines.push(`### Crisp Notes`);
+      it.crispNotes.forEach((c) => lines.push(`- ${c}`));
+      lines.push("");
+    }
+    if (it.comprehensiveNotes) {
+      lines.push(`### Comprehensive Notes`);
+      lines.push(it.comprehensiveNotes);
+      lines.push("");
+    }
+    if (it.diagramMermaid) {
+      lines.push(`### Diagram`);
+      lines.push("```mermaid");
+      lines.push(it.diagramMermaid);
+      lines.push("```");
+      lines.push("");
+    }
+    if (it.argumentsFor?.length) {
+      lines.push(`### Arguments — For`);
+      it.argumentsFor.forEach((x) => lines.push(`- ${x}`));
+      lines.push("");
+    }
+    if (it.argumentsAgainst?.length) {
+      lines.push(`### Arguments — Against`);
+      it.argumentsAgainst.forEach((x) => lines.push(`- ${x}`));
+      lines.push("");
+    }
+    if (it.keyFacts?.length) {
+      lines.push(`### Key Facts`);
+      it.keyFacts.forEach((f) => lines.push(`- ${f}`));
+      lines.push("");
+    }
+    if (it.vocabulary?.length) {
+      lines.push(`### Vocabulary`);
+      it.vocabulary.forEach((v) => lines.push(`- **${v.word}** — ${v.meaning}`));
+      lines.push("");
+    }
+    if (it.wayForward?.length) {
+      lines.push(`### Way Forward`);
+      it.wayForward.forEach((w) => lines.push(`- ${w}`));
+      lines.push("");
+    }
+    if (it.pyqLinks?.length) {
+      lines.push(`### PYQ Links`);
+      it.pyqLinks.forEach((p) =>
+        lines.push(`- ${p.year ? `**${p.year}** ` : ""}${p.paper ? `(${p.paper}) ` : ""}${p.question}`),
+      );
+      lines.push("");
+    }
+    if (it.probablePrelimsMCQ) {
+      lines.push(`### Probable Prelims MCQ`);
+      lines.push(it.probablePrelimsMCQ.q);
+      it.probablePrelimsMCQ.options.forEach((o, j) =>
+        lines.push(`${j === it.probablePrelimsMCQ!.answer ? "**✓** " : ""}${String.fromCharCode(65 + j)}. ${o}`),
+      );
+      lines.push(`> ${it.probablePrelimsMCQ.explanation}`);
+      lines.push("");
+    }
+    if (it.probableMainsQuestion) {
+      lines.push(`### Probable Mains Question`);
+      lines.push(
+        `*${it.probableMainsQuestion.paper} · ${it.probableMainsQuestion.marks} marks*`,
+      );
+      lines.push(it.probableMainsQuestion.q);
+      lines.push(`> **Approach:** ${it.probableMainsQuestion.approach}`);
+      lines.push("");
+    }
+    lines.push("---");
+    lines.push("");
+  });
+  return lines.join("\n");
 }
 
 function EditorialPiece({ item, idx, rowId }: { item: EditorialItem; idx: number; rowId: string }) {
