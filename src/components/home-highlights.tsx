@@ -1,30 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  FileText,
-  Image as ImageIcon,
-  Link as LinkIcon,
-  MessageSquare,
-  ArrowRight,
-  Loader2,
-} from "lucide-react";
-import {
-  listNewsHighlights,
-  type NewsHighlight,
-} from "@/lib/news-highlights.functions";
+import { ArrowRight, Loader2, Sparkles, Flame } from "lucide-react";
+import { listNewsItems, type NewsItem, type GsPaper } from "@/lib/news-items.functions";
 
-function kindIcon(k: NewsHighlight["kind"]) {
-  switch (k) {
-    case "pdf":
-      return FileText;
-    case "image":
-      return ImageIcon;
-    case "link":
-      return LinkIcon;
-    default:
-      return MessageSquare;
-  }
-}
+const GS_CHIP: Record<GsPaper, string> = {
+  GS1: "from-amber-500 to-rose-500",
+  GS2: "from-sky-500 to-indigo-500",
+  GS3: "from-emerald-500 to-teal-500",
+  GS4: "from-fuchsia-500 to-purple-500",
+  General: "from-slate-500 to-slate-600",
+};
 
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -38,12 +23,12 @@ function timeAgo(iso: string) {
 }
 
 export function HomeHighlights() {
-  const [items, setItems] = useState<NewsHighlight[] | null>(null);
+  const [items, setItems] = useState<NewsItem[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
-    listNewsHighlights({ data: { limit: 6 } })
+    listNewsItems({ data: { limit: 6 } })
       .then((r) => alive && setItems(r))
       .catch((e) => alive && setErr((e as Error).message));
     return () => {
@@ -60,13 +45,13 @@ export function HomeHighlights() {
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Bot Highlights
+            AI-analysed Headlines
           </div>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Important news forwarded to your bot
+            Today’s important news — tagged by GS paper
           </h2>
           <p className="mt-1 text-sm text-white/60">
-            Everything you forward to <span className="text-emerald-300">@e7895tris_bot</span> shows up here automatically.
+            Forward newspapers to <span className="text-emerald-300">@e7895tris_bot</span>. AI reads the PDF and pushes only the UPSC-relevant items here.
           </p>
         </div>
         <Link
@@ -84,22 +69,35 @@ export function HomeHighlights() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((it) => {
-            const Icon = kindIcon(it.kind);
-            const href =
-              it.source_url || it.drive_view_link || `/news`;
-            const external = Boolean(it.source_url || it.drive_view_link);
-            const cardCls =
-              "group relative flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/10";
-            const body = (
-              <>
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500/30 to-fuchsia-500/30 text-white">
-                    <Icon className="h-4 w-4" />
+            const hot = it.importance >= 4;
+            return (
+              <Link
+                key={it.id}
+                to="/news"
+                className={
+                  "group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border p-4 backdrop-blur transition " +
+                  (hot
+                    ? "border-transparent bg-gradient-to-br from-amber-500/15 via-rose-500/10 to-fuchsia-500/15 ring-2 ring-inset ring-amber-400/40 animate-pulse"
+                    : "border-white/10 bg-white/5 hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/10")
+                }
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <span
+                    className={
+                      "inline-flex items-center gap-1 rounded-full bg-gradient-to-r px-2 py-0.5 text-[10px] font-bold text-white shadow " +
+                      GS_CHIP[it.gs_paper]
+                    }
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    {it.gs_paper}
                   </span>
-                  <span className="text-[10px] uppercase tracking-wider text-white/50">
-                    {it.kind}
-                  </span>
-                  <span className="ml-auto text-[10px] text-white/40">
+                  {it.subject && (
+                    <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-white/70">
+                      {it.subject}
+                    </span>
+                  )}
+                  <span className="ml-auto flex items-center gap-1 text-[10px] text-white/50">
+                    {hot && <Flame className="h-3 w-3 text-rose-300 animate-pulse" />}
                     {timeAgo(it.posted_at)}
                   </span>
                 </div>
@@ -111,24 +109,19 @@ export function HomeHighlights() {
                     {it.summary}
                   </p>
                 )}
-                <div className="mt-3 text-[11px] font-medium text-emerald-300 opacity-0 transition group-hover:opacity-100">
-                  Open →
+                <div className="mt-3 flex items-center gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={
+                        "h-1 flex-1 rounded-full " +
+                        (i < it.importance
+                          ? "bg-gradient-to-r from-amber-400 to-rose-500"
+                          : "bg-white/10")
+                      }
+                    />
+                  ))}
                 </div>
-              </>
-            );
-            return external ? (
-              <a
-                key={it.id}
-                href={href}
-                target="_blank"
-                rel="noreferrer"
-                className={cardCls}
-              >
-                {body}
-              </a>
-            ) : (
-              <Link key={it.id} to="/news" className={cardCls}>
-                {body}
               </Link>
             );
           })}
