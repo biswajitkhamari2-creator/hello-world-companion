@@ -7,10 +7,14 @@ import {
   ExternalLink,
   Sun,
   Moon,
+  Landmark,
+  Loader2,
+  X,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { cn } from "@/lib/utils";
 import { getUpscNews, type NewsItem } from "@/lib/news.functions";
+import { getOdishaNews, extractPcsPoints, type OdishaNewsItem } from "@/lib/odisha-news.functions";
 import { useTheme } from "@/components/theme-provider";
 
 export const Route = createFileRoute("/")({
@@ -140,6 +144,7 @@ function Landing() {
         <main className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:py-14">
           <Hero />
           <UpscNews />
+          <OdishaPcsDigest />
         </main>
         <footer className="relative border-t border-border/50 py-6 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} <span className="font-semibold text-foreground/80">UPSC</span> · by Sidheswar Enterprises
