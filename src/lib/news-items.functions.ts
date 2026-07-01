@@ -133,8 +133,11 @@ async function geminiExtractStructured(pdfBytes: ArrayBuffer): Promise<Array<{
   summary: string;
   importance: number;
 }>> {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const lovableKey = process.env.LOVABLE_API_KEY?.trim();
+  if (!geminiKey && !lovableKey) {
+    throw new Error("Neither GEMINI_API_KEY nor LOVABLE_API_KEY is configured");
+  }
 
   const schema = {
     type: "object",
@@ -171,33 +174,96 @@ For every relevant article return:
 
 Return at most 20 items. Prefer quality over quantity. Give special attention to Odisha state, OPSC-relevant governance, and regional angles when present. Return valid JSON only.`;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
+  // Prefer FREE-tier Gemini (gemini-2.5-flash-lite via direct API — has free quota).
+  // Fallback to Lovable AI Gateway (also free monthly allowance) if the direct
+  // key is missing or fails with quota / auth errors.
+  const base = "https://generativelanguage.googleapis.com/v1beta/models";
+  const pdfB64 = bufferToBase64(pdfBytes);
+  const geminiBody = {
+    contents: [
+      {
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: "application/pdf", data: pdfB64 } },
+        ],
+      },
+    ],
+    generationConfig: {
+      response_mime_type: "application/json",
+      response_schema: schema,
+      temperature: 0.2,
+    },
+  };
+
+  async function callDirectGemini(model: string) {
+    if (!geminiKey) return null;
+    const r = await fetch(`${base}/${model}:generateContent?key=${geminiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(geminiBody),
+    });
+    if (!r.ok) {
+      const body = await r.text().catch(() => "");
+      // Bubble a special marker for quota so caller can fall back to gateway.
+      if (r.status === 429 || r.status === 403) {
+        throw new Error(`__QUOTA__:${r.status}:${body.slice(0, 160)}`);
+      }
+      throw new Error(`Gemini extract failed: ${r.status} ${body.slice(0, 200)}`);
+    }
+    return r.json();
+  }
+
+  async function callLovableGateway() {
+    if (!lovableKey) throw new Error("LOVABLE_API_KEY missing for fallback");
+    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Lovable-API-Key": lovableKey,
+      },
       body: JSON.stringify({
-        contents: [
+        model: "google/gemini-3-flash-preview",
+        messages: [
           {
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: "application/pdf", data: bufferToBase64(pdfBytes) } },
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              {
+                type: "file",
+                file: {
+                  filename: "newspaper.pdf",
+                  file_data: `data:application/pdf;base64,${pdfB64}`,
+                },
+              },
             ],
           },
         ],
-        generationConfig: {
-          response_mime_type: "application/json",
-          response_schema: schema,
-          temperature: 0.2,
-        },
+        response_format: { type: "json_object" },
+        temperature: 0.2,
       }),
-    },
-  );
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Gemini extract failed: ${res.status} ${body.slice(0, 200)}`);
+    });
+    if (!r.ok) {
+      const body = await r.text().catch(() => "");
+      throw new Error(`Lovable AI gateway extract failed: ${r.status} ${body.slice(0, 200)}`);
+    }
+    const j: any = await r.json();
+    const text = j?.choices?.[0]?.message?.content ?? "";
+    return { candidates: [{ content: { parts: [{ text }] } }] };
   }
-  const json: any = await res.json();
+
+  let json: any = null;
+  try {
+    // Use FREE gemini-2.5-flash-lite direct — has generous free tier.
+    json = await callDirectGemini("gemini-2.5-flash-lite");
+  } catch (e) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("__QUOTA__") || msg.includes("not configured")) {
+      json = await callLovableGateway();
+    } else {
+      throw e;
+    }
+  }
+  if (!json) json = await callLovableGateway();
   const text = json?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text ?? "").join("") ?? "";
   let parsed: any = null;
   try {
