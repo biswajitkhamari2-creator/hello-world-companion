@@ -89,8 +89,14 @@ export const importInboxItem = createServerFn({ method: "POST" })
           })
           .eq("id", inboxItem.id);
       } catch (e) {
+        const msg = (e as Error).message || "";
+        if (/file is too big/i.test(msg)) {
+          throw new Error(
+            "Telegram bots cannot download files larger than 20 MB. Please post a smaller PDF/image, or share a Google Drive/Dropbox link instead — the link will appear in Inbox and can be opened directly.",
+          );
+        }
         throw new Error(
-          `Telegram file could not be fetched anymore. Please resend the PDF/image to the bot, then import the new inbox item. Details: ${(e as Error).message}`,
+          `Telegram file could not be fetched. Please resend the PDF/image to the bot, then import the new inbox item. Details: ${msg}`,
         );
       }
     }
