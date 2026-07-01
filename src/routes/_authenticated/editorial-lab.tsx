@@ -23,6 +23,7 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   RefreshCw,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -146,6 +147,58 @@ function EditorialLabPage() {
     }
   };
 
+  // --- Squash duplicate PDFs: keep the oldest of each group, delete the rest ---
+  const [squashing, setSquashing] = useState(false);
+  const findDuplicateGroups = () => {
+    const rows = (pdfsQ.data ?? []) as any[];
+    const normalize = (s: any) =>
+      String(s || "")
+        .toLowerCase()
+        .replace(/\.pdf$/, "")
+        .replace(/[\s._-]+/g, " ")
+        .trim();
+    const groups = new Map<string, any[]>();
+    for (const r of rows) {
+      const key = `${normalize(r.file_name || r.caption)}|${r.size_bytes ?? ""}`;
+      if (!key.startsWith("|")) {
+        const arr = groups.get(key) ?? [];
+        arr.push(r);
+        groups.set(key, arr);
+      }
+    }
+    const dupes: any[] = [];
+    for (const arr of groups.values()) {
+      if (arr.length < 2) continue;
+      arr.sort((a, b) => new Date(a.posted_at).getTime() - new Date(b.posted_at).getTime());
+      dupes.push(...arr.slice(1)); // keep [0] as the original
+    }
+    return dupes;
+  };
+  const squashDuplicates = async () => {
+    const dupes = findDuplicateGroups();
+    if (dupes.length === 0) {
+      toast.info("No duplicate newspapers found");
+      return;
+    }
+    if (!confirm(`Trash ${dupes.length} duplicate ${dupes.length === 1 ? "PDF" : "PDFs"}? The oldest copy of each will be kept.`)) return;
+    setSquashing(true);
+    let ok = 0;
+    let fail = 0;
+    for (const d of dupes) {
+      try {
+        if (d.source === "documents") await removeDoc({ data: { id: d.id } });
+        else await removePdf({ data: { itemId: d.id } });
+        ok++;
+      } catch {
+        fail++;
+      }
+    }
+    setSquashing(false);
+    await qc.invalidateQueries({ queryKey: ["editorial-lab", "pdfs"] });
+    if (fail === 0) toast.success(`Squashed ${ok} duplicate ${ok === 1 ? "PDF" : "PDFs"}`);
+    else toast.warning(`Squashed ${ok}, ${fail} failed`);
+  };
+
   const togglePdf = (id: string) =>
     setPdfSel((prev) => {
       const n = new Set(prev);
@@ -248,6 +301,15 @@ function EditorialLabPage() {
                 >
                   <RefreshCw className={"h-3 w-3 " + (refreshing ? "animate-spin" : "")} />
                   {refreshing ? "Checking" : "Refresh"}
+                </button>
+                <button
+                  onClick={squashDuplicates}
+                  disabled={squashing || pdfsQ.isLoading}
+                  className="inline-flex items-center gap-1 border border-amber-700/60 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-900 hover:bg-amber-100 disabled:opacity-60 dark:border-amber-300/40 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60"
+                  title="Trash duplicate PDFs, keep the oldest of each"
+                >
+                  <Layers className={"h-3 w-3 " + (squashing ? "animate-pulse" : "")} />
+                  {squashing ? "Squashing" : "Squash dupes"}
                 </button>
                 <span
                   className="border border-stone-300/70 bg-white/70 px-2 py-0.5 text-[10px] uppercase tracking-widest text-stone-600 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300"
