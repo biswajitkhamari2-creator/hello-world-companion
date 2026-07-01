@@ -84,9 +84,9 @@ export const Route = createFileRoute("/api/mentor")({
               "AI_KEY_MISSING",
             );
           }
-          const provider = await resolveAvailableAiProvider();
-          const gateway = createGateway(initialRunId, provider);
-          const model = gateway(getDefaultModel(provider));
+          // Skip the /models probe (adds ~1–5s per request). Use first configured provider directly.
+          const gateway = createGateway(initialRunId);
+          const model = gateway(getDefaultModel());
           const result = streamText({
             model,
             maxRetries: 0,
