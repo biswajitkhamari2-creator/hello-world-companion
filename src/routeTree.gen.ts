@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiMentorRouteImport } from './routes/api/mentor'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedEditorialRouteImport } from './routes/_authenticated/editorial'
@@ -47,6 +48,11 @@ const ApiMentorRoute = ApiMentorRouteImport.update({
   id: '/api/mentor',
   path: '/api/mentor',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMentorRoute = AuthenticatedMentorRouteImport.update({
   id: '/mentor',
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/editorial': typeof AuthenticatedEditorialRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/mentor': typeof AuthenticatedMentorRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/editorial': typeof AuthenticatedEditorialRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/mentor': typeof AuthenticatedMentorRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/_authenticated/editorial': typeof AuthenticatedEditorialRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
+  '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/editorial'
     | '/inbox'
     | '/mentor'
+    | '/profile'
     | '/api/mentor'
     | '/api/oauth/google/callback'
     | '/api/oauth/google/start'
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/editorial'
     | '/inbox'
     | '/mentor'
+    | '/profile'
     | '/api/mentor'
     | '/api/oauth/google/callback'
     | '/api/oauth/google/start'
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/_authenticated/editorial'
     | '/_authenticated/inbox'
     | '/_authenticated/mentor'
+    | '/_authenticated/profile'
     | '/api/mentor'
     | '/api/oauth/google/callback'
     | '/api/oauth/google/start'
@@ -238,6 +250,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/mentor'
       preLoaderRoute: typeof ApiMentorRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/mentor': {
       id: '/_authenticated/mentor'
@@ -312,6 +331,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEditorialRoute: typeof AuthenticatedEditorialRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -321,6 +341,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEditorialRoute: AuthenticatedEditorialRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
+  AuthenticatedProfileRoute: AuthenticatedProfileRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
