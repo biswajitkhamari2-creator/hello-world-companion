@@ -199,3 +199,97 @@ function Hero() {
   );
 }
 
+// ---------------- UPSC News ----------------
+
+function timeAgo(iso: string): string {
+  const t = Date.parse(iso);
+  if (!t) return "";
+  const diff = Date.now() - t;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function UpscNews() {
+  const [items, setItems] = useState<NewsItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await getUpscNews();
+        if (!alive) return;
+        setItems(res.items);
+      } catch (e) {
+        if (!alive) return;
+        setErr(e instanceof Error ? e.message : "Failed to load news");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return (
+    <section className="mt-14">
+      <div className="mb-5 flex items-end justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 font-serif text-2xl font-semibold tracking-tight sm:text-3xl">
+            <Newspaper className="h-6 w-6 text-rose-500" />
+            UPSC News · Today
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">Live headlines relevant to your prep.</p>
+        </div>
+      </div>
+
+      {loading && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-24 animate-pulse rounded-2xl bg-white/40 backdrop-blur dark:bg-white/5" />
+          ))}
+        </div>
+      )}
+
+      {err && !loading && (
+        <div className="rounded-2xl border border-rose-300/40 bg-rose-50/60 p-4 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
+          Couldn't load news right now. {err}
+        </div>
+      )}
+
+      {!loading && !err && items.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((n) => (
+            <a
+              key={n.link}
+              href={n.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative block rounded-2xl border border-white/40 bg-white/60 p-4 shadow-[0_8px_30px_-12px_rgba(31,38,135,0.18)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(244,63,94,0.45)] dark:border-white/10 dark:bg-white/5"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="inline-flex items-center rounded-full bg-gradient-to-r from-rose-500 to-amber-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                  {n.source}
+                </span>
+                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              </div>
+              <h3 className="mt-2 font-serif text-[15px] font-semibold leading-snug text-foreground line-clamp-3">
+                {n.title}
+              </h3>
+              {n.pubDate && (
+                <div className="mt-2 text-[11px] text-muted-foreground">{timeAgo(n.pubDate)}</div>
+              )}
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
