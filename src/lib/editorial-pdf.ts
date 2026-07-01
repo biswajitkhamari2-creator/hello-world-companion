@@ -50,7 +50,9 @@ export async function editorialsToPdf(row: EditorialRow): Promise<Blob> {
 
   const heading = (txt: string, size = 14) => {
     y += 6;
-    ensureRoom(size + 8);
+    // Keep heading with its first line of content — jump to a new page if
+    // there's no room for the heading plus at least one wrapped line beneath.
+    ensureRoom(size + 8 + 18);
     line(txt, { size, bold: true, color: [60, 40, 120] });
   };
 
@@ -76,6 +78,13 @@ export async function editorialsToPdf(row: EditorialRow): Promise<Blob> {
 
   const items = row.analysis?.editorials ?? [];
   items.forEach((it: EditorialItem, i: number) => {
+    // Every editorial starts on a fresh page (except the first, which
+    // continues right after the cover) so sections never split awkwardly
+    // across pages.
+    if (i > 0) {
+      doc.addPage();
+      y = MARGIN;
+    }
     line(`${i + 1}. ${it.title}`, { size: 16, bold: true, color: [30, 30, 60] });
     line(
       `${it.syllabus.stage} • ${it.syllabus.paper} • ${it.syllabus.subject} • ${it.syllabus.topic}${it.syllabus.subTopic ? " • " + it.syllabus.subTopic : ""}`,
