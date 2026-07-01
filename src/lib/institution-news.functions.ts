@@ -452,3 +452,105 @@ ${text}
     }
     return { ...parsed, sourceUrl: data.url };
   });
+
+export const getInstitutionComprehensiveNotes = createServerFn({ method: "POST" })
+  .inputValidator((data: { url: string }) => {
+    return z
+      .object({
+        url: z
+          .string()
+          .regex(/^https:\/\/(visionias\.in|www\.drishtiias\.com)\//, "Only Vision IAS or Drishti IAS URLs are allowed"),
+      })
+      .parse(data);
+  })
+  .handler(async ({ data }): Promise<InstitutionComprehensiveNotes> => {
+    const html = await fetchHtml(data.url);
+    const isDrishti = /drishtiias\.com/i.test(data.url);
+    const stripped = html
+      .replace(/<head[\s\S]*?<\/head>/gi, "")
+      .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+      .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+      .replace(/<header[\s\S]*?<\/header>/gi, "");
+    const mainMatch =
+      stripped.match(/<article[\s\S]*?<\/article>/i) ||
+      stripped.match(/<main[\s\S]*?<\/main>/i) ||
+      stripped.match(/<div[^>]+class=["'][^"']*(?:article|content|post|entry)[^"']*["'][\s\S]*?<\/div>/i);
+    const bodyHtml = mainMatch ? mainMatch[0] : stripped;
+    const text = htmlToPlain(bodyHtml).slice(0, 24000);
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+    const rawTitle = titleMatch ? titleMatch[1].trim() : "";
+
+    const { createGateway, DEFAULT_MODEL, UPSC_SYSTEM_PROMPT } = await import("./ai-gateway.server");
+    const { generateText } = await import("ai");
+    const gw = createGateway();
+
+    const prompt = `You are preparing COMPREHENSIVE UPSC/State-PCS notes from a coaching-institute article. Aim for a full 360° exam-ready note: background → status → stakeholders → challenges → way forward → global angle. Rewrite everything in tight bullets — never paste source sentences. Every note MUST be tagged with the correct UPSC GS Paper + Subject + Topic per the official UPSC Civil Services syllabus.
+
+UPSC syllabus mapping (mandatory):
+- GS-1 → History, Art & Culture, Indian Society, Geography
+- GS-2 → Polity, Constitution, Governance, Social Justice, IR
+- GS-3 → Economy, Agriculture, S&T, Environment, Internal Security, Disaster Mgmt
+- GS-4 → Ethics, Integrity, Aptitude, Case Studies
+- Prelims → factual/current-affairs items with no Mains hook
+- Essay → philosophical/abstract themes
+
+Return STRICT JSON only, no markdown fences, matching this TypeScript type:
+{
+  "title": string,
+  "gsPaper": "GS-1"|"GS-2"|"GS-3"|"GS-4"|"Prelims"|"Essay",
+  "subject": string,
+  "topic": string,
+  "syllabusAnchor": string,
+  "oneLine": string,                       // ≤30 words
+  "whyInNews": string[],                   // 3-5 bullets
+  "keyPoints": string[],                   // 10-15 bullets — the core content
+  "facts": string[],                       // hard data, dates, articles, cases, numbers
+  "keyTerms": Array<{term:string, meaning:string}>, // 5-8 exam terms
+  "background": string[],                  // 4-6 bullets — historical / constitutional / evolution
+  "currentStatus": string[],               // 4-6 bullets — present position
+  "stakeholders": string[],                // 3-5 bullets — who is involved & how
+  "challenges": string[],                  // 4-6 bullets
+  "wayForward": string[],                  // 4-6 bullets — reforms, recommendations
+  "relatedSchemes": string[],              // schemes/acts/committees/reports/judgements
+  "internationalAngle": string[],          // 2-4 bullets — global comparison
+  "quotes": string[],                      // 2-3 crisp quotable lines usable in Mains
+  "mindMap": string,                       // 1 short paragraph tying everything
+  "prelimsAngle": string[],                // 3-4 factual hooks
+  "mainsAngle": string[],                  // 3-4 analytical hooks
+  "probableQuestion": string               // 1 Mains-style question
+}
+
+Hard rules:
+- Do NOT paste paragraphs from the source.
+- Do NOT fabricate facts, articles, cases, judgements, schemes. If unsure, omit.
+- Each bullet ≤ 30 words.
+- gsPaper/subject/topic/syllabusAnchor are MANDATORY.
+- Output JSON ONLY.
+
+Source: ${isDrishti ? "Drishti IAS" : "Vision IAS"}
+Site title: ${rawTitle}
+URL: ${data.url}
+
+ARTICLE:
+"""
+${text}
+"""`;
+
+    const { text: out } = await generateText({
+      model: gw(DEFAULT_MODEL),
+      system: UPSC_SYSTEM_PROMPT,
+      prompt,
+      maxRetries: 1,
+    });
+
+    const cleaned = out.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "");
+    let parsed: Omit<InstitutionComprehensiveNotes, "sourceUrl">;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      const m = cleaned.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error("AI returned non-JSON response");
+      parsed = JSON.parse(m[0]);
+    }
+    return { ...parsed, sourceUrl: data.url };
+  });
