@@ -415,11 +415,13 @@ function EditorialPiece({ item, idx, rowId }: { item: EditorialItem; idx: number
           : "bg-muted text-foreground";
 
   return (
-    <div className="rounded-2xl border bg-card/60 p-4">
+    <div className="rounded-2xl border bg-card/60 p-4 sm:p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="font-serif text-lg font-semibold">{item.title}</h3>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+          <h3 className="break-words font-serif text-[19px] font-bold leading-snug sm:text-lg sm:font-semibold">
+            {item.title}
+          </h3>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[12px] sm:mt-1 sm:text-[11px]">
             <Badge variant="secondary">{item.syllabus.stage}</Badge>
             <Badge>{item.syllabus.paper}</Badge>
             <span className="text-muted-foreground">
@@ -433,7 +435,7 @@ function EditorialPiece({ item, idx, rowId }: { item: EditorialItem; idx: number
 
       {item.crispNotes?.length > 0 && (
         <Section title="Crisp Notes" icon={ListChecks}>
-          <ul className="space-y-1 text-sm">
+          <ul className="space-y-1.5 text-[15px] leading-relaxed sm:text-sm">
             {item.crispNotes.map((c, i) => (
               <li key={i}>• {c}</li>
             ))}
@@ -443,7 +445,7 @@ function EditorialPiece({ item, idx, rowId }: { item: EditorialItem; idx: number
 
       {item.comprehensiveNotes && (
         <Section title="Comprehensive Notes" icon={BookOpen}>
-          <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
+          <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/85 sm:text-sm">
             {item.comprehensiveNotes}
           </div>
         </Section>
