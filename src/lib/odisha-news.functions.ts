@@ -68,11 +68,11 @@ function parseRss(xml: string, source: string): OdishaNewsItem[] {
   return items;
 }
 
-// Off-syllabus noise (astrology, entertainment, cricket, celebrity, lifestyle, crime blotter)
-const NOISE_RE = /\b(horoscope|zodiac|astrolog|rashifal|numerolog|tarot|vastu|bollywood|hollywood|tollywood|ollywood|celebrity|actor|actress|singer|film|movie|trailer|box office|ott|web series|netflix|recipe|fashion|lifestyle|beauty|makeup|skincare|weight loss|diet plan|sex|dating|breakup|gossip|cricket|ipl|fifa|football|tennis|olympics|match|wicket|goal\b|viral video|trending|meme|photo gallery|photos:|watch:|birthday|wedding|kohli|dhoni|shah rukh|salman|deepika)\b/i;
+// Off-syllabus noise (astrology, entertainment, sports, celebrity, lifestyle, crime blotter, local incidents)
+const NOISE_RE = /\b(horoscope|zodiac|astrolog|rashifal|numerolog|tarot|vastu|bollywood|hollywood|tollywood|ollywood|ollywood|celebrity|actor|actress|singer|film|movie|trailer|box office|ott|web series|netflix|recipe|fashion|lifestyle|beauty|makeup|skincare|weight loss|diet plan|sex|dating|breakup|gossip|cricket|ipl|fifa|football|tennis|olympics|match|wicket|goal\b|viral video|trending|meme|photo gallery|photos:|watch:|birthday|wedding|kohli|dhoni|shah rukh|salman|deepika|murder|rape|robbery|loot|dacoity|assault|arrested|nabbed|held for|kidnap|snatch|molest|suicide|elope|accident|road mishap|hit.and.run|bike rally|obituary|condolence|passes away|passed away|no more|died at|dead body|hospitalised|hospitalized|injured in|killed in|clash|scuffle|thrash|beaten|absconding|jailed|remand|chargesheet|fir lodged|fake note|liquor seiz|ganja seiz|brown sugar|contraband)\b/i;
 
 // Must mention Odisha or a clearly Odisha-specific keyword
-const ODISHA_RE = /\b(odisha|orissa|bhubaneswar|cuttack|puri|konark|jagannath|mahanadi|brahmani|baitarani|chilika|similipal|bhitarkanika|opsc|kalinga|paik|kharavela|gajapati|somavamasi|bhauma|jajpur|balasore|sambalpur|rourkela|berhampur|koraput|kandhamal|mayurbhanj|dhamra|paradip|hirakud)\b/i;
+const ODISHA_RE = /\b(odisha|orissa|bhubaneswar|cuttack|puri|konark|jagannath|mahanadi|brahmani|baitarani|chilika|similipal|bhitarkanika|opsc|kalinga|paik|kharavela|gajapati|somavamasi|bhauma|jajpur|balasore|sambalpur|rourkela|berhampur|koraput|kandhamal|mayurbhanj|dhamra|paradip|hirakud|ganjam|nabarangpur|rayagada|malkangiri|nuapada|kalahandi|bolangir|sundargarh|keonjhar|dhenkanal|angul|jharsuguda|nayagarh|khordha|boudh)\b/i;
 
 // Map to Odisha PCS syllabus buckets
 const CATEGORY_RULES: { cat: OpscCategory; re: RegExp }[] = [
@@ -82,8 +82,12 @@ const CATEGORY_RULES: { cat: OpscCategory; re: RegExp }[] = [
   { cat: "History & Culture", re: /\b(jagannath|konark|puri|rath yatra|kharavela|kalinga|paik|surendra sai|gajapati|somavamasi|bhauma|ganga|temple|heritage|odia language|odissi|pattachitra|festival|carnival|bali yatra|literature|monument|archaeolog)\b/i },
   { cat: "Schemes & Social Justice", re: /\b(scheme|yojana|mission shakti|biju swasthya|bsky|ama odisha|nabin odisha|welfare|tribal|adivasi|dalit|sc\/st|women|child|health|education|scholarship|pension|ration|pds|poverty|inclusion|shg|anganwadi)\b/i },
   { cat: "Science & Tech", re: /\b(isro|drdo|space|satellite|technolog|ai\b|artificial intelligence|semiconductor|biotech|nanotech|start.?up|innovation|research)\b/i },
-  { cat: "Polity & Governance", re: /\b(cabinet|assembly|opsc|lokayukta|right to public services|panchayat|zilla parishad|governor|chief minister|cm\b|mla|mp\b|bill\b|act\b|amendment|court|verdict|policy|governance|e-governance|rti|accountab|transparen)\b/i },
+  { cat: "Polity & Governance", re: /\b(cabinet|assembly|opsc|lokayukta|right to public services|panchayat|zilla parishad|governor|chief minister|mla|mp\b|bill\b|amendment|policy|governance|e.governance|rti|manifesto|election commission|by.?poll|constitution|supreme court|high court|verdict on|ordinance|notification|gazette)\b/i },
 ];
+
+// Strong OPSC-relevance signal: at least one of these syllabus/OPSC keywords must appear alongside Odisha context.
+// This filters out generic crime/local stories that only mention an Odisha place name.
+const SYLLABUS_SIGNAL_RE = /\b(opsc|cabinet|assembly|policy|scheme|yojana|budget|mission shakti|biju swasthya|bsky|kalia|ama odisha|nabin odisha|panchayat|lokayukta|right to public services|constitution|governor|chief minister|bill\b|amendment|ordinance|gazette|manifesto|verdict on|supreme court|high court|economy|gdp|inflation|fiscal|gst|export|invest|industrial|msme|shg|agricultur|farmer|paddy|msp|irrigat|hirakud|mahanadi|brahmani|baitarani|chilika|similipal|bhitarkanika|forest|wildlife|elephant|tiger|olive ridley|biodivers|pollut|climate|ecolog|environment|mining|mineral|coal|bauxite|iron ore|jagannath|konark|rath yatra|kharavela|kalinga|paik|surendra sai|gajapati|somavamasi|bhauma|temple|heritage|odia language|odissi|pattachitra|bali yatra|monument|archaeolog|welfare|tribal|adivasi|scholarship|pension|ration|anganwadi|isro|drdo|space|satellite|technolog|artificial intelligence|semiconductor|biotech|start.?up|research|cyclone|flood|disaster|maoist|naxal|left wing|extremism|cyber|border security|foreign|bilateral|treaty|summit|un\b|unesco|world bank|imf|niti aayog)\b/i;
 
 function categorize(text: string): OpscCategory | null {
   for (const r of CATEGORY_RULES) if (r.re.test(text)) return r.cat;
@@ -110,6 +114,7 @@ export const getOdishaNews = createServerFn({ method: "GET" }).handler(async () 
     const hay = `${it.title} ${it.description ?? ""}`;
     if (NOISE_RE.test(hay)) continue;
     if (!ODISHA_RE.test(hay)) continue;
+    if (!SYLLABUS_SIGNAL_RE.test(hay)) continue;
     const cat = categorize(hay);
     if (!cat) continue;
     filtered.push({ ...it, category: cat });
