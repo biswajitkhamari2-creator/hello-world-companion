@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, RefreshCw, Sparkles, Flame } from "lucide-react";
+import { Loader2, RefreshCw, Sparkles, Flame, ArrowLeft } from "lucide-react";
+import { useRouter } from "@tanstack/react-router";
 import {
   listNewsItems,
   extractPendingInboxNews,
@@ -48,6 +49,7 @@ function timeAgo(iso: string) {
 }
 
 function NewsPage() {
+  const router = useRouter();
   const [items, setItems] = useState<NewsItem[] | null>(null);
   const [filter, setFilter] = useState<GsPaper | "all">("all");
   const [err, setErr] = useState<string | null>(null);
@@ -117,6 +119,17 @@ function NewsPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      <div className="mb-4">
+        <button
+          onClick={() => {
+            if (window.history.length > 1) router.history.back();
+            else router.navigate({ to: "/" });
+          }}
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 text-xs font-medium hover:bg-accent"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Back
+        </button>
+      </div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
