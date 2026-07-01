@@ -162,9 +162,9 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
       return {
         provider: "nvidia",
         model: "meta/llama-3.3-70b-instruct",
-        chunkSize: 18_000,
-        recommendedConcurrency: 1,
-        minGapMs: 1_500,
+        chunkSize: 32_000,
+        recommendedConcurrency: 3,
+        minGapMs: 500,
         maxOutputTokens: 2_500,
       };
     }
@@ -192,9 +192,9 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
     return {
       provider: "nvidia",
       model: "meta/llama-3.3-70b-instruct",
-      chunkSize: task === "infographics" ? 20_000 : 24_000,
-      recommendedConcurrency: 1,
-      minGapMs: 1_500,
+      chunkSize: task === "infographics" ? 32_000 : 40_000,
+      recommendedConcurrency: 3,
+      minGapMs: 500,
       maxOutputTokens: task === "infographics" ? 2_500 : 2_200,
     };
   }
@@ -213,9 +213,9 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
   return {
     provider: "gemini",
     model: "gemini-2.0-flash",
-    chunkSize: task === "infographics" ? 24_000 : 30_000,
-    recommendedConcurrency: 1,
-    minGapMs: 8_000,
+    chunkSize: task === "infographics" ? 32_000 : 40_000,
+    recommendedConcurrency: 2,
+    minGapMs: 4_000,
     maxOutputTokens: task === "infographics" ? 3_000 : 2_500,
   };
 }
