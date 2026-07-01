@@ -4,7 +4,6 @@ import {
   getDefaultModel,
   getLovableAiGatewayResponseHeaders,
   getLovableAiGatewayRunId,
-  resolveAvailableAiProvider,
   withLovableAiGatewayRunIdHeader,
 } from "@/lib/ai-gateway.server";
 import { createFileRoute } from "@tanstack/react-router";
