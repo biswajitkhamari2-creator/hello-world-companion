@@ -17,6 +17,9 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  CheckSquare,
+  Square,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -101,6 +104,56 @@ function EditorialLabPage() {
   });
   const history = notes.filter((r) => !recent.includes(r));
 
+  // --- Multi-select state ---
+  const [pdfSel, setPdfSel] = useState<Set<string>>(new Set());
+  const [noteSel, setNoteSel] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const togglePdf = (id: string) =>
+    setPdfSel((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  const toggleNote = (id: string) =>
+    setNoteSel((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+
+  const bulkDeletePdfs = async () => {
+    if (pdfSel.size === 0) return;
+    if (!confirm(`Delete ${pdfSel.size} newspaper(s) from the Telegram inbox?`)) return;
+    setBulkBusy(true);
+    try {
+      await Promise.all(Array.from(pdfSel).map((id) => removePdf({ data: { itemId: id } })));
+      toast.success(`${pdfSel.size} newspaper(s) deleted`);
+      setPdfSel(new Set());
+      qc.invalidateQueries({ queryKey: ["editorial-lab", "pdfs"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Bulk delete failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const bulkDeleteNotes = async () => {
+    if (noteSel.size === 0) return;
+    if (!confirm(`Delete ${noteSel.size} editorial(s)? This cannot be undone.`)) return;
+    setBulkBusy(true);
+    try {
+      await Promise.all(Array.from(noteSel).map((id) => remove({ data: { id } })));
+      toast.success(`${noteSel.size} editorial(s) deleted`);
+      setNoteSel(new Set());
+      qc.invalidateQueries({ queryKey: ["editorial-lab", "notes"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Bulk delete failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   return (
     <AppShell>
       <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-10">
@@ -129,6 +182,17 @@ function EditorialLabPage() {
             <span className="ml-auto text-[11px] text-muted-foreground">
               {(pdfsQ.data ?? []).length} PDF{(pdfsQ.data ?? []).length === 1 ? "" : "s"}
             </span>
+            {(pdfsQ.data ?? []).length > 0 && (
+              <button
+                onClick={() => {
+                  const all = (pdfsQ.data ?? []).map((p: any) => p.id as string);
+                  setPdfSel((prev) => (prev.size === all.length ? new Set() : new Set(all)));
+                }}
+                className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-background"
+              >
+                {pdfSel.size === (pdfsQ.data ?? []).length ? "clear" : "select all"}
+              </button>
+            )}
           </div>
 
           {pdfsQ.isLoading ? (
@@ -144,14 +208,29 @@ function EditorialLabPage() {
               {(pdfsQ.data ?? []).map((p: any) => {
                 const busy = analyseMut.isPending && analyseMut.variables === p.id;
                 const delBusy = deletePdfMut.isPending && deletePdfMut.variables === p.id;
+                const selected = pdfSel.has(p.id);
                 return (
                   <div
                     key={p.id}
-                    className="group flex items-center gap-3 rounded-2xl border bg-card/70 p-2.5 shadow-sm backdrop-blur transition hover:shadow-md sm:p-3"
+                    className={
+                      "group flex items-center gap-3 rounded-2xl border p-2.5 shadow-sm backdrop-blur transition hover:shadow-md sm:p-3 " +
+                      (selected
+                        ? "border-indigo-400 bg-indigo-500/10"
+                        : "border-border bg-card/70")
+                    }
                   >
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500/15 via-fuchsia-500/15 to-amber-500/15 text-indigo-500">
-                      <Newspaper className="h-4 w-4" />
-                    </span>
+                    <button
+                      onClick={() => togglePdf(p.id)}
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500/15 via-fuchsia-500/15 to-amber-500/15 text-indigo-500 hover:from-indigo-500/25 hover:to-amber-500/25"
+                      aria-label={selected ? "Unselect" : "Select"}
+                      title={selected ? "Unselect" : "Select"}
+                    >
+                      {selected ? (
+                        <CheckSquare className="h-4 w-4" />
+                      ) : (
+                        <Newspaper className="h-4 w-4" />
+                      )}
+                    </button>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13px] font-semibold sm:text-sm">
                         {p.file_name || p.caption || "Newspaper"}
@@ -217,6 +296,23 @@ function EditorialLabPage() {
             <span className="ml-auto text-[11px] text-muted-foreground">
               last 3 days · {recent.length}
             </span>
+            {recent.length > 0 && (
+              <button
+                onClick={() => {
+                  const ids = recent.map((r) => r.id);
+                  const allSelected = ids.every((id) => noteSel.has(id));
+                  setNoteSel((prev) => {
+                    const n = new Set(prev);
+                    if (allSelected) ids.forEach((id) => n.delete(id));
+                    else ids.forEach((id) => n.add(id));
+                    return n;
+                  });
+                }}
+                className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-background"
+              >
+                {recent.every((r) => noteSel.has(r.id)) ? "clear" : "select all"}
+              </button>
+            )}
           </div>
           {notesQ.isLoading && (
             <div className="text-[13px] text-muted-foreground">Loading…</div>
@@ -228,7 +324,13 @@ function EditorialLabPage() {
             </div>
           )}
           {recent.map((row) => (
-            <EditorialCard key={row.id} row={row} onDelete={() => deleteMut.mutate(row.id)} />
+            <EditorialCard
+              key={row.id}
+              row={row}
+              onDelete={() => deleteMut.mutate(row.id)}
+              selected={noteSel.has(row.id)}
+              onToggleSelect={() => toggleNote(row.id)}
+            />
           ))}
         </section>
 
@@ -237,7 +339,49 @@ function EditorialLabPage() {
           <HistorySection
             items={history}
             onDelete={(id) => deleteMut.mutate(id)}
+            selected={noteSel}
+            onToggleSelect={toggleNote}
           />
+        )}
+
+        {/* Floating bulk-action bar */}
+        {(pdfSel.size > 0 || noteSel.size > 0) && (
+          <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-3 sm:bottom-6">
+            <div className="flex w-full max-w-lg items-center gap-2 rounded-full border bg-card/95 p-2 shadow-2xl backdrop-blur">
+              <div className="ml-2 flex-1 text-[12px] font-semibold">
+                {pdfSel.size > 0 && <span>{pdfSel.size} PDF</span>}
+                {pdfSel.size > 0 && noteSel.size > 0 && <span className="mx-1">·</span>}
+                {noteSel.size > 0 && <span>{noteSel.size} editorial{noteSel.size === 1 ? "" : "s"}</span>}
+                <span className="text-muted-foreground"> selected</span>
+              </div>
+              <button
+                onClick={() => {
+                  setPdfSel(new Set());
+                  setNoteSel(new Set());
+                }}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full border text-muted-foreground hover:bg-background"
+                aria-label="Clear selection"
+                title="Clear"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <button
+                onClick={async () => {
+                  if (pdfSel.size > 0) await bulkDeletePdfs();
+                  if (noteSel.size > 0) await bulkDeleteNotes();
+                }}
+                disabled={bulkBusy}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-rose-500 px-4 text-[12px] font-semibold text-white shadow-sm hover:bg-rose-600 disabled:opacity-60"
+              >
+                {bulkBusy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                Delete
+              </button>
+            </div>
+          </div>
         )}
       </main>
     </AppShell>
@@ -247,9 +391,13 @@ function EditorialLabPage() {
 function HistorySection({
   items,
   onDelete,
+  selected,
+  onToggleSelect,
 }: {
   items: EditorialRow[];
   onDelete: (id: string) => void;
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   // Group by YYYY-MM
@@ -283,7 +431,13 @@ function HistorySection({
                 {formatMonth(k)}
               </div>
               {groups[k].map((row) => (
-                <EditorialCard key={row.id} row={row} onDelete={() => onDelete(row.id)} />
+                <EditorialCard
+                  key={row.id}
+                  row={row}
+                  onDelete={() => onDelete(row.id)}
+                  selected={selected.has(row.id)}
+                  onToggleSelect={() => onToggleSelect(row.id)}
+                />
               ))}
             </div>
           ))}
@@ -300,7 +454,17 @@ function formatMonth(k: string): string {
   return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
-function EditorialCard({ row, onDelete }: { row: EditorialRow; onDelete: () => void }) {
+function EditorialCard({
+  row,
+  onDelete,
+  selected,
+  onToggleSelect,
+}: {
+  row: EditorialRow;
+  onDelete: () => void;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const items = row.analysis?.editorials ?? [];
   const [dlBusy, setDlBusy] = useState<"md" | "pdf" | null>(null);
@@ -327,24 +491,41 @@ function EditorialCard({ row, onDelete }: { row: EditorialRow; onDelete: () => v
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card
+      className={
+        "overflow-hidden transition " +
+        (selected ? "ring-2 ring-indigo-400" : "")
+      }
+    >
       <div className="bg-gradient-to-r from-indigo-500/10 via-fuchsia-500/10 to-amber-500/10 p-4 sm:p-4">
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="flex w-full items-start justify-between gap-3 text-left"
-        >
-          <div className="min-w-0 flex-1">
+        <div className="flex w-full items-start gap-2 text-left">
+          {onToggleSelect && (
+            <button
+              onClick={onToggleSelect}
+              className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full border bg-background/60 text-muted-foreground hover:text-indigo-500"
+              aria-label={selected ? "Unselect" : "Select"}
+              title={selected ? "Unselect" : "Select"}
+            >
+              {selected ? <CheckSquare className="h-4 w-4 text-indigo-500" /> : <Square className="h-4 w-4" />}
+            </button>
+          )}
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left"
+          >
+            <div className="min-w-0 flex-1">
             <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:truncate sm:text-[11px]">
               {row.newspaper || "Newspaper"} · {row.edition_date || row.created_at?.slice(0, 10)}
             </div>
             <div className="mt-1 break-words font-serif text-[20px] font-bold leading-tight sm:mt-0 sm:truncate sm:text-lg sm:font-semibold">
               {row.source_label || "Editorial batch"} · {items.length} pieces
             </div>
-          </div>
-          <div className="shrink-0 rounded-full border bg-background/60 p-2 text-muted-foreground">
-            {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-          </div>
-        </button>
+            </div>
+            <div className="shrink-0 rounded-full border bg-background/60 p-2 text-muted-foreground">
+              {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </div>
+          </button>
+        </div>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
           <button
             onClick={downloadMd}
