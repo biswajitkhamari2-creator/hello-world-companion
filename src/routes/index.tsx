@@ -15,6 +15,14 @@ import { AppShell } from "@/components/app-shell";
 import { cn } from "@/lib/utils";
 import { getUpscNews, type NewsItem } from "@/lib/news.functions";
 import { getOdishaNews, extractPcsPoints, type OdishaNewsItem } from "@/lib/odisha-news.functions";
+import {
+  getArticleCrispNotes,
+  getArticleComprehensiveNotes,
+  type InstitutionCrispNotes,
+  type InstitutionComprehensiveNotes,
+} from "@/lib/institution-news.functions";
+import { CrispNotesView, ComprehensiveNotesView } from "@/components/notes-view";
+import { Wand2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 
 export const Route = createFileRoute("/")({
@@ -241,6 +249,12 @@ function UpscNews() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<"GS1" | "GS2" | "GS3" | "GS4">("GS1");
+  const [active, setActive] = useState<NewsItem | null>(null);
+  const [mode, setMode] = useState<"crisp" | "comprehensive">("crisp");
+  const [crisp, setCrisp] = useState<InstitutionCrispNotes | null>(null);
+  const [comprehensive, setComprehensive] = useState<InstitutionComprehensiveNotes | null>(null);
+  const [notesErr, setNotesErr] = useState<string | null>(null);
+  const [notesLoading, setNotesLoading] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -260,6 +274,50 @@ function UpscNews() {
       alive = false;
     };
   }, []);
+
+  async function openNotes(item: NewsItem, next: "crisp" | "comprehensive") {
+    setActive(item);
+    setMode(next);
+    setCrisp(null);
+    setComprehensive(null);
+    setNotesErr(null);
+    setNotesLoading(true);
+    try {
+      if (next === "crisp") {
+        const res = await getArticleCrispNotes({ data: { url: item.link, sourceLabel: item.source } });
+        setCrisp(res);
+      } else {
+        const res = await getArticleComprehensiveNotes({ data: { url: item.link, sourceLabel: item.source } });
+        setComprehensive(res);
+      }
+    } catch (e) {
+      setNotesErr(e instanceof Error ? e.message : "Could not generate notes");
+    } finally {
+      setNotesLoading(false);
+    }
+  }
+
+  async function switchMode(next: "crisp" | "comprehensive") {
+    if (!active || next === mode) return;
+    setMode(next);
+    if (next === "crisp" && crisp) return;
+    if (next === "comprehensive" && comprehensive) return;
+    setNotesErr(null);
+    setNotesLoading(true);
+    try {
+      if (next === "crisp") {
+        const res = await getArticleCrispNotes({ data: { url: active.link, sourceLabel: active.source } });
+        setCrisp(res);
+      } else {
+        const res = await getArticleComprehensiveNotes({ data: { url: active.link, sourceLabel: active.source } });
+        setComprehensive(res);
+      }
+    } catch (e) {
+      setNotesErr(e instanceof Error ? e.message : "Could not generate notes");
+    } finally {
+      setNotesLoading(false);
+    }
+  }
 
   const tabs: { key: "GS1" | "GS2" | "GS3" | "GS4"; label: string }[] = [
     { key: "GS1", label: "GS-I · History & Society" },
@@ -326,12 +384,9 @@ function UpscNews() {
       {!loading && !err && filtered.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((n) => (
-            <a
+            <div
               key={n.link}
-              href={n.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative block rounded-2xl border border-white/40 bg-white/60 p-4 shadow-[0_8px_30px_-12px_rgba(31,38,135,0.18)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(244,63,94,0.45)] dark:border-white/10 dark:bg-white/5"
+              className="group relative flex flex-col rounded-2xl border border-white/40 bg-white/60 p-4 shadow-[0_8px_30px_-12px_rgba(31,38,135,0.18)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(244,63,94,0.45)] dark:border-white/10 dark:bg-white/5"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -342,7 +397,9 @@ function UpscNews() {
                     {n.source}
                   </span>
                 </div>
-                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                <a href={n.link} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" title="Open source article">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
               </div>
               <h3 className="mt-2 font-serif text-[15px] font-semibold leading-snug text-foreground line-clamp-3">
                 {n.title}
@@ -350,8 +407,60 @@ function UpscNews() {
               {n.pubDate && (
                 <div className="mt-2 text-[11px] text-muted-foreground">{timeAgo(n.pubDate)}</div>
               )}
-            </a>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => openNotes(n, "crisp")}
+                  className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:brightness-110 active:scale-95"
+                >
+                  <Sparkles className="h-3 w-3" /> Crisp Notes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openNotes(n, "comprehensive")}
+                  className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-fuchsia-500 to-indigo-500 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:brightness-110 active:scale-95"
+                >
+                  <Wand2 className="h-3 w-3" /> Comprehensive
+                </button>
+              </div>
+            </div>
           ))}
+        </div>
+      )}
+
+      {active && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm" onClick={() => setActive(null)}>
+          <div className="relative my-6 w-full max-w-3xl rounded-2xl border border-border bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-t-2xl border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs uppercase tracking-wider text-muted-foreground">{active.source}</p>
+                <p className="truncate text-sm font-semibold">{active.title}</p>
+              </div>
+              <div className="inline-flex rounded-full border border-border p-0.5 text-xs">
+                <button onClick={() => switchMode("crisp")} className={`rounded-full px-2.5 py-1 font-medium transition ${mode === "crisp" ? "bg-emerald-500 text-white" : "text-muted-foreground"}`}>Crisp</button>
+                <button onClick={() => switchMode("comprehensive")} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium transition ${mode === "comprehensive" ? "bg-gradient-to-r from-fuchsia-500 to-indigo-500 text-white" : "text-muted-foreground"}`}>
+                  <Wand2 className="h-3 w-3" /> Comprehensive
+                </button>
+              </div>
+              <button type="button" onClick={() => setActive(null)} className="rounded-full p-1 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="max-h-[75vh] overflow-y-auto px-6 py-5">
+              {notesLoading && (
+                <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Generating syllabus-tagged notes…
+                </div>
+              )}
+              {notesErr && !notesLoading && (
+                <div className="rounded-lg border border-rose-300/40 bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
+                  {notesErr}
+                </div>
+              )}
+              {!notesLoading && !notesErr && mode === "crisp" && crisp && <CrispNotesView notes={crisp} />}
+              {!notesLoading && !notesErr && mode === "comprehensive" && comprehensive && <ComprehensiveNotesView notes={comprehensive} />}
+            </div>
+          </div>
         </div>
       )}
     </section>
