@@ -36,6 +36,7 @@ import {
   type EditorialItem,
 } from "@/lib/editorial-lab.functions";
 import { deleteInboxItem } from "@/lib/telegram-inbox.functions";
+import { deleteDocument } from "@/lib/documents.functions";
 
 export const Route = createFileRoute("/_authenticated/editorial-lab")({
   head: () => ({
@@ -57,6 +58,7 @@ function EditorialLabPage() {
   const analyse = useServerFn(analyseEditorialFromInbox);
   const remove = useServerFn(deleteEditorial);
   const removePdf = useServerFn(deleteInboxItem);
+  const removeDoc = useServerFn(deleteDocument);
   const qc = useQueryClient();
 
   const pdfsQ = useQuery({
@@ -88,7 +90,10 @@ function EditorialLabPage() {
   });
 
   const deletePdfMut = useMutation({
-    mutationFn: (itemId: string) => removePdf({ data: { itemId } }),
+    mutationFn: ({ id, source }: { id: string; source?: string }) =>
+      source === "documents"
+        ? removeDoc({ data: { id } })
+        : removePdf({ data: { itemId: id } }),
     onSuccess: () => {
       toast.success("Newspaper removed from inbox");
       qc.invalidateQueries({ queryKey: ["editorial-lab", "pdfs"] });
@@ -127,7 +132,15 @@ function EditorialLabPage() {
     if (!confirm(`Delete ${pdfSel.size} newspaper(s) from the Telegram inbox?`)) return;
     setBulkBusy(true);
     try {
-      await Promise.all(Array.from(pdfSel).map((id) => removePdf({ data: { itemId: id } })));
+      const pdfs = (pdfsQ.data ?? []) as any[];
+      await Promise.all(
+        Array.from(pdfSel).map((id) => {
+          const row = pdfs.find((p) => p.id === id);
+          return row?.source === "documents"
+            ? removeDoc({ data: { id } })
+            : removePdf({ data: { itemId: id } });
+        }),
+      );
       toast.success(`${pdfSel.size} newspaper(s) deleted`);
       setPdfSel(new Set());
       qc.invalidateQueries({ queryKey: ["editorial-lab", "pdfs"] });
@@ -227,7 +240,7 @@ function EditorialLabPage() {
               <div className="space-y-px border-y border-stone-200 bg-stone-200/80 dark:border-stone-800 dark:bg-stone-800/70">
                 {(pdfsQ.data ?? []).map((p: any) => {
                   const busy = analyseMut.isPending && analyseMut.variables === p.id;
-                  const delBusy = deletePdfMut.isPending && deletePdfMut.variables === p.id;
+                          const delBusy = deletePdfMut.isPending && (deletePdfMut.variables as any)?.id === p.id;
                   const selected = pdfSel.has(p.id);
                   return (
                     <div
@@ -266,9 +279,9 @@ function EditorialLabPage() {
                             {p.file_name || p.caption || "Newspaper"}
                           </h3>
                           <button
-                            onClick={() => {
-                              if (confirm("Delete this newspaper from the Telegram inbox?")) {
-                                deletePdfMut.mutate(p.id);
+                             onClick={() => {
+                              if (confirm("Delete this newspaper?")) {
+                                deletePdfMut.mutate({ id: p.id, source: p.source });
                               }
                             }}
                             disabled={delBusy}
