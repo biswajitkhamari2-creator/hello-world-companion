@@ -80,7 +80,7 @@ export const searchNewsArchive = createServerFn({ method: "GET" })
           to: z.string().optional(),
           gs: z.enum(["GS1", "GS2", "GS3", "GS4", "General", "all"]).optional(),
           q: z.string().max(200).optional(),
-          limit: z.number().int().min(1).max(500).optional(),
+          limit: z.number().int().min(1).max(2000).optional(),
         })
         .optional()
         .parse(input),
