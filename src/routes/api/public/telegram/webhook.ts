@@ -48,6 +48,102 @@ function extractUrls(text: string): string[] {
   return Array.from(new Set(text.match(re) ?? []));
 }
 
+/** Extract a Google Drive file id from any share URL. Returns null if not a Drive file link. */
+function extractDriveFileId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)google\.com$/.test(u.hostname) && !/(^|\.)googleusercontent\.com$/.test(u.hostname)) return null;
+    // /file/d/{id}/... or /d/{id}
+    const m = u.pathname.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{20,})/);
+    if (m) return m[1];
+    // ?id={id}  (open?id=, uc?id=)
+    const idParam = u.searchParams.get("id");
+    if (idParam && /^[a-zA-Z0-9_-]{20,}$/.test(idParam)) return idParam;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function handleDrivePdfLink(url: string, driveId: string, base: {
+  chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
+}) {
+  try {
+    const { getDriveFileMetadata, downloadDriveFile, uploadBufferToDrive } = await import("@/lib/gdrive.server");
+    const meta = await getDriveFileMetadata(driveId);
+    const isPdf = (meta.mimeType || "").includes("pdf") || (meta.name || "").toLowerCase().endsWith(".pdf");
+    if (!isPdf) {
+      // Not a PDF — save as a plain link so the user can still open it.
+      await handleLink(url, base);
+      return;
+    }
+    const fileName = meta.name || `drive-${driveId}.pdf`;
+    // Duplicate guard on file name + size.
+    if (INBOX_OWNER_USER_ID && meta.size) {
+      const admin = await getAdmin();
+      const { data: dupe } = await admin
+        .from("documents")
+        .select("id")
+        .eq("user_id", INBOX_OWNER_USER_ID)
+        .eq("file_name", fileName)
+        .eq("size_bytes", meta.size)
+        .limit(1)
+        .maybeSingle();
+      if (dupe) {
+        await upsertInbox({
+          chat_id: base.chat_id, message_id: base.message_id, kind: "pdf",
+          caption: base.caption, posted_at: base.posted_at,
+          file_name: fileName, mime: meta.mimeType, size_bytes: meta.size,
+          status: "duplicate", error_message: "Duplicate file — already imported.",
+          source_url: url, raw: base.raw as any,
+        });
+        return;
+      }
+    }
+    const { buffer } = await downloadDriveFile(driveId);
+    const { bytes: shrunk } = await shrinkPdf(buffer);
+    const up = await uploadBufferToDrive({
+      userId: SHARED_OWNER,
+      fileName,
+      mime: meta.mimeType || "application/pdf",
+      data: shrunk,
+    });
+    if (INBOX_OWNER_USER_ID) {
+      const admin = await getAdmin();
+      await admin.from("documents").insert({
+        user_id: INBOX_OWNER_USER_ID,
+        title: base.caption || fileName,
+        file_name: fileName,
+        mime: up.mimeType,
+        size_bytes: up.size,
+        source_type: "telegram",
+        status: "uploaded",
+        storage_provider: "google_drive",
+        drive_file_id: up.fileId,
+        drive_view_link: up.webViewLink,
+      });
+    }
+    await upsertInbox({
+      chat_id: base.chat_id, message_id: base.message_id, kind: "pdf",
+      caption: base.caption, posted_at: base.posted_at,
+      file_name: fileName, mime: up.mimeType, size_bytes: up.size,
+      drive_file_id: up.fileId, drive_view_link: up.webViewLink,
+      source_url: url, status: "ready", raw: base.raw as any,
+    });
+  } catch (e) {
+    console.error("[telegram drive-link import]", e);
+    const msg = (e as Error).message || "";
+    const friendly = /not found|permission|403|404/i.test(msg)
+      ? "Cannot access this Drive file. Share it as 'Anyone with the link — Viewer', then resend."
+      : msg;
+    await upsertInbox({
+      chat_id: base.chat_id, message_id: base.message_id, kind: "pdf",
+      caption: base.caption, posted_at: base.posted_at,
+      source_url: url, status: "failed", error_message: friendly, raw: base.raw as any,
+    });
+  }
+}
+
 async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?: string; file_size?: number }, base: {
   chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
 }) {
@@ -266,7 +362,13 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             const urls = extractUrls(msg.text);
             if (urls.length) {
               for (const u of urls) {
-                await handleLink(u, { ...base, message_id: base.message_id + Math.floor(Math.random() * 1000) });
+                const perLinkBase = { ...base, message_id: base.message_id + Math.floor(Math.random() * 1000) };
+                const driveId = extractDriveFileId(u);
+                if (driveId) {
+                  await handleDrivePdfLink(u, driveId, perLinkBase);
+                } else {
+                  await handleLink(u, perLinkBase);
+                }
               }
             }
           }
