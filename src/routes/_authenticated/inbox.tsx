@@ -382,6 +382,19 @@ function InboxPage() {
                         )}
                         Import
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-rose-300 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                        onClick={() => {
+                          if (confirm("Delete this inbox item permanently?")) deleteMut.mutate(it.id);
+                        }}
+                        disabled={deleteMut.isPending}
+                        aria-label="Delete"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
+                      </Button>
                       {it.kind === "pdf" && (
                         <>
                           <Button
