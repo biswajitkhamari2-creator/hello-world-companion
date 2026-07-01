@@ -30,6 +30,7 @@ import {
   User,
   Settings,
   Menu,
+  GraduationCap,
 } from "lucide-react";
 import {
   Sidebar,
@@ -67,6 +68,7 @@ const NAV_GROUPS: NavGroup[] = [
       { title: "AI Newspaper", url: "/dashboard?mode=newspaper", icon: Newspaper },
       { title: "Telegram Inbox", url: "/inbox", icon: Inbox },
       { title: "PDF Library", url: "/dashboard?tab=library", icon: FolderOpen },
+      { title: "Institution Engine", url: "/institution", icon: GraduationCap, badge: "New" },
     ],
   },
   {
