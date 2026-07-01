@@ -14,10 +14,14 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiMentorRouteImport } from './routes/api/mentor'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedMocksRouteImport } from './routes/_authenticated/mocks'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedEditorialRouteImport } from './routes/_authenticated/editorial'
+import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedBookmarksRouteImport } from './routes/_authenticated/bookmarks'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiOauthGoogleStartRouteImport } from './routes/api/oauth/google/start'
 import { Route as ApiOauthGoogleCallbackRouteImport } from './routes/api/oauth/google/callback'
@@ -46,6 +50,16 @@ const ApiMentorRoute = ApiMentorRouteImport.update({
   path: '/api/mentor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMocksRoute = AuthenticatedMocksRouteImport.update({
+  id: '/mocks',
+  path: '/mocks',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMentorRoute = AuthenticatedMentorRouteImport.update({
   id: '/mentor',
   path: '/mentor',
@@ -61,9 +75,19 @@ const AuthenticatedEditorialRoute = AuthenticatedEditorialRouteImport.update({
   path: '/editorial',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDownloadsRoute = AuthenticatedDownloadsRouteImport.update({
+  id: '/downloads',
+  path: '/downloads',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBookmarksRoute = AuthenticatedBookmarksRouteImport.update({
+  id: '/bookmarks',
+  path: '/bookmarks',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const ApiPublicTelegramWebhookRoute =
@@ -87,10 +111,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/bookmarks': typeof AuthenticatedBookmarksRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/downloads': typeof AuthenticatedDownloadsRoute
   '/editorial': typeof AuthenticatedEditorialRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/mentor': typeof AuthenticatedMentorRoute
+  '/mocks': typeof AuthenticatedMocksRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
@@ -100,10 +128,14 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/bookmarks': typeof AuthenticatedBookmarksRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/downloads': typeof AuthenticatedDownloadsRoute
   '/editorial': typeof AuthenticatedEditorialRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/mentor': typeof AuthenticatedMentorRoute
+  '/mocks': typeof AuthenticatedMocksRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
@@ -115,10 +147,14 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/_authenticated/bookmarks': typeof AuthenticatedBookmarksRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/downloads': typeof AuthenticatedDownloadsRoute
   '/_authenticated/editorial': typeof AuthenticatedEditorialRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
+  '/_authenticated/mocks': typeof AuthenticatedMocksRoute
+  '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
@@ -130,10 +166,14 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/sitemap.xml'
+    | '/bookmarks'
     | '/dashboard'
+    | '/downloads'
     | '/editorial'
     | '/inbox'
     | '/mentor'
+    | '/mocks'
+    | '/profile'
     | '/api/mentor'
     | '/api/oauth/google/callback'
     | '/api/oauth/google/start'
@@ -143,10 +183,14 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/sitemap.xml'
+    | '/bookmarks'
     | '/dashboard'
+    | '/downloads'
     | '/editorial'
     | '/inbox'
     | '/mentor'
+    | '/mocks'
+    | '/profile'
     | '/api/mentor'
     | '/api/oauth/google/callback'
     | '/api/oauth/google/start'
@@ -157,10 +201,14 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/sitemap.xml'
+    | '/_authenticated/bookmarks'
     | '/_authenticated/dashboard'
+    | '/_authenticated/downloads'
     | '/_authenticated/editorial'
     | '/_authenticated/inbox'
     | '/_authenticated/mentor'
+    | '/_authenticated/mocks'
+    | '/_authenticated/profile'
     | '/api/mentor'
     | '/api/oauth/google/callback'
     | '/api/oauth/google/start'
@@ -215,6 +263,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMentorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mocks': {
+      id: '/_authenticated/mocks'
+      path: '/mocks'
+      fullPath: '/mocks'
+      preLoaderRoute: typeof AuthenticatedMocksRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/mentor': {
       id: '/_authenticated/mentor'
       path: '/mentor'
@@ -236,11 +298,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEditorialRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/downloads': {
+      id: '/_authenticated/downloads'
+      path: '/downloads'
+      fullPath: '/downloads'
+      preLoaderRoute: typeof AuthenticatedDownloadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/bookmarks': {
+      id: '/_authenticated/bookmarks'
+      path: '/bookmarks'
+      fullPath: '/bookmarks'
+      preLoaderRoute: typeof AuthenticatedBookmarksRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/public/telegram/webhook': {
@@ -268,17 +344,25 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedBookmarksRoute: typeof AuthenticatedBookmarksRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDownloadsRoute: typeof AuthenticatedDownloadsRoute
   AuthenticatedEditorialRoute: typeof AuthenticatedEditorialRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
+  AuthenticatedMocksRoute: typeof AuthenticatedMocksRoute
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedBookmarksRoute: AuthenticatedBookmarksRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDownloadsRoute: AuthenticatedDownloadsRoute,
   AuthenticatedEditorialRoute: AuthenticatedEditorialRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
+  AuthenticatedMocksRoute: AuthenticatedMocksRoute,
+  AuthenticatedProfileRoute: AuthenticatedProfileRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

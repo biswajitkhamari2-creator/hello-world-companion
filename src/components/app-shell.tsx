@@ -29,7 +29,6 @@ import {
   Bookmark,
   User,
   Settings,
-  Shield,
   Menu,
 } from "lucide-react";
 import {
@@ -89,22 +88,21 @@ const NAV_GROUPS: NavGroup[] = [
       { title: "Editorial Analyser", url: "/editorial", icon: FileEdit },
       { title: "Daily Revision", url: "/dashboard?tab=revision", icon: Repeat },
       { title: "Study Planner", url: "/dashboard?tab=planner", icon: CalendarRange },
-      { title: "Mock Tests", url: "/dashboard?tab=mocks", icon: ClipboardCheck },
+      { title: "Mock Tests", url: "/mocks", icon: ClipboardCheck },
     ],
   },
   {
     label: "Account",
     items: [
-      { title: "Downloads", url: "/dashboard?tab=downloads", icon: Download },
-      { title: "Bookmarks", url: "/dashboard?tab=bookmarks", icon: Bookmark },
-      { title: "Profile", url: "/dashboard?tab=profile", icon: User },
+      { title: "Downloads", url: "/downloads", icon: Download },
+      { title: "Bookmarks", url: "/bookmarks", icon: Bookmark },
+      { title: "Profile", url: "/profile", icon: User },
       { title: "Settings", url: "/dashboard?tab=settings", icon: Settings },
-      { title: "Admin Panel", url: "/dashboard?tab=admin", icon: Shield, badge: "Admin" },
     ],
   },
 ];
 
-function SidebarNavLink({ item, active }: { item: NavItem; active: boolean }) {
+function SidebarNavLink({ item, active, index = 0 }: { item: NavItem; active: boolean; index?: number }) {
   const { isMobile, setOpenMobile } = useSidebar();
   const [path, query] = item.url.split("?");
   const search: Record<string, string> = {};
@@ -112,14 +110,17 @@ function SidebarNavLink({ item, active }: { item: NavItem; active: boolean }) {
     for (const [k, v] of new URLSearchParams(query)) search[k] = v;
   }
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem
+      className="animate-fade-in"
+      style={{ animationDelay: `${index * 40}ms`, animationFillMode: "both" }}
+    >
       <SidebarMenuButton
         asChild
         isActive={active}
         tooltip={item.title}
         className={cn(
           "group/nav rounded-lg transition-all duration-200",
-          "hover:translate-x-0.5 hover:bg-sidebar-accent/80",
+          "hover:translate-x-1 hover:bg-sidebar-accent/80 hover:shadow-sm",
           active &&
             "bg-gradient-to-r from-indigo-500/15 via-fuchsia-500/10 to-amber-400/10 text-foreground shadow-sm",
         )}
@@ -132,13 +133,13 @@ function SidebarNavLink({ item, active }: { item: NavItem; active: boolean }) {
         >
           <span
             className={cn(
-              "grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors",
+              "grid h-7 w-7 shrink-0 place-items-center rounded-md transition-all duration-300 group-hover/nav:scale-110 group-hover/nav:rotate-3",
               active
                 ? "bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-md"
                 : "bg-sidebar-accent/60 text-foreground/70 group-hover/nav:text-foreground",
             )}
           >
-            <item.icon className="h-4 w-4" />
+            <item.icon className={cn("h-4 w-4 transition-transform", active && "animate-pulse")} />
           </span>
           <span className="truncate text-[13.5px] font-medium">{item.title}</span>
           {item.badge ? (
@@ -169,10 +170,11 @@ function AppSidebar() {
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.map((it) => (
+                {group.items.map((it, i) => (
                   <SidebarNavLink
                     key={it.title}
                     item={it}
+                    index={i}
                     active={pathname === it.url || pathname === it.url.split("?")[0]}
                   />
                 ))}
