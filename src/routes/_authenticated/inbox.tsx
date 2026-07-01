@@ -202,11 +202,14 @@ function InboxPage() {
 
         <main className="relative z-10 mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         <header className="flex flex-wrap items-end justify-between gap-3 mb-5">
-          <div>
-            <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-indigo-900 flex items-center gap-2">
-              <InboxIcon className="h-6 w-6" /> Telegram Inbox
+          <div className="rounded-2xl bg-white/40 backdrop-blur-xl border border-white/60 shadow-lg px-4 py-3">
+            <h1 className="font-serif text-2xl sm:text-3xl font-bold flex items-center gap-2 bg-gradient-to-r from-indigo-700 via-sky-600 to-amber-600 bg-clip-text text-transparent">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-sky-500 text-white shadow-md">
+                <InboxIcon className="h-5 w-5" />
+              </span>
+              Telegram Inbox
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-indigo-900/70 mt-1">
               Auto-syncs every PDF, image, and link posted in your Sidheswar Civil Mentor channel.
             </p>
           </div>
@@ -214,12 +217,13 @@ function InboxPage() {
             <Button
               variant={showArchived ? "default" : "outline"}
               size="sm"
+              className="rounded-full shadow-sm"
               onClick={() => setShowArchived((v) => !v)}
             >
               <Archive className="h-4 w-4 mr-1.5" />
               {showArchived ? "Showing archived" : "Show archived"}
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => q.refetch()} disabled={q.isFetching}>
+            <Button variant="ghost" size="sm" className="rounded-full bg-white/50 backdrop-blur hover:bg-white/70" onClick={() => q.refetch()} disabled={q.isFetching}>
               <RefreshCw className={`h-4 w-4 ${q.isFetching ? "animate-spin" : ""}`} />
             </Button>
           </div>
@@ -312,16 +316,38 @@ function InboxPage() {
             {filteredItems.map((it) => (
               <li
                 key={it.id}
-                className="rounded-xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50/80 via-sky-50/70 to-amber-50/60 backdrop-blur-md p-4 shadow-sm hover:from-indigo-100/80 hover:via-sky-100/70 hover:to-amber-100/60 transition-colors"
+                className="group relative rounded-2xl border border-white/60 bg-white/55 backdrop-blur-xl p-4 shadow-lg ring-1 ring-indigo-100/40 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:ring-indigo-300/60 overflow-hidden"
               >
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-indigo-100/40 via-sky-100/30 to-amber-100/40 opacity-70 group-hover:opacity-100 transition-opacity"
+                />
+                <span
+                  aria-hidden
+                  className={`pointer-events-none absolute left-0 top-0 h-full w-1.5 rounded-l-2xl ${
+                    it.kind === "pdf"
+                      ? "bg-gradient-to-b from-rose-400 to-rose-600"
+                      : it.kind === "image"
+                      ? "bg-gradient-to-b from-emerald-400 to-emerald-600"
+                      : "bg-gradient-to-b from-sky-400 to-sky-600"
+                  }`}
+                />
                 <div className="flex items-start gap-3">
-                  <div className="shrink-0 mt-0.5">
+                  <div
+                    className={`shrink-0 mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-md ${
+                      it.kind === "pdf"
+                        ? "bg-gradient-to-br from-rose-500 to-rose-700"
+                        : it.kind === "image"
+                        ? "bg-gradient-to-br from-emerald-500 to-emerald-700"
+                        : "bg-gradient-to-br from-sky-500 to-sky-700"
+                    }`}
+                  >
                     {it.kind === "pdf" ? (
-                      <FileText className="h-6 w-6 text-rose-600" />
+                      <FileText className="h-5 w-5" />
                     ) : it.kind === "image" ? (
-                      <ImageIcon className="h-6 w-6 text-emerald-600" />
+                      <ImageIcon className="h-5 w-5" />
                     ) : (
-                      <LinkIcon className="h-6 w-6 text-sky-600" />
+                      <LinkIcon className="h-5 w-5" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
