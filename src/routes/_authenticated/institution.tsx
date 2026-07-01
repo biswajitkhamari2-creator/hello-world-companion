@@ -2,10 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { GraduationCap, CalendarDays, CalendarRange, Download, ExternalLink, Loader2, RefreshCcw, X, Sparkles, BookOpen, Wand2, ChevronDown } from "lucide-react";
+import { GraduationCap, CalendarDays, CalendarRange, Download, ExternalLink, Loader2, RefreshCcw, X, Sparkles, BookOpen, Wand2, ChevronDown, CalendarIcon } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import {
   getInstitutionNews,
   getInstitutionArticle,
@@ -148,6 +152,7 @@ function InstitutionPage() {
   const [showFull, setShowFull] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [downloading, setDownloading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const printRef = useRef<HTMLDivElement | null>(null);
 
   const q = useQuery({
@@ -195,7 +200,18 @@ function InstitutionPage() {
       list.push(it);
       map.set(it.date, list);
     }
-    return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+    let entries = Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+    if (selectedDate) {
+      const key = format(selectedDate, "yyyy-MM-dd");
+      entries = entries.filter(([d]) => d === key);
+    }
+    return entries;
+  }, [items, selectedDate]);
+
+  const availableDates = useMemo(() => {
+    const s = new Set<string>();
+    for (const it of items) s.add(it.date);
+    return s;
   }, [items]);
 
   function openArticle(it: InstitutionItem, initialMode: "crisp" | "comprehensive" = "crisp") {
@@ -279,6 +295,40 @@ function InstitutionPage() {
           >
             <CalendarRange className="h-3.5 w-3.5" /> Weekly Focus
           </button>
+        </div>
+
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn("gap-1.5", !selectedDate && "text-muted-foreground")}
+              >
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {selectedDate ? format(selectedDate, "PPP") : "Filter by date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                initialFocus
+                modifiers={{ hasNews: (d) => availableDates.has(format(d, "yyyy-MM-dd")) }}
+                modifiersClassNames={{ hasNews: "font-bold text-emerald-600 dark:text-emerald-400 underline underline-offset-2" }}
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+          {selectedDate && (
+            <Button variant="ghost" size="sm" className="gap-1" onClick={() => setSelectedDate(undefined)}>
+              <X className="h-3.5 w-3.5" /> Clear
+            </Button>
+          )}
+          <span className="text-xs text-muted-foreground">
+            {selectedDate ? `Showing ${grouped.reduce((n, [, l]) => n + l.length, 0)} items` : `${availableDates.size} dates available`}
+          </span>
         </div>
 
         {q.isLoading && (
