@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import {
   Sparkles,
@@ -12,11 +13,12 @@ import {
   Landmark,
   Loader2,
   X,
+  ArrowRight,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { cn } from "@/lib/utils";
 import { getUpscNews, type NewsItem } from "@/lib/news.functions";
-import { getOdishaNews, extractPcsPoints, type OdishaNewsItem } from "@/lib/odisha-news.functions";
+import { getOdishaNews, type OdishaNewsItem } from "@/lib/odisha-news.functions";
 import {
   getArticleCrispNotes,
   getArticleComprehensiveNotes,
@@ -169,13 +171,13 @@ function Landing() {
         <AuroraBackdrop />
         <main className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:py-14">
           <Hero />
+          <PcsDigestPreview />
           <section id="features"><FeaturesGrid /></section>
           <section id="demo"><ChatDemoSection /></section>
           <section id="roadmap"><RoadmapSection /></section>
           <section id="tools"><ToolsGrid /></section>
           <CountersSection />
           <UpscNews />
-          <OdishaPcsDigest />
           <Testimonials />
           <section id="pricing"><Pricing /></section>
           <Faq />
@@ -505,166 +507,100 @@ function UpscNews() {
 
 // ---------------- Odisha PCS Digest ----------------
 
-function OdishaPcsDigest() {
+function PcsDigestPreview() {
   const [items, setItems] = useState<OdishaNewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [active, setActive] = useState<OdishaNewsItem | null>(null);
-  const [extract, setExtract] = useState<string>("");
-  const [extracting, setExtracting] = useState(false);
-  const [extractErr, setExtractErr] = useState<string | null>(null);
-  const [tab, setTab] = useState<string>("All");
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const res = await getOdishaNews();
-        if (!alive) return;
-        setItems(res.items);
+        if (alive) setItems(res.items);
       } catch (e) {
         if (alive) setErr(e instanceof Error ? e.message : "Failed to load");
       } finally {
         if (alive) setLoading(false);
       }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, []);
 
-  async function runExtract(item: OdishaNewsItem) {
-    setActive(item);
-    setExtract("");
-    setExtractErr(null);
-    setExtracting(true);
-    try {
-      const res = await extractPcsPoints({ data: { url: item.link, title: item.title } });
-      setExtract(res.markdown);
-    } catch (e) {
-      setExtractErr(e instanceof Error ? e.message : "Extraction failed");
-    } finally {
-      setExtracting(false);
-    }
-  }
+  useEffect(() => {
+    const el = document.getElementById("pcs-digest-preview");
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && setVisible(true)),
+      { threshold: 0.12 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  const top3 = items.slice(0, 3);
 
   return (
-    <section className="mt-14">
-      <div className="mb-5">
-        <h2 className="flex items-center gap-2 font-serif text-2xl font-semibold tracking-tight sm:text-3xl">
-          <Landmark className="h-6 w-6 text-emerald-500" />
-          Odisha PCS Digest
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Live from <span className="font-semibold">Sambad</span> & Odisha news. Click <span className="font-semibold text-emerald-600">Extract PCS Points</span> to get exam-ready notes with MCQs.
-        </p>
+    <section
+      id="pcs-digest-preview"
+      className={`mt-10 transition-all duration-700 ease-out ${visible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}
+    >
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 font-serif text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            <Landmark className="h-6 w-6 text-emerald-400" />
+            National News · PCS Digest
+          </h2>
+          <p className="mt-1 text-sm text-white/60">Latest 3 syllabus-mapped headlines from across the country.</p>
+        </div>
+        <Link
+          to="/pcs-digest"
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-xs font-semibold text-white backdrop-blur transition-all hover:bg-white/10"
+        >
+          View All National News <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
 
       {loading && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-28 animate-pulse rounded-2xl bg-white/40 backdrop-blur dark:bg-white/5" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-2xl bg-white/5 backdrop-blur" />
           ))}
         </div>
       )}
 
       {err && !loading && (
-        <div className="rounded-2xl border border-rose-300/40 bg-rose-50/60 p-4 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
-          Couldn't load Odisha news. {err}
+        <div className="rounded-2xl border border-rose-300/40 bg-rose-500/10 p-4 text-sm text-rose-200">
+          Couldn't load PCS Digest. {err}
         </div>
       )}
 
-      {!loading && !err && items.length > 0 && (
-        <>
-        <div className="mb-4 flex flex-wrap gap-2">
-          {(["All", ...Array.from(new Set(items.map((i) => i.category)))]).map((c) => {
-            const count = c === "All" ? items.length : items.filter((i) => i.category === c).length;
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setTab(c)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${tab === c ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow" : "border border-border/60 bg-background/60 text-muted-foreground hover:text-foreground"}`}
-              >
-                {c} <span className="opacity-70">· {count}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {items.filter((n) => tab === "All" || n.category === tab).slice(0, 14).map((n) => (
-            <div
+      {!loading && !err && top3.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {top3.map((n) => (
+            <Link
               key={n.link}
-              className="group relative rounded-2xl border border-white/40 bg-white/60 p-4 shadow-[0_8px_30px_-12px_rgba(31,38,135,0.18)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(16,185,129,0.45)] dark:border-white/10 dark:bg-white/5"
+              to="/pcs-digest"
+              className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-emerald-400/40 hover:bg-white/[0.07] hover:shadow-[0_20px_50px_-18px_rgba(16,185,129,0.55)]"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="inline-flex items-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
-                    {n.category}
-                  </span>
-                  <span className="inline-flex items-center rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    {n.source}
-                  </span>
-                </div>
-                <a href={n.link} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" title="Open source">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                  {n.category}
+                </span>
+                <span className="text-[10px] uppercase tracking-wider text-white/50">{n.source}</span>
               </div>
-              <h3 className="mt-2 font-serif text-[15px] font-semibold leading-snug text-foreground line-clamp-3">{n.title}</h3>
-              {n.pubDate && <div className="mt-1 text-[11px] text-muted-foreground">{timeAgo(n.pubDate)}</div>}
-              <button
-                type="button"
-                onClick={() => runExtract(n)}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white shadow-md transition-all hover:brightness-110 active:scale-95"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Extract PCS Points
-              </button>
-            </div>
+              <h3 className="mt-3 font-serif text-[15px] font-semibold leading-snug text-white line-clamp-3">
+                {n.title}
+              </h3>
+              <div className="mt-auto flex items-center justify-between pt-3 text-[11px] text-white/50">
+                <span>{n.pubDate ? timeAgo(n.pubDate) : ""}</span>
+                <span className="inline-flex items-center gap-1 text-emerald-300 opacity-0 transition-opacity group-hover:opacity-100">
+                  Read <ArrowRight className="h-3 w-3" />
+                </span>
+              </div>
+            </Link>
           ))}
-        </div>
-        </>
-      )}
-
-      {active && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setActive(null)}>
-          <div
-            className="relative max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-white/20 bg-white shadow-2xl dark:bg-neutral-900"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3 border-b border-border/50 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-4">
-              <div className="min-w-0">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">PCS Digest · {active.source}</div>
-                <h4 className="mt-1 font-serif text-base font-semibold leading-snug line-clamp-2">{active.title}</h4>
-              </div>
-              <button type="button" onClick={() => setActive(null)} className="rounded-full p-1 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="max-h-[65vh] overflow-y-auto p-5 text-sm">
-              {extracting && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Extracting exam-ready points…
-                </div>
-              )}
-              {extractErr && !extracting && (
-                <div className="rounded-lg border border-rose-300/40 bg-rose-50 p-3 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
-                  {extractErr}
-                </div>
-              )}
-              {!extracting && extract && (
-                <pre className="whitespace-pre-wrap font-sans leading-relaxed text-foreground">{extract}</pre>
-              )}
-            </div>
-            <div className="flex items-center justify-between border-t border-border/50 p-3">
-              <a href={active.link} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-emerald-600 hover:underline">
-                Open original article →
-              </a>
-              <button type="button" onClick={() => setActive(null)} className="rounded-full bg-foreground/90 px-3 py-1.5 text-xs font-semibold text-background hover:bg-foreground">
-                Close
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </section>
