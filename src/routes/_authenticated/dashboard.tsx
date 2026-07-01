@@ -821,7 +821,7 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
               ))}
             </div>
           )}
-          {pending && nonInfo.includes(pending as OutputType) && progress && (
+          {pending && pending !== "infographics" && pending !== "newspaper" && nonInfo.includes(pending as (typeof nonInfo)[number]) && progress && (
             <div className="mt-3 space-y-1.5 rounded-lg border border-border bg-muted/40 p-3">
               <div className="flex items-center justify-between text-xs font-medium">
                 <span>Generating {OUTPUT_LABELS[pending as OutputType]?.label ?? pending}…</span>
