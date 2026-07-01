@@ -235,6 +235,7 @@ function UpscNews() {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [tab, setTab] = useState<"GS1" | "GS2" | "GS3" | "GS4">("GS1");
 
   useEffect(() => {
     let alive = true;
@@ -255,6 +256,14 @@ function UpscNews() {
     };
   }, []);
 
+  const tabs: { key: "GS1" | "GS2" | "GS3" | "GS4"; label: string }[] = [
+    { key: "GS1", label: "GS-I · History & Society" },
+    { key: "GS2", label: "GS-II · Polity & IR" },
+    { key: "GS3", label: "GS-III · Economy, Env, S&T" },
+    { key: "GS4", label: "GS-IV · Ethics" },
+  ];
+  const filtered = items.filter((n) => n.gs === tab);
+
   return (
     <section className="mt-14">
       <div className="mb-5 flex items-end justify-between">
@@ -263,8 +272,30 @@ function UpscNews() {
             <Newspaper className="h-6 w-6 text-rose-500" />
             UPSC News · Today
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">Live headlines relevant to your prep.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Live headlines mapped to GS papers.</p>
         </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {tabs.map((t) => {
+          const active = tab === t.key;
+          const count = items.filter((n) => n.gs === t.key).length;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
+                active
+                  ? "border-transparent bg-gradient-to-r from-rose-500 to-amber-500 text-white shadow-md"
+                  : "border-white/40 bg-white/60 text-foreground/70 backdrop-blur hover:bg-white/80 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+              }`}
+            >
+              {t.label}
+              <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] ${active ? "bg-white/20" : "bg-foreground/10"}`}>{count}</span>
+            </button>
+          );
+        })}
       </div>
 
       {loading && (
@@ -281,9 +312,15 @@ function UpscNews() {
         </div>
       )}
 
-      {!loading && !err && items.length > 0 && (
+      {!loading && !err && filtered.length === 0 && (
+        <div className="rounded-2xl border border-white/40 bg-white/60 p-6 text-center text-sm text-muted-foreground backdrop-blur dark:border-white/10 dark:bg-white/5">
+          No {tab} headlines right now. Try another paper.
+        </div>
+      )}
+
+      {!loading && !err && filtered.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((n) => (
+          {filtered.map((n) => (
             <a
               key={n.link}
               href={n.link}
@@ -292,9 +329,14 @@ function UpscNews() {
               className="group relative block rounded-2xl border border-white/40 bg-white/60 p-4 shadow-[0_8px_30px_-12px_rgba(31,38,135,0.18)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(244,63,94,0.45)] dark:border-white/10 dark:bg-white/5"
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="inline-flex items-center rounded-full bg-gradient-to-r from-rose-500 to-amber-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
-                  {n.source}
-                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                    {n.gs}
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-gradient-to-r from-rose-500 to-amber-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                    {n.source}
+                  </span>
+                </div>
                 <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
               </div>
               <h3 className="mt-2 font-serif text-[15px] font-semibold leading-snug text-foreground line-clamp-3">

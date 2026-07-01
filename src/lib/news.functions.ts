@@ -5,6 +5,7 @@ export interface NewsItem {
   link: string;
   source: string;
   pubDate: string;
+  gs: "GS1" | "GS2" | "GS3" | "GS4";
 }
 
 const FEEDS: { url: string; source: string }[] = [
@@ -19,8 +20,8 @@ function pick(xml: string, tag: string): string {
   return m[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim();
 }
 
-function parseRss(xml: string, source: string): NewsItem[] {
-  const items: NewsItem[] = [];
+function parseRss(xml: string, source: string): Omit<NewsItem, "gs">[] {
+  const items: Omit<NewsItem, "gs">[] = [];
   const matches = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
   for (const raw of matches) {
     const title = pick(raw, "title");
@@ -32,6 +33,31 @@ function parseRss(xml: string, source: string): NewsItem[] {
 }
 
 const UPSC_KEYWORDS = /\b(upsc|ias|civil services|prelims|mains|gs[- ]?[i1-4]|parliament|supreme court|constitution|policy|scheme|sc\/st|governance|economy|budget|monsoon|isro|drdo|defence|geopolitic|un[a-z]*|g20|brics|climate|biodiversity|environment|ministry|cabinet|niti aayog|rbi|inflation|gdp|census)\b/i;
+
+// GS syllabus classifiers (order matters — GS4 first as it's most specific)
+const GS_RULES: { gs: NewsItem["gs"]; re: RegExp }[] = [
+  {
+    gs: "GS4",
+    re: /\b(ethic|integrity|moral|corrupt|probity|conduct|accountab|transparen|whistleblow|conflict of interest)\b/i,
+  },
+  {
+    gs: "GS3",
+    re: /\b(econom|budget|gdp|inflation|rbi|fiscal|tax|gst|agricultur|farmer|msp|environment|climate|biodivers|pollut|forest|wildlife|disaster|flood|earthquake|cyclone|science|technolog|isro|drdo|defence|defense|security|cyber|terror|naxal|infrastructur|energy|renewable|space|semiconductor|ai\b|artificial intelligence)\b/i,
+  },
+  {
+    gs: "GS2",
+    re: /\b(polit|constitution|parliament|supreme court|high court|governance|ministry|cabinet|niti aayog|scheme|policy|welfare|education|health|bilateral|diplomacy|foreign|treaty|un\b|united nations|g20|brics|sco|quad|saarc|neighbour|china|pakistan|usa|russia|election|bill\b|act\b|amendment|judiciary|federal|panchayat|rti|cag)\b/i,
+  },
+  {
+    gs: "GS1",
+    re: /\b(history|heritage|culture|art\b|monument|archaeolog|geograph|society|women|gender|caste|tribal|population|urbanis|migration|festival|dance|music|architectur|ancient|medieval|freedom struggle)\b/i,
+  },
+];
+
+function classifyGs(title: string): NewsItem["gs"] | null {
+  for (const r of GS_RULES) if (r.re.test(title)) return r.gs;
+  return null;
+}
 
 export const getUpscNews = createServerFn({ method: "GET" }).handler(async () => {
   const results = await Promise.allSettled(
@@ -45,13 +71,17 @@ export const getUpscNews = createServerFn({ method: "GET" }).handler(async () =>
       return parseRss(xml, f.source);
     }),
   );
-  const all: NewsItem[] = [];
+  const all: Omit<NewsItem, "gs">[] = [];
   for (const r of results) if (r.status === "fulfilled") all.push(...r.value);
 
-  // Filter The Hindu / PIB to UPSC-relevant only (Google News query already scoped)
-  const filtered = all.filter((it) =>
-    it.source === "Google News" ? true : UPSC_KEYWORDS.test(it.title),
-  );
+  // Filter to UPSC-relevant AND classifiable into GS1–GS4
+  const filtered: NewsItem[] = [];
+  for (const it of all) {
+    if (it.source !== "Google News" && !UPSC_KEYWORDS.test(it.title)) continue;
+    const gs = classifyGs(it.title);
+    if (!gs) continue;
+    filtered.push({ ...it, gs });
+  }
 
   // Dedupe by title
   const seen = new Set<string>();
@@ -62,11 +92,11 @@ export const getUpscNews = createServerFn({ method: "GET" }).handler(async () =>
     return true;
   });
 
-  unique.sort((a, b) => {
+  unique.sort((a: NewsItem, b: NewsItem) => {
     const ta = Date.parse(a.pubDate) || 0;
     const tb = Date.parse(b.pubDate) || 0;
     return tb - ta;
   });
 
-  return { items: unique.slice(0, 15), fetchedAt: new Date().toISOString() };
+  return { items: unique.slice(0, 40), fetchedAt: new Date().toISOString() };
 });
