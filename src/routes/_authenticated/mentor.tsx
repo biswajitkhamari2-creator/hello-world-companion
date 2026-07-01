@@ -145,7 +145,14 @@ function MentorPage() {
     () =>
       new DefaultChatTransport({
         api: "/api/mentor",
-        body: () => ({ mode }),
+        body: () => {
+          let language: string | undefined;
+          try {
+            const raw = localStorage.getItem("upsc_prefs_v1");
+            if (raw) language = JSON.parse(raw)?.language;
+          } catch {}
+          return { mode, language };
+        },
       }),
     [mode],
   );
