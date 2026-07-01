@@ -93,125 +93,211 @@ function EditorialLabPage() {
     onError: (e: any) => toast.error(e?.message ?? "Delete failed"),
   });
 
+  const notes = (notesQ.data ?? []) as EditorialRow[];
+  const now = Date.now();
+  const recent = notes.filter((r) => {
+    const t = new Date(r.created_at || 0).getTime();
+    return now - t < 3 * 24 * 60 * 60 * 1000; // last 3 days
+  });
+  const history = notes.filter((r) => !recent.includes(r));
+
   return (
     <AppShell>
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-        {/* Header */}
-        <div className="mb-6 flex flex-col items-start gap-3 sm:mb-8 sm:flex-row sm:items-center">
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 text-white shadow-lg sm:h-12 sm:w-12">
-            <FileEdit className="h-7 w-7 sm:h-6 sm:w-6" />
+      <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-10">
+        {/* Compact floating header */}
+        <div className="mb-5 flex items-center gap-3 rounded-2xl border bg-card/70 p-3 shadow-sm backdrop-blur sm:mb-8 sm:p-4">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 text-white shadow-md sm:h-12 sm:w-12 sm:rounded-2xl">
+            <FileEdit className="h-5 w-5 sm:h-6 sm:w-6" />
           </span>
-          <div className="min-w-0">
-            <h1 className="font-serif text-[32px] font-extrabold leading-tight sm:text-3xl">
+          <div className="min-w-0 flex-1">
+            <h1 className="font-serif text-[20px] font-bold leading-tight sm:text-3xl sm:font-semibold">
               Editorial Lab
             </h1>
-            <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground sm:text-sm">
-              Forward The Hindu / Indian Express PDFs to the Telegram bot. Editorial Lab isolates
-              only the editorial pages and produces crisp + comprehensive notes with diagrams —
-              powered by paid Gemini 2.5 Pro.
+            <p className="mt-0.5 line-clamp-1 text-[12px] text-muted-foreground sm:line-clamp-none sm:text-sm">
+              Forward newspapers to the Telegram bot · Gemini 2.5 Pro extracts editorials.
             </p>
           </div>
         </div>
 
-        {/* Newspaper PDFs from inbox */}
-        <Card className="p-4 sm:p-5">
-          <div className="mb-4 flex items-center gap-2 sm:mb-3">
-            <Newspaper className="h-6 w-6 text-indigo-500 sm:h-4 sm:w-4" />
-            <h2 className="font-serif text-xl font-bold sm:text-lg sm:font-semibold">
-              Newspapers in Telegram Inbox
+        {/* Floating Telegram Inbox */}
+        <section className="mb-6 sm:mb-8">
+          <div className="mb-2 flex items-center gap-2 px-1">
+            <Newspaper className="h-4 w-4 text-indigo-500" />
+            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Telegram Inbox
             </h2>
+            <span className="ml-auto text-[11px] text-muted-foreground">
+              {(pdfsQ.data ?? []).length} PDF{(pdfsQ.data ?? []).length === 1 ? "" : "s"}
+            </span>
           </div>
+
           {pdfsQ.isLoading ? (
-            <div className="flex items-center gap-2 text-[15px] text-muted-foreground sm:text-sm">
-              <Loader2 className="h-5 w-5 animate-spin sm:h-4 sm:w-4" /> Loading…
+            <div className="flex items-center gap-2 rounded-2xl border bg-card/60 p-3 text-[13px] text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
             </div>
           ) : (pdfsQ.data ?? []).length === 0 ? (
-            <div className="text-[15px] leading-relaxed text-muted-foreground sm:text-sm">
-              No PDF newspapers in the Telegram inbox yet. Forward the day's edition to the bot,
-              then refresh.
+            <div className="rounded-2xl border border-dashed bg-card/40 p-4 text-center text-[13px] text-muted-foreground">
+              No newspapers yet. Forward today's edition to the bot.
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+            <div className="flex flex-col gap-2 sm:grid sm:grid-cols-2 sm:gap-3">
               {(pdfsQ.data ?? []).map((p: any) => {
                 const busy = analyseMut.isPending && analyseMut.variables === p.id;
+                const delBusy = deletePdfMut.isPending && deletePdfMut.variables === p.id;
                 return (
-                  <div key={p.id} className="rounded-2xl border bg-card p-4 sm:rounded-xl sm:p-3">
-                    <div className="break-words text-[17px] font-bold leading-snug sm:text-sm sm:font-medium">
-                      {p.file_name || p.caption || "Newspaper"}
+                  <div
+                    key={p.id}
+                    className="group flex items-center gap-3 rounded-2xl border bg-card/70 p-2.5 shadow-sm backdrop-blur transition hover:shadow-md sm:p-3"
+                  >
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500/15 via-fuchsia-500/15 to-amber-500/15 text-indigo-500">
+                      <Newspaper className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-semibold sm:text-sm">
+                        {p.file_name || p.caption || "Newspaper"}
+                      </div>
+                      <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                        {new Date(p.posted_at).toLocaleDateString()}
+                        {p.size_bytes ? " · " + (p.size_bytes / 1024 / 1024).toFixed(1) + " MB" : ""}
+                        {p.drive_view_link ? (
+                          <>
+                            {" · "}
+                            <a
+                              href={p.drive_view_link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline underline-offset-2 hover:text-indigo-500"
+                            >
+                              open
+                            </a>
+                          </>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="mt-1 text-[13px] text-muted-foreground sm:mt-0.5 sm:text-[11px]">
-                      {new Date(p.posted_at).toLocaleString()}
-                      {p.size_bytes ? " · " + (p.size_bytes / 1024 / 1024).toFixed(1) + " MB" : ""}
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 items-center gap-2 sm:mt-2 sm:flex">
-                      <Button
-                        onClick={() => analyseMut.mutate(p.id)}
-                        disabled={busy}
-                        className="col-span-2 h-12 min-h-[48px] w-full justify-center bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 text-[16px] font-semibold text-white hover:opacity-95 sm:col-span-1 sm:h-9 sm:w-auto sm:text-sm"
-                      >
-                        {busy ? (
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin sm:h-4 sm:w-4" />
-                        ) : (
-                          <Sparkles className="mr-2 h-5 w-5 sm:h-4 sm:w-4" />
-                        )}
-                        Extract Editorial
-                      </Button>
-                      {p.drive_view_link && (
-                        <a
-                          href={p.drive_view_link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex h-12 min-h-[48px] items-center justify-center rounded-md border text-[15px] font-medium text-muted-foreground underline-offset-4 hover:underline sm:h-auto sm:min-h-0 sm:border-0 sm:text-xs sm:font-normal sm:underline"
-                        >
-                          Open PDF
-                        </a>
+                    <button
+                      onClick={() => analyseMut.mutate(p.id)}
+                      disabled={busy}
+                      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 px-3 text-[12px] font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+                      title="Extract editorial + notes + downloadable PDF"
+                    >
+                      {busy ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5" />
                       )}
-                      <button
-                        onClick={() => {
-                          if (confirm("Delete this newspaper from the Telegram inbox?")) {
-                            deletePdfMut.mutate(p.id);
-                          }
-                        }}
-                        disabled={deletePdfMut.isPending && deletePdfMut.variables === p.id}
-                        className="inline-flex h-12 min-h-[48px] w-full items-center justify-center gap-2 rounded-md border text-[15px] font-medium text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50 sm:ml-auto sm:h-auto sm:min-h-0 sm:w-auto sm:rounded-full sm:border-0 sm:p-1.5"
-                        aria-label="Delete newspaper"
-                        title="Delete newspaper"
-                      >
-                        <Trash2 className="h-5 w-5 sm:h-4 sm:w-4" />
-                        <span className="sm:hidden">Delete</span>
-                      </button>
-                    </div>
+                      Extract
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm("Delete this newspaper from the Telegram inbox?")) {
+                          deletePdfMut.mutate(p.id);
+                        }
+                      }}
+                      disabled={delBusy}
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full border text-muted-foreground hover:border-rose-300 hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50"
+                      aria-label="Delete newspaper"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 );
               })}
             </div>
           )}
-        </Card>
+        </section>
 
-        {/* Saved editorial notes */}
-        <div className="mt-10 space-y-4 sm:mt-8">
-          <h2 className="font-serif text-[24px] font-bold sm:text-xl sm:font-semibold">
-            Editorial Notes Library
-          </h2>
+        {/* Recent extracts */}
+        <section className="space-y-3">
+          <div className="flex items-center gap-2 px-1">
+            <Sparkles className="h-4 w-4 text-fuchsia-500" />
+            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Recent Extracts
+            </h2>
+            <span className="ml-auto text-[11px] text-muted-foreground">
+              last 3 days · {recent.length}
+            </span>
+          </div>
           {notesQ.isLoading && (
-            <div className="text-[15px] text-muted-foreground sm:text-sm">Loading notes…</div>
+            <div className="text-[13px] text-muted-foreground">Loading…</div>
           )}
-          {(notesQ.data ?? []).length === 0 && !notesQ.isLoading && (
-            <div className="rounded-2xl border border-dashed p-8 text-center text-[15px] text-muted-foreground sm:text-sm">
-              No editorials extracted yet.
+          {!notesQ.isLoading && recent.length === 0 && (
+            <div className="rounded-2xl border border-dashed bg-card/40 p-6 text-center text-[13px] text-muted-foreground">
+              No recent editorials. Hit <span className="font-semibold">Extract</span> on any inbox
+              PDF above.
             </div>
           )}
-          {(notesQ.data ?? []).map((row) => (
-            <EditorialCard
-              key={row.id}
-              row={row}
-              onDelete={() => deleteMut.mutate(row.id)}
-            />
+          {recent.map((row) => (
+            <EditorialCard key={row.id} row={row} onDelete={() => deleteMut.mutate(row.id)} />
           ))}
-        </div>
+        </section>
+
+        {/* History (older) */}
+        {history.length > 0 && (
+          <HistorySection
+            items={history}
+            onDelete={(id) => deleteMut.mutate(id)}
+          />
+        )}
       </main>
     </AppShell>
   );
+}
+
+function HistorySection({
+  items,
+  onDelete,
+}: {
+  items: EditorialRow[];
+  onDelete: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  // Group by YYYY-MM
+  const groups = items.reduce<Record<string, EditorialRow[]>>((acc, r) => {
+    const key = (r.edition_date || r.created_at || "").slice(0, 7) || "older";
+    (acc[key] ||= []).push(r);
+    return acc;
+  }, {});
+  const keys = Object.keys(groups).sort().reverse();
+
+  return (
+    <section className="mt-8">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 rounded-2xl border bg-card/60 px-3 py-2.5 text-left shadow-sm backdrop-blur hover:bg-card"
+      >
+        <BookOpen className="h-4 w-4 text-indigo-500" />
+        <span className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+          History
+        </span>
+        <span className="text-[11px] text-muted-foreground">· {items.length} archived</span>
+        <span className="ml-auto text-muted-foreground">
+          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-3 space-y-6">
+          {keys.map((k) => (
+            <div key={k} className="space-y-2">
+              <div className="px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {formatMonth(k)}
+              </div>
+              {groups[k].map((row) => (
+                <EditorialCard key={row.id} row={row} onDelete={() => onDelete(row.id)} />
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function formatMonth(k: string): string {
+  if (!/^\d{4}-\d{2}$/.test(k)) return "Older";
+  const [y, m] = k.split("-").map(Number);
+  const d = new Date(y, m - 1, 1);
+  return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
 function EditorialCard({ row, onDelete }: { row: EditorialRow; onDelete: () => void }) {
