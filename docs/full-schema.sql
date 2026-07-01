@@ -280,3 +280,28 @@ CREATE INDEX IF NOT EXISTS telegram_news_items_inbox_id_idx
 CREATE INDEX IF NOT EXISTS telegram_inbox_analysed_at_idx
   ON public.telegram_inbox (analysed_at);
 
+-- ============================================================
+-- Editorial Lab: crisp + comprehensive notes from newspaper PDFs
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.editorials (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  inbox_id uuid REFERENCES public.telegram_inbox(id) ON DELETE SET NULL,
+  source_label text,
+  newspaper text,
+  edition_date date,
+  analysis jsonb NOT NULL,
+  model text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.editorials TO authenticated;
+GRANT ALL ON public.editorials TO service_role;
+ALTER TABLE public.editorials ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Editorials read all authenticated"
+  ON public.editorials FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Editorials insert own"
+  ON public.editorials FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Editorials delete own"
+  ON public.editorials FOR DELETE TO authenticated USING (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS editorials_created_at_idx ON public.editorials (created_at DESC);
+CREATE INDEX IF NOT EXISTS editorials_inbox_id_idx ON public.editorials (inbox_id);
