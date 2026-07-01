@@ -39,7 +39,7 @@ export function getDefaultModel(provider?: AiProviderName) {
     provider ?? (getAiApiKey("gemini") ? "gemini" : getAiApiKey("nvidia") ? "nvidia" : "groq");
   if (resolved === "nvidia") return "meta/llama-3.3-70b-instruct";
   if (resolved === "groq") return "llama-3.1-8b-instant";
-  return "gemini-2.0-flash";
+  return "gemini-2.5-flash";
 }
 
 async function isProviderAuthorized(provider: AiProviderName, apiKey: string): Promise<boolean> {
@@ -161,7 +161,7 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
     if (hasGemini) {
       return {
         provider: "gemini",
-        model: "gemini-2.0-flash",
+        model: "gemini-2.5-flash",
         chunkSize: 60_000,
         recommendedConcurrency: 4,
         minGapMs: 250,
@@ -190,7 +190,7 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
     }
     return {
       provider: "gemini",
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       chunkSize: 18_000,
       recommendedConcurrency: 1,
       minGapMs: hasGemini ? 8_000 : 65_000,
@@ -201,7 +201,7 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
   if (hasGemini) {
     return {
       provider: "gemini",
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       chunkSize: task === "infographics" ? 60_000 : 80_000,
       recommendedConcurrency: 4,
       minGapMs: 250,
@@ -233,7 +233,7 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
 
   return {
     provider: "gemini",
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash",
     chunkSize: task === "infographics" ? 32_000 : 40_000,
     recommendedConcurrency: 2,
     minGapMs: 4_000,
