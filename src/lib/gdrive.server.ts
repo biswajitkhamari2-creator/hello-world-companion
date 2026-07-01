@@ -1,15 +1,12 @@
 // Google Drive storage adapter for UPSC.
-// Talks directly to https://www.googleapis.com using your own OAuth refresh token.
-// Required env vars (set in Vercel):
-//   GOOGLE_CLIENT_ID
-//   GOOGLE_CLIENT_SECRET
-//   GOOGLE_REFRESH_TOKEN
-//   GOOGLE_DRIVE_ROOT_FOLDER_ID  (optional — defaults to a folder named UPSC-Genius-AI in My Drive)
-// Generate GOOGLE_REFRESH_TOKEN by visiting /api/oauth/google/start on your deployed site.
+// Prefers the user's own OAuth credentials when present, and falls back to the
+// linked Google Drive connector so Telegram imports keep working in Lovable
+// preview even before Vercel OAuth env vars are configured.
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
 const OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const DRIVE_GATEWAY = "https://connector-gateway.lovable.dev/google_drive";
 const APP_FOLDER_NAME = "UPSC-Genius-AI";
 
 // In-memory access token cache (per-worker). Google tokens live 1h; refresh ~5 min early.
@@ -38,6 +35,30 @@ function getGoogleEnv(name: "clientId" | "clientSecret" | "refreshToken"): strin
     if (value) return value;
   }
   return "";
+}
+
+function getConnectorEnv(name: "lovable" | "drive"): string {
+  const aliases = {
+    lovable: ["LOVABLE_API_KEY"],
+    drive: ["GOOGLE_DRIVE_API_KEY", "GOOGLE_API_KEY"],
+  }[name];
+
+  for (const key of aliases) {
+    const value = cleanEnvValue(process.env[key]);
+    if (value) return value;
+  }
+  return "";
+}
+
+function hasDirectGoogleOAuth(): boolean {
+  return Boolean(getGoogleEnv("clientId") && getGoogleEnv("clientSecret") && getGoogleEnv("refreshToken"));
+}
+
+
+function toDriveGatewayUrl(url: string): string {
+  const parsed = new URL(url);
+  if (parsed.hostname !== "www.googleapis.com") return url;
+  return `${DRIVE_GATEWAY}${parsed.pathname}${parsed.search}`;
 }
 
 async function getAccessToken(): Promise<string> {
@@ -103,6 +124,24 @@ async function throwDriveError(action: string, res: Response): Promise<never> {
 }
 
 async function gw(url: string, init: RequestInit = {}): Promise<Response> {
+  if (!hasDirectGoogleOAuth()) {
+    const lovableApiKey = getConnectorEnv("lovable");
+    const driveApiKey = getConnectorEnv("drive");
+    if (!lovableApiKey || !driveApiKey) {
+      throw new Error(
+        "Google Drive is not configured. Link the Google Drive connector in Lovable, or set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in Vercel.",
+      );
+    }
+    return fetch(toDriveGatewayUrl(url), {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "X-Connection-Api-Key": driveApiKey,
+        ...(init.headers as Record<string, string> | undefined),
+      },
+    });
+  }
+
   const token = await getAccessToken();
   return fetch(url, {
     ...init,
@@ -353,11 +392,15 @@ export async function uploadFinalResumableChunk(opts: {
   const bytes = opts.chunk instanceof Uint8Array ? opts.chunk : new Uint8Array(opts.chunk);
   const requestBody = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(requestBody).set(bytes);
-  const token = await getAccessToken();
-  const res = await fetch(opts.uploadUrl, {
+  const useDirectOAuth = hasDirectGoogleOAuth();
+  const lovableApiKey = getConnectorEnv("lovable");
+  const driveApiKey = getConnectorEnv("drive");
+  const res = await fetch(useDirectOAuth ? opts.uploadUrl : toDriveGatewayUrl(opts.uploadUrl), {
     method: "PUT",
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...(useDirectOAuth
+        ? { Authorization: `Bearer ${await getAccessToken()}` }
+        : { Authorization: `Bearer ${lovableApiKey}`, "X-Connection-Api-Key": driveApiKey }),
       "Content-Length": String(bytes.byteLength),
       "Content-Range": `bytes ${opts.start}-${opts.end - 1}/${opts.total}`,
     },

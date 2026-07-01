@@ -32,57 +32,91 @@ function extractUrls(text: string): string[] {
 async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?: string; file_size?: number }, base: {
   chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
 }) {
-  const { bytes } = await tgDownload(doc.file_id);
-  const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
   const fileName = doc.file_name || `telegram-${base.message_id}.pdf`;
-  const up = await uploadBufferToDrive({
-    userId: SHARED_OWNER,
-    fileName,
-    mime: doc.mime_type || "application/pdf",
-    data: bytes,
-  });
-  await upsertInbox({
-    chat_id: base.chat_id,
-    message_id: base.message_id,
-    kind: "pdf",
-    caption: base.caption,
-    posted_at: base.posted_at,
-    file_name: fileName,
-    mime: up.mimeType,
-    size_bytes: up.size,
-    drive_file_id: up.fileId,
-    drive_view_link: up.webViewLink,
-    status: "ready",
-    raw: base.raw as any,
-  });
+  try {
+    const { bytes } = await tgDownload(doc.file_id);
+    const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
+    const up = await uploadBufferToDrive({
+      userId: SHARED_OWNER,
+      fileName,
+      mime: doc.mime_type || "application/pdf",
+      data: bytes,
+    });
+    await upsertInbox({
+      chat_id: base.chat_id,
+      message_id: base.message_id,
+      kind: "pdf",
+      caption: base.caption,
+      posted_at: base.posted_at,
+      file_name: fileName,
+      mime: up.mimeType,
+      size_bytes: up.size,
+      drive_file_id: up.fileId,
+      drive_view_link: up.webViewLink,
+      status: "ready",
+      raw: base.raw as any,
+    });
+  } catch (e) {
+    console.error("[telegram media import]", e);
+    await upsertInbox({
+      chat_id: base.chat_id,
+      message_id: base.message_id,
+      kind: "pdf",
+      caption: base.caption,
+      posted_at: base.posted_at,
+      file_name: fileName,
+      mime: doc.mime_type || "application/pdf",
+      size_bytes: doc.file_size ?? null,
+      status: "failed",
+      error_message: (e as Error).message,
+      raw: base.raw as any,
+    });
+  }
 }
 
 async function handlePhoto(photo: { file_id: string; file_size?: number }, base: {
   chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
 }) {
-  const { bytes } = await tgDownload(photo.file_id);
-  const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
   const fileName = `telegram-${base.message_id}.jpg`;
-  const up = await uploadBufferToDrive({
-    userId: SHARED_OWNER,
-    fileName,
-    mime: "image/jpeg",
-    data: bytes,
-  });
-  await upsertInbox({
-    chat_id: base.chat_id,
-    message_id: base.message_id,
-    kind: "image",
-    caption: base.caption,
-    posted_at: base.posted_at,
-    file_name: fileName,
-    mime: up.mimeType,
-    size_bytes: up.size,
-    drive_file_id: up.fileId,
-    drive_view_link: up.webViewLink,
-    status: "ready",
-    raw: base.raw as any,
-  });
+  try {
+    const { bytes } = await tgDownload(photo.file_id);
+    const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
+    const up = await uploadBufferToDrive({
+      userId: SHARED_OWNER,
+      fileName,
+      mime: "image/jpeg",
+      data: bytes,
+    });
+    await upsertInbox({
+      chat_id: base.chat_id,
+      message_id: base.message_id,
+      kind: "image",
+      caption: base.caption,
+      posted_at: base.posted_at,
+      file_name: fileName,
+      mime: up.mimeType,
+      size_bytes: up.size,
+      drive_file_id: up.fileId,
+      drive_view_link: up.webViewLink,
+      status: "ready",
+      raw: base.raw as any,
+    });
+  } catch (e) {
+    console.error("[telegram media import]", e);
+    await upsertInbox({
+      chat_id: base.chat_id,
+      message_id: base.message_id,
+      kind: "image",
+      caption: base.caption,
+      posted_at: base.posted_at,
+      file_name: fileName,
+      mime: "image/jpeg",
+      size_bytes: photo.file_size ?? null,
+      status: "failed",
+      error_message: (e as Error).message,
+      raw: base.raw as any,
+    });
+  }
 }
 
 async function handleLink(url: string, base: {
