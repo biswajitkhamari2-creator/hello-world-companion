@@ -53,6 +53,48 @@ import { AiQuotaBanner } from "@/components/ai-quota-banner";
 import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 
+function DashboardBackdrop() {
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-[#0b1024] to-slate-950 opacity-0 dark:opacity-100 transition-opacity" />
+      <div className="absolute -top-40 -left-40 h-[520px] w-[520px] rounded-full bg-gradient-to-br from-indigo-500/25 via-fuchsia-500/20 to-transparent blur-3xl animate-float-slow" />
+      <div className="absolute top-1/3 -right-40 h-[520px] w-[520px] rounded-full bg-gradient-to-br from-cyan-400/20 via-blue-500/20 to-transparent blur-3xl animate-float-slow" style={{ animationDelay: "1.5s" }} />
+      <div className="absolute -bottom-40 left-1/4 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-fuchsia-500/20 via-purple-500/15 to-transparent blur-3xl animate-float-slow" style={{ animationDelay: "3s" }} />
+      <div className="absolute inset-0 opacity-[0.035] dark:opacity-[0.06]" style={{
+        backgroundImage:
+          "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
+        backgroundSize: "44px 44px",
+        maskImage: "radial-gradient(ellipse at center, black 40%, transparent 80%)",
+      }} />
+    </div>
+  );
+}
+
+function Breadcrumbs() {
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length === 0) return null;
+  const crumbs = parts.map((p, i) => ({
+    label: p.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    to: "/" + parts.slice(0, i + 1).join("/"),
+  }));
+  return (
+    <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground">
+      <Link to="/" className="hover:text-foreground transition-colors">Home</Link>
+      {crumbs.map((c, i) => (
+        <span key={c.to} className="flex items-center gap-1.5">
+          <span className="opacity-40">/</span>
+          {i === crumbs.length - 1 ? (
+            <span className="font-medium text-foreground">{c.label}</span>
+          ) : (
+            <Link to={c.to} className="hover:text-foreground transition-colors">{c.label}</Link>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
+}
+
 type NavItem = {
   title: string;
   url: string;
@@ -292,23 +334,27 @@ export function AppShell({
   children: ReactNode;
   topbarRight?: ReactNode;
 }) {
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="relative min-h-dvh flex w-full bg-background">
+        <DashboardBackdrop />
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <AiQuotaBanner />
-          <div className="sticky top-0 z-30 flex h-12 items-center gap-2 border-b border-border/60 bg-background/70 px-3 backdrop-blur-xl">
+          <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/10 bg-background/60 px-3 backdrop-blur-2xl shadow-[0_1px_0_0_rgba(255,255,255,0.04)]">
             <HamburgerTrigger />
             <Link to="/" className="ml-1 block min-w-0">
               <BrandMark size="sm" />
             </Link>
+            <div className="ml-3 hidden lg:block h-6 w-px bg-border/60" />
+            <Breadcrumbs />
             <div className="ml-auto flex items-center gap-2">
               {topbarRight}
               <ThemeToggle />
             </div>
           </div>
-          <div className="flex-1 min-w-0">{children}</div>
+          <div key={pathname} className="flex-1 min-w-0 animate-fade-in">{children}</div>
         </div>
       </div>
     </SidebarProvider>
