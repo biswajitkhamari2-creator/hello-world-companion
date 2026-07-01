@@ -156,26 +156,6 @@ function Hero() {
   const { theme, toggle } = useTheme();
   return (
     <section className="relative">
-      <div className="absolute right-0 top-0 z-10">
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          className="group inline-flex items-center gap-1.5 rounded-full border border-white/50 bg-white/70 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm backdrop-blur-xl transition-all hover:scale-105 hover:shadow-md dark:border-white/10 dark:bg-white/5"
-        >
-          {theme === "dark" ? (
-            <>
-              <Sun className="h-3.5 w-3.5 text-amber-400" />
-              Light
-            </>
-          ) : (
-            <>
-              <Moon className="h-3.5 w-3.5 text-indigo-500" />
-              Dark
-            </>
-          )}
-        </button>
-      </div>
       <div className="flex flex-col items-center text-center">
         <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/50 bg-gradient-to-r from-amber-100/80 via-white/60 to-amber-100/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-800 shadow-sm backdrop-blur dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-200">
           <Sparkles className="h-3 w-3" />
@@ -184,8 +164,22 @@ function Hero() {
 
         <h1 className="mt-5 max-w-3xl font-serif text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl">
           Welcome back to{" "}
-          <span className="animate-upsc-flip bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 bg-clip-text text-transparent">
-            UPSC Genius&nbsp;AI
+          <span className="inline-flex items-center gap-2 align-middle">
+            <span className="animate-upsc-flip bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 bg-clip-text text-transparent">
+              UPSC Genius&nbsp;AI
+            </span>
+            <button
+              type="button"
+              onClick={toggle}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/50 bg-white/70 text-foreground shadow-sm backdrop-blur-xl transition-all hover:scale-110 hover:shadow-md dark:border-white/10 dark:bg-white/5 sm:h-8 sm:w-8"
+            >
+              {theme === "dark" ? (
+                <Sun className="h-3.5 w-3.5 text-amber-400 sm:h-4 sm:w-4" />
+              ) : (
+                <Moon className="h-3.5 w-3.5 text-indigo-500 sm:h-4 sm:w-4" />
+              )}
+            </button>
           </span>
         </h1>
         <p className="mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">
