@@ -97,7 +97,7 @@ const NAV_GROUPS: NavGroup[] = [
       { title: "Downloads", url: "/downloads", icon: Download },
       { title: "Bookmarks", url: "/bookmarks", icon: Bookmark },
       { title: "Profile", url: "/profile", icon: User },
-      { title: "Settings", url: "/dashboard?tab=settings", icon: Settings },
+      { title: "Settings", url: "/settings", icon: Settings },
     ],
   },
 ];
