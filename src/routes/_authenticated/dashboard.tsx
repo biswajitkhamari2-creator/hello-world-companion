@@ -679,23 +679,11 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
 
 
   async function run(type: OutputType) {
-    if (type === "infographics" || type === "newspaper") return runChunked(type);
-    try { sessionStorage.setItem("active_doc_id", doc.id); } catch {}
-    console.log("[ActivePDF] AI query starting", { activeDocumentId: doc.id, outputType: type });
-    setPending(type);
-    try {
-      const row: any = await gen({ data: { documentId: doc.id, outputType: type, options: prefsToOptions(prefs) } });
-
-      setResults((r) => ({ ...r, [type]: row.content }));
-      toast.success(`${OUTPUT_LABELS[type].label} ready`);
-      qc.invalidateQueries({ queryKey: ["documents"] });
-      qc.invalidateQueries({ queryKey: ["generations", doc.id] });
-
-    } catch (e: any) {
-      if (!handleStaleDocError(e)) toast.error(e?.message || "Generation failed");
-    } finally {
-      setPending(null);
-    }
+    // Everything goes through the chunked pipeline. Single-shot generation
+    // hits the Cloudflare Worker CPU limit on large docs and shows up in the
+    // browser as "Failed to fetch". The chunked path plans → processes each
+    // chunk in its own request → finalizes, and shows live progress.
+    return runChunked(type);
   }
 
 
