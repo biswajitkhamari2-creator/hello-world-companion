@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiMentorRouteImport } from './routes/api/mentor'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedMocksRouteImport } from './routes/_authenticated/mocks'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
@@ -49,6 +50,11 @@ const ApiMentorRoute = ApiMentorRouteImport.update({
   id: '/api/mentor',
   path: '/api/mentor',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/mentor': typeof AuthenticatedMentorRoute
   '/mocks': typeof AuthenticatedMocksRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/mentor': typeof AuthenticatedMentorRoute
   '/mocks': typeof AuthenticatedMocksRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
   '/_authenticated/mocks': typeof AuthenticatedMocksRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/mentor'
     | '/mocks'
     | '/profile'
+    | '/settings'
     | '/api/mentor'
     | '/api/oauth/google/callback'
     | '/api/oauth/google/start'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/mentor'
     | '/mocks'
     | '/profile'
+    | '/settings'
     | '/api/mentor'
     | '/api/oauth/google/callback'
     | '/api/oauth/google/start'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/_authenticated/mentor'
     | '/_authenticated/mocks'
     | '/_authenticated/profile'
+    | '/_authenticated/settings'
     | '/api/mentor'
     | '/api/oauth/google/callback'
     | '/api/oauth/google/start'
@@ -262,6 +274,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/mentor'
       preLoaderRoute: typeof ApiMentorRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/profile': {
       id: '/_authenticated/profile'
@@ -352,6 +371,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
   AuthenticatedMocksRoute: typeof AuthenticatedMocksRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -363,6 +383,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
   AuthenticatedMocksRoute: AuthenticatedMocksRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
