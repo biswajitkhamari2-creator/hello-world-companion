@@ -424,6 +424,25 @@ export const analyseEditorialFromInbox = createServerFn({ method: "POST" })
   .inputValidator((d: { inboxId: string }) => z.object({ inboxId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const supabase = getAdmin();
+
+    // Credit-saver: if this PDF was already analysed, return the cached result.
+    const { data: cached } = await supabase
+      .from("editorials")
+      .select("id,analysis")
+      .eq("user_id", context.userId)
+      .eq("inbox_id", data.inboxId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (cached?.id) {
+      const a = (cached.analysis ?? {}) as EditorialAnalysisFull;
+      return {
+        id: cached.id as string,
+        editorialCount: Array.isArray(a?.editorials) ? a.editorials.length : 0,
+        cached: true,
+      };
+    }
+
     const { data: inbox, error } = await supabase
       .from("telegram_inbox")
       .select("id,file_name,caption,posted_at,drive_file_id")
