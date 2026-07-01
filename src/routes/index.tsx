@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import {
   Sparkles,
   Search,
+  Rocket,
+  Play,
   Newspaper,
   ExternalLink,
   Sun,
@@ -24,6 +26,22 @@ import {
 import { CrispNotesView, ComprehensiveNotesView } from "@/components/notes-view";
 import { Wand2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import {
+  AuroraBackdrop,
+  AiMentorArt,
+  HeroStatChips,
+  FeaturesGrid,
+  ChatDemoSection,
+  RoadmapSection,
+  ToolsGrid,
+  CountersSection,
+  Testimonials,
+  Pricing,
+  Faq,
+  FinalCta,
+  PremiumFooter,
+  useRotatingPlaceholder,
+} from "@/components/landing-premium";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -147,16 +165,23 @@ function GlassCard({
 function Landing() {
   return (
     <AppShell>
-      <div className="relative isolate">
-        <FloatingBackdrop />
+      <div className="relative isolate bg-[#020617] text-white">
+        <AuroraBackdrop />
         <main className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:py-14">
           <Hero />
+          <section id="features"><FeaturesGrid /></section>
+          <section id="demo"><ChatDemoSection /></section>
+          <section id="roadmap"><RoadmapSection /></section>
+          <section id="tools"><ToolsGrid /></section>
+          <CountersSection />
           <UpscNews />
           <OdishaPcsDigest />
+          <Testimonials />
+          <section id="pricing"><Pricing /></section>
+          <Faq />
+          <FinalCta />
         </main>
-        <footer className="relative border-t border-border/50 py-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} <span className="font-semibold text-foreground/80">UPSC</span> · by Sidheswar Enterprises
-        </footer>
+        <PremiumFooter />
       </div>
     </AppShell>
   );
@@ -167,64 +192,75 @@ function Landing() {
 function Hero() {
   const [q, setQ] = useState("");
   const { theme, toggle } = useTheme();
+  const placeholder = useRotatingPlaceholder();
   return (
-    <section className="relative">
-      <div className="flex flex-col items-center text-center">
-        <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/50 bg-gradient-to-r from-amber-100/80 via-white/60 to-amber-100/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-800 shadow-sm backdrop-blur dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-200">
-          <Sparkles className="h-3 w-3" />
-          AI · Syllabus aligned · PYQ mapped
-        </span>
+    <section className="relative pt-6">
+      <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.15fr_1fr]">
+        <div className="fade-up text-center lg:text-left">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.05] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-300 backdrop-blur">
+            <Sparkles className="h-3 w-3" /> AI · Syllabus aligned · PYQ mapped
+          </span>
 
-        <h1 className="mt-5 max-w-3xl font-serif text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl">
-          Welcome back to{" "}
-          <span className="inline-flex items-center gap-2 align-middle">
-            <span className="bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 bg-clip-text text-transparent">
-              Genius&nbsp;AI
+          <h1 className="mt-5 font-serif text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-[64px]">
+            Crack UPSC with the{" "}
+            <span className="bg-gradient-to-r from-[#60A5FA] via-[#A78BFA] to-[#FB923C] bg-clip-text text-transparent">
+              Power of AI
             </span>
             <button
               type="button"
               onClick={toggle}
               aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/50 bg-white/70 text-foreground shadow-sm backdrop-blur-xl transition-all hover:scale-110 hover:shadow-md dark:border-white/10 dark:bg-white/5 sm:h-8 sm:w-8"
+              className="ml-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/10 align-middle text-white shadow-md backdrop-blur-xl transition-all hover:scale-110"
             >
-              {theme === "dark" ? (
-                <Sun className="h-3.5 w-3.5 text-amber-400 sm:h-4 sm:w-4" />
-              ) : (
-                <Moon className="h-3.5 w-3.5 text-indigo-500 sm:h-4 sm:w-4" />
-              )}
+              {theme === "dark" ? <Sun className="h-4 w-4 text-amber-300" /> : <Moon className="h-4 w-4 text-blue-200" />}
             </button>
-          </span>
-        </h1>
-        <p className="mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">
-          Your personal AI mentor — turn any material into syllabus-mapped notes, MCQs, infographics & mains answers.
-        </p>
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-base text-white/70 lg:mx-0 sm:text-lg">
+            Your personal AI mentor for Prelims, Mains, Optional, Current Affairs, Answer Writing and Interview Preparation.
+          </p>
 
-        {/* AI Search bar */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const t = q.trim();
-            window.location.href = t ? `/mentor?q=${encodeURIComponent(t)}` : "/mentor";
-          }}
-          className="mt-7 w-full max-w-2xl"
-        >
-          <div className="group relative flex items-center rounded-2xl border border-white/60 bg-white/80 p-1.5 shadow-[0_12px_40px_-18px_rgba(99,102,241,0.5)] backdrop-blur-xl transition-all focus-within:border-indigo-400/70 focus-within:shadow-[0_18px_50px_-18px_rgba(99,102,241,0.7)] dark:border-white/10 dark:bg-white/5">
-            <Search className="ml-3 h-4.5 w-4.5 shrink-0 text-muted-foreground" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Ask AI Mentor anything — “Explain Article 370 for GS-II”"
-              className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-[15px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.02] active:scale-95"
-            >
-              <Sparkles className="h-4 w-4" />
-              Ask
-            </button>
+          {/* CTA */}
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+            <a href="/auth" className="group inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#2563EB] via-[#7C3AED] to-[#F97316] px-5 py-3 text-sm font-bold text-white shadow-[0_15px_40px_-10px_rgba(124,58,237,0.6)] transition-transform hover:scale-[1.03] active:scale-95">
+              <Rocket className="h-4 w-4" /> Start Learning Free
+            </a>
+            <a href="#demo" className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-3 text-sm font-bold text-white backdrop-blur transition-all hover:bg-white/10">
+              <Play className="h-4 w-4" /> Explore AI Demo
+            </a>
           </div>
-        </form>
+
+          {/* AI Search bar */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const t = q.trim();
+              window.location.href = t ? `/mentor?q=${encodeURIComponent(t)}` : "/mentor";
+            }}
+            className="mt-7 w-full max-w-2xl"
+          >
+            <div className="group relative flex items-center rounded-2xl border border-white/15 bg-white/[0.06] p-1.5 shadow-[0_15px_50px_-18px_rgba(37,99,235,0.7)] backdrop-blur-xl transition-all focus-within:border-blue-400/60 focus-within:shadow-[0_20px_60px_-18px_rgba(124,58,237,0.8)]">
+              <Search className="ml-3 h-4 w-4 shrink-0 text-white/60" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={placeholder || "Ask Genius AI anything…"}
+                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-[15px] text-white placeholder:text-white/50 focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#2563EB] via-[#7C3AED] to-[#F97316] px-4 py-2 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.02] active:scale-95"
+              >
+                <Sparkles className="h-4 w-4" /> Ask
+              </button>
+            </div>
+          </form>
+
+          <HeroStatChips />
+        </div>
+
+        <div className="fade-up relative">
+          <AiMentorArt />
+        </div>
       </div>
     </section>
   );
