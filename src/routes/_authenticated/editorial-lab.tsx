@@ -1093,3 +1093,57 @@ function MermaidBlock({ code, id }: { code: string; id: string }) {
     <div className="overflow-auto rounded-xl border bg-background p-3" ref={ref} />
   );
 }
+function esc(s: unknown): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function buildHandwrittenHtml(
+  item: EditorialItem,
+  meta?: { newspaper: string | null; edition_date: string | null; created_at: string },
+): string {
+  const date = meta?.edition_date || meta?.created_at?.slice(0, 10) || "";
+  const paper = meta?.newspaper || "Editorial";
+  const bullets = (arr?: string[]) =>
+    arr && arr.length
+      ? `<ul>${arr.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
+      : "";
+  return `<!doctype html><html><head><meta charset="utf-8" />
+<title>${esc(item.title)} — Handwritten Notes</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Patrick+Hand&display=swap" />
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  html, body { background: #fdfbf3; margin: 0; }
+  body {
+    font-family: "Kalam", "Patrick Hand", cursive;
+    color: #1a1a1a; line-height: 1.55; font-size: 16pt;
+    background-image: repeating-linear-gradient(#fdfbf3 0 30px, #e6dcc4 30px 31px);
+    padding: 20px 28px;
+  }
+  h1 { font-size: 26pt; margin: 0 0 4px; color: #12306a; }
+  .meta { font-size: 11pt; color: #6a5a3a; margin-bottom: 14px; }
+  h2 { font-size: 17pt; margin: 18px 0 4px; color: #b0341f; border-bottom: 1px dashed #b0341f; padding-bottom: 2px; }
+  ul { margin: 4px 0 8px 22px; padding: 0; }
+  li { margin: 2px 0; }
+  .box { border: 1.5px solid #12306a; border-radius: 6px; padding: 8px 12px; margin: 6px 0; background: rgba(255,255,255,0.5); }
+  .toolbar { position: fixed; top: 8px; right: 8px; font-family: system-ui, sans-serif; font-size: 11pt; }
+  .toolbar button { background: #12306a; color: #fff; border: 0; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
+  @media print { .toolbar { display: none; } body { background: #fff; background-image: repeating-linear-gradient(#fff 0 30px, #d9d0b8 30px 31px); } }
+</style></head><body>
+<div class="toolbar"><button onclick="window.print()">Save as PDF</button></div>
+<h1>${esc(item.title)}</h1>
+<div class="meta">${esc(paper)} · ${esc(date)} · ${esc(item.syllabus.paper)} · ${esc(item.syllabus.subject)} — ${esc(item.syllabus.topic)}</div>
+${item.crispNotes?.length ? `<h2>Crisp Notes</h2>${bullets(item.crispNotes)}` : ""}
+${item.comprehensiveNotes ? `<h2>Comprehensive</h2><div>${esc(item.comprehensiveNotes).replace(/\n/g, "<br/>")}</div>` : ""}
+${item.keyFacts?.length ? `<h2>Key Facts</h2>${bullets(item.keyFacts)}` : ""}
+${item.argumentsFor?.length ? `<h2>Arguments — For</h2>${bullets(item.argumentsFor)}` : ""}
+${item.argumentsAgainst?.length ? `<h2>Arguments — Against</h2>${bullets(item.argumentsAgainst)}` : ""}
+${item.wayForward?.length ? `<h2>Way Forward</h2>${bullets(item.wayForward)}` : ""}
+${item.vocabulary?.length ? `<h2>Vocabulary</h2><ul>${item.vocabulary.map((v) => `<li><b>${esc(v.word)}</b> — ${esc(v.meaning)}</li>`).join("")}</ul>` : ""}
+${item.pyqLinks?.length ? `<h2>PYQ Links</h2><ul>${item.pyqLinks.map((p) => `<li>${p.year ? `<b>${p.year}</b> ` : ""}${p.paper ? `(${esc(p.paper)}) ` : ""}${esc(p.question)}</li>`).join("")}</ul>` : ""}
+${item.probablePrelimsMCQ ? `<h2>Probable Prelims MCQ</h2><div class="box"><div>${esc(item.probablePrelimsMCQ.q)}</div><ol>${item.probablePrelimsMCQ.options.map((o, j) => `<li${j === item.probablePrelimsMCQ!.answer ? ' style="color:#0a7a2a;font-weight:700"' : ""}>${esc(o)}${j === item.probablePrelimsMCQ!.answer ? " ✓" : ""}</li>`).join("")}</ol><div style="font-size:12pt;color:#555">${esc(item.probablePrelimsMCQ.explanation)}</div></div>` : ""}
+${item.probableMainsQuestion ? `<h2>Probable Mains</h2><div class="box"><div style="font-size:12pt;color:#555">${esc(item.probableMainsQuestion.paper)} · ${item.probableMainsQuestion.marks} marks</div><div>${esc(item.probableMainsQuestion.q)}</div><div style="margin-top:6px"><b>Approach:</b> ${esc(item.probableMainsQuestion.approach)}</div></div>` : ""}
+</body></html>`;
+}
