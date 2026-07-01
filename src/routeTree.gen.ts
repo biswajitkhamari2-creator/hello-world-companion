@@ -23,6 +23,7 @@ import { Route as AuthenticatedMocksRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
 import { Route as AuthenticatedInstitutionRouteImport } from './routes/_authenticated/institution'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
+import { Route as AuthenticatedEditorialLabRouteImport } from './routes/_authenticated/editorial-lab'
 import { Route as AuthenticatedEditorialRouteImport } from './routes/_authenticated/editorial'
 import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -102,6 +103,12 @@ const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
   path: '/inbox',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedEditorialLabRoute =
+  AuthenticatedEditorialLabRouteImport.update({
+    id: '/editorial-lab',
+    path: '/editorial-lab',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEditorialRoute = AuthenticatedEditorialRouteImport.update({
   id: '/editorial',
   path: '/editorial',
@@ -148,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/downloads': typeof AuthenticatedDownloadsRoute
   '/editorial': typeof AuthenticatedEditorialRoute
+  '/editorial-lab': typeof AuthenticatedEditorialLabRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/institution': typeof AuthenticatedInstitutionRoute
   '/mentor': typeof AuthenticatedMentorRoute
@@ -170,6 +178,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/downloads': typeof AuthenticatedDownloadsRoute
   '/editorial': typeof AuthenticatedEditorialRoute
+  '/editorial-lab': typeof AuthenticatedEditorialLabRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/institution': typeof AuthenticatedInstitutionRoute
   '/mentor': typeof AuthenticatedMentorRoute
@@ -194,6 +203,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/downloads': typeof AuthenticatedDownloadsRoute
   '/_authenticated/editorial': typeof AuthenticatedEditorialRoute
+  '/_authenticated/editorial-lab': typeof AuthenticatedEditorialLabRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/institution': typeof AuthenticatedInstitutionRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
@@ -218,6 +228,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/downloads'
     | '/editorial'
+    | '/editorial-lab'
     | '/inbox'
     | '/institution'
     | '/mentor'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/downloads'
     | '/editorial'
+    | '/editorial-lab'
     | '/inbox'
     | '/institution'
     | '/mentor'
@@ -263,6 +275,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/downloads'
     | '/_authenticated/editorial'
+    | '/_authenticated/editorial-lab'
     | '/_authenticated/inbox'
     | '/_authenticated/institution'
     | '/_authenticated/mentor'
@@ -389,6 +402,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInboxRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/editorial-lab': {
+      id: '/_authenticated/editorial-lab'
+      path: '/editorial-lab'
+      fullPath: '/editorial-lab'
+      preLoaderRoute: typeof AuthenticatedEditorialLabRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/editorial': {
       id: '/_authenticated/editorial'
       path: '/editorial'
@@ -446,6 +466,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDownloadsRoute: typeof AuthenticatedDownloadsRoute
   AuthenticatedEditorialRoute: typeof AuthenticatedEditorialRoute
+  AuthenticatedEditorialLabRoute: typeof AuthenticatedEditorialLabRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedInstitutionRoute: typeof AuthenticatedInstitutionRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
@@ -461,6 +482,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDownloadsRoute: AuthenticatedDownloadsRoute,
   AuthenticatedEditorialRoute: AuthenticatedEditorialRoute,
+  AuthenticatedEditorialLabRoute: AuthenticatedEditorialLabRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedInstitutionRoute: AuthenticatedInstitutionRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
