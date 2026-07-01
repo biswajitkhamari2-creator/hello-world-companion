@@ -345,6 +345,7 @@ function EditorialLabPage() {
                   const busy = analyseMut.isPending && analyseMut.variables === p.id;
                           const delBusy = deletePdfMut.isPending && (deletePdfMut.variables as any)?.id === p.id;
                   const selected = pdfSel.has(p.id);
+                  const linked = notes.find((n) => n.inbox_id === p.id) || null;
                   return (
                     <div
                       key={p.id}
@@ -431,20 +432,12 @@ function EditorialLabPage() {
                             {p.error_message}
                           </p>
                         )}
-                        <div className="mt-3">
-                          <button
-                            onClick={() => analyseMut.mutate(p.id)}
-                            disabled={busy}
-                            className="inline-flex items-center gap-1.5 rounded-sm bg-gradient-to-r from-amber-700 via-orange-600 to-rose-600 px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-white shadow-sm hover:opacity-95 disabled:opacity-60"
-                          >
-                            {busy ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Sparkles className="h-3 w-3" />
-                            )}
-                            {busy ? "Extracting…" : "Extract Content"}
-                          </button>
-                        </div>
+                        <InboxRowActions
+                          pdfId={p.id}
+                          busy={busy}
+                          linked={linked}
+                          onExtract={() => analyseMut.mutateAsync(p.id)}
+                        />
                       </div>
                     </div>
                   );
