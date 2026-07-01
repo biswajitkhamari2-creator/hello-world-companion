@@ -276,7 +276,12 @@ function computePageBreaks(stage: HTMLElement, container: HTMLElement, pageHeigh
     if (b.bottom - pageTop <= pageHeight) continue;
 
     // Doesn't fit on current page.
-    if (b.top > pageTop) {
+    // Only break to the block's top if we've already filled a meaningful
+    // portion of the current page — otherwise we'd waste most of a page
+    // (e.g. a short header followed by a giant notes block would leave
+    // page 1 nearly blank). Below the threshold, just slice the block.
+    const usedRatio = (b.top - pageTop) / pageHeight;
+    if (b.top > pageTop && usedRatio >= 0.35) {
       pageTop = b.top;
       breaks.push(pageTop);
     }
