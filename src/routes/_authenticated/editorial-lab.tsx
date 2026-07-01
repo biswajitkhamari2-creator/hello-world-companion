@@ -161,14 +161,14 @@ function EditorialLabPage() {
   return (
     <AppShell>
       <main
-        className="mx-auto max-w-6xl bg-[#fdfdfc] text-[#1a1a1a] dark:bg-[#0c0c0c] dark:text-[#e5e5e5] sm:border-x sm:border-stone-200 sm:dark:border-stone-800"
+        className="mx-auto max-w-6xl bg-[#faf7f2] text-stone-800 dark:bg-[#1a1815] dark:text-stone-200 sm:border-x sm:border-stone-200/70 sm:dark:border-stone-800/70"
         style={{ fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif' }}
       >
-        {/* NOIR NEWSROOM MASTHEAD */}
-        <header className="border-b-4 border-stone-900 px-5 pt-7 pb-5 dark:border-stone-100 sm:px-8 sm:pt-10">
+        {/* NEWSROOM MASTHEAD */}
+        <header className="border-b-2 border-stone-700/80 px-5 pt-7 pb-5 dark:border-stone-300/70 sm:px-8 sm:pt-10">
           <div className="mb-1 flex items-end justify-between gap-3">
             <h1
-              className="text-[34px] font-bold italic leading-none tracking-tight sm:text-5xl"
+              className="text-[34px] font-bold italic leading-none tracking-tight text-stone-900 dark:text-stone-100 sm:text-5xl"
               style={{ fontFamily: '"Playfair Display", ui-serif, Georgia, serif' }}
             >
               Editorial <span className="not-italic">Lab</span>
@@ -180,7 +180,7 @@ function EditorialLabPage() {
               {vol}
             </span>
           </div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500 dark:text-stone-400">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-800/80 dark:text-amber-200/70">
             Automated Research &amp; Synthesis · Gemini 2.5 Pro
           </p>
         </header>
@@ -196,7 +196,7 @@ function EditorialLabPage() {
               </h2>
               <div className="flex items-center gap-2">
                 <span
-                  className="border border-stone-200 bg-stone-100 px-2 py-0.5 text-[10px] uppercase tracking-widest dark:border-stone-800 dark:bg-stone-900"
+                  className="border border-stone-300/70 bg-white/70 px-2 py-0.5 text-[10px] uppercase tracking-widest text-stone-600 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300"
                   style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
                 >
                   {totalPdfs} {totalPdfs === 1 ? "Pdf" : "Pdfs"}
@@ -216,15 +216,15 @@ function EditorialLabPage() {
             </div>
 
             {pdfsQ.isLoading ? (
-              <div className="mx-5 flex items-center gap-2 border border-stone-200 bg-white p-3 text-[13px] text-stone-500 dark:border-stone-800 dark:bg-[#121212] sm:mx-8">
+              <div className="mx-5 flex items-center gap-2 border border-stone-200 bg-white p-3 text-[13px] text-stone-500 dark:border-stone-800 dark:bg-[#22201d] sm:mx-8">
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading…
               </div>
             ) : totalPdfs === 0 ? (
-              <div className="mx-5 border border-dashed border-stone-300 bg-white/50 p-6 text-center text-[13px] text-stone-500 dark:border-stone-700 dark:bg-[#121212]/50 sm:mx-8">
+              <div className="mx-5 border border-dashed border-stone-300 bg-white/60 p-6 text-center text-[13px] text-stone-500 dark:border-stone-700 dark:bg-[#22201d]/60 sm:mx-8">
                 No newspapers yet. Forward today&apos;s edition to the bot.
               </div>
             ) : (
-              <div className="space-y-px border-y border-stone-200 bg-stone-200 dark:border-stone-800 dark:bg-stone-800">
+              <div className="space-y-px border-y border-stone-200 bg-stone-200/80 dark:border-stone-800 dark:bg-stone-800/70">
                 {(pdfsQ.data ?? []).map((p: any) => {
                   const busy = analyseMut.isPending && analyseMut.variables === p.id;
                   const delBusy = deletePdfMut.isPending && deletePdfMut.variables === p.id;
@@ -235,8 +235,8 @@ function EditorialLabPage() {
                       className={
                         "flex gap-4 px-5 py-4 sm:px-8 " +
                         (selected
-                          ? "bg-stone-50 ring-1 ring-inset ring-stone-900 dark:bg-[#1a1a1a] dark:ring-stone-100"
-                          : "bg-white dark:bg-[#121212]")
+                          ? "bg-amber-50/70 ring-1 ring-inset ring-amber-700/60 dark:bg-stone-800/60 dark:ring-amber-200/40"
+                          : "bg-white dark:bg-[#22201d]")
                       }
                     >
                       {/* stamp / select */}
@@ -245,8 +245,8 @@ function EditorialLabPage() {
                         className={
                           "relative grid h-10 w-10 shrink-0 place-items-center border transition-colors " +
                           (selected
-                            ? "border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-black"
-                            : "border-stone-900 bg-transparent dark:border-stone-100")
+                            ? "border-amber-700 bg-amber-700 text-white dark:border-amber-300 dark:bg-amber-300 dark:text-stone-900"
+                            : "border-stone-400 text-stone-600 bg-transparent dark:border-stone-500 dark:text-stone-300")
                         }
                         aria-label={selected ? "Unselect" : "Select"}
                         title={selected ? "Unselect" : "Select"}
@@ -256,7 +256,7 @@ function EditorialLabPage() {
                         ) : (
                           <Newspaper className="h-5 w-5" strokeWidth={1.5} />
                         )}
-                        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border border-white bg-stone-900 dark:border-black dark:bg-stone-100" />
+                        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border border-white bg-amber-700 dark:border-[#22201d] dark:bg-amber-300" />
                       </button>
 
                       {/* body */}
@@ -280,7 +280,7 @@ function EditorialLabPage() {
                           </button>
                         </div>
                         <div
-                          className="mt-1 flex items-center gap-2 text-[10px] uppercase text-stone-500"
+                          className="mt-1 flex items-center gap-2 text-[10px] uppercase text-stone-500 dark:text-stone-400"
                           style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
                         >
                           <span>{formatShortDate(p.posted_at)}</span>
@@ -295,7 +295,7 @@ function EditorialLabPage() {
                                 href={p.drive_view_link}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="underline text-stone-900 dark:text-stone-200"
+                                className="underline text-amber-800 dark:text-amber-200"
                               >
                                 Open
                               </a>
@@ -306,7 +306,7 @@ function EditorialLabPage() {
                           <button
                             onClick={() => analyseMut.mutate(p.id)}
                             disabled={busy}
-                            className="inline-flex items-center gap-1.5 rounded-sm bg-gradient-to-r from-indigo-600 to-blue-500 px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+                            className="inline-flex items-center gap-1.5 rounded-sm bg-gradient-to-r from-amber-700 via-orange-600 to-rose-600 px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-white shadow-sm hover:opacity-95 disabled:opacity-60"
                           >
                             {busy ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
@@ -392,7 +392,7 @@ function EditorialLabPage() {
         {/* FLOATING PRESS TRAY */}
         {(pdfSel.size > 0 || noteSel.size > 0) && (
           <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-3 sm:bottom-6">
-            <div className="flex w-full max-w-[380px] items-center justify-between gap-3 bg-stone-950 px-5 py-3 text-white shadow-2xl dark:bg-white dark:text-black">
+            <div className="flex w-full max-w-[380px] items-center justify-between gap-3 rounded-md border border-stone-800/40 bg-stone-800 px-5 py-3 text-stone-50 shadow-2xl dark:border-stone-100/30 dark:bg-stone-100 dark:text-stone-900">
               <div className="flex flex-col">
                 <span
                   className="text-[10px] uppercase tracking-widest opacity-60"
