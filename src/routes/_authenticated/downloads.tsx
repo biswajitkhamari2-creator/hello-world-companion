@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { Download, FileText, Loader2, Sparkles, ExternalLink } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Download, FileText, Loader2, Sparkles, ExternalLink, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { listDocuments } from "@/lib/documents.functions";
+import { listDocuments, deleteDocument } from "@/lib/documents.functions";
 
 export const Route = createFileRoute("/_authenticated/downloads")({
   head: () => ({ meta: [{ title: "Downloads — UPSC Genius AI" }] }),
@@ -14,7 +16,21 @@ export const Route = createFileRoute("/_authenticated/downloads")({
 
 function DownloadsPage() {
   const list = useServerFn(listDocuments);
+  const del = useServerFn(deleteDocument);
+  const qc = useQueryClient();
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const q = useQuery({ queryKey: ["downloads-docs"], queryFn: () => list() });
+
+  const mDelete = useMutation({
+    mutationFn: (id: string) => del({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Document deleted");
+      setConfirmId(null);
+      qc.invalidateQueries({ queryKey: ["downloads-docs"] });
+      qc.invalidateQueries({ queryKey: ["documents"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Delete failed"),
+  });
 
   return (
     <AppShell>
@@ -70,6 +86,31 @@ function DownloadsPage() {
                     Open
                   </Link>
                 </Button>
+                {confirmId === d.id ? (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={mDelete.isPending}
+                      onClick={() => mDelete.mutate(d.id)}
+                    >
+                      {mDelete.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmId(null)} disabled={mDelete.isPending}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                    onClick={() => setConfirmId(d.id)}
+                    title="Delete"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
