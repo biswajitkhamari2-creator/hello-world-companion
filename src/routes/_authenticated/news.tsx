@@ -214,7 +214,7 @@ function NewsPage() {
                 className={cn(
                   "group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border p-4 backdrop-blur transition",
                   hot
-                    ? "border-transparent bg-gradient-to-br from-amber-500/10 via-rose-500/10 to-fuchsia-500/10 ring-2 ring-inset animate-pulse " + style.ring
+                    ? "border-transparent bg-gradient-to-br from-amber-500/10 via-rose-500/10 to-fuchsia-500/10 ring-2 ring-inset " + style.ring
                     : "border-border bg-background/60 hover:-translate-y-0.5 hover:border-foreground/30 hover:bg-background/80",
                 )}
               >
@@ -234,7 +234,7 @@ function NewsPage() {
                     </span>
                   )}
                   <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
-                    {hot && <Flame className="h-3 w-3 text-rose-400 animate-pulse" />}
+                    {hot && <Flame className="h-3 w-3 text-rose-400" />}
                     {timeAgo(it.posted_at)}
                   </span>
                 </div>
