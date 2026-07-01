@@ -913,11 +913,38 @@ function markVerified(docId: string, type: OutputType) {
   try { window.localStorage.setItem(verifiedStorageKey(docId, type), new Date().toISOString()); } catch {}
 }
 
-function GeneratedResult({ type, content, docTitle, docId }: { type: OutputType; content: any; docTitle: string; docId: string }) {
+function GeneratedResult({ type, content, docTitle, docId, onDelete }: { type: OutputType; content: any; docTitle: string; docId: string; onDelete?: () => void }) {
   const previewRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(() => isAlreadyVerified(docId, type));
+  const qcRef = useQueryClient();
+  const delGenFn = useServerFn(deleteGeneration);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!confirm(`Delete this ${OUTPUT_LABELS[type].label} PDF? This removes it from history too.`)) return;
+    setDeleting(true);
+    try {
+      const cached = qcRef.getQueryData<any[]>(["generations", docId]) || [];
+      const latest = cached
+        .filter((r) => r.output_type === type)
+        .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))[0];
+      if (latest?.id) {
+        await delGenFn({ data: { id: latest.id } });
+        qcRef.invalidateQueries({ queryKey: ["generations", docId] });
+      }
+      try { window.localStorage.removeItem(verifiedStorageKey(docId, type)); } catch {}
+      const { toast } = await import("sonner");
+      toast.success("Deleted");
+      onDelete?.();
+    } catch (e) {
+      const { toast } = await import("sonner");
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleVerify = async () => {
     if (!previewRef.current) return;
@@ -988,6 +1015,18 @@ function GeneratedResult({ type, content, docTitle, docId }: { type: OutputType;
       </div>
       <div ref={previewRef} className={`mt-4 rounded-md border border-border ${type === "handwritten_notes" ? "" : "bg-paper p-5"}`}>
         <FormattedOutput type={type} content={content} />
+      </div>
+      <div className="mt-3 flex justify-end">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleDelete}
+          disabled={deleting || exporting || verifying}
+          className="border-rose-300 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+        >
+          {deleting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
+          Delete this PDF
+        </Button>
       </div>
     </section>
   );
