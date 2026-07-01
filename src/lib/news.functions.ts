@@ -20,8 +20,8 @@ function pick(xml: string, tag: string): string {
   return m[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim();
 }
 
-function parseRss(xml: string, source: string): NewsItem[] {
-  const items: NewsItem[] = [];
+function parseRss(xml: string, source: string): Omit<NewsItem, "gs">[] {
+  const items: Omit<NewsItem, "gs">[] = [];
   const matches = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
   for (const raw of matches) {
     const title = pick(raw, "title");
@@ -71,7 +71,7 @@ export const getUpscNews = createServerFn({ method: "GET" }).handler(async () =>
       return parseRss(xml, f.source);
     }),
   );
-  const all: NewsItem[] = [];
+  const all: Omit<NewsItem, "gs">[] = [];
   for (const r of results) if (r.status === "fulfilled") all.push(...r.value);
 
   // Filter to UPSC-relevant AND classifiable into GS1–GS4
