@@ -333,6 +333,18 @@ export type InstitutionCrispNotes = {
   sourceUrl: string;
 };
 
+export type InstitutionComprehensiveNotes = InstitutionCrispNotes & {
+  background: string[];        // 3-6 bullets — historical / constitutional context
+  currentStatus: string[];     // 3-6 bullets — where things stand now
+  stakeholders: string[];      // 3-5 bullets — actors involved
+  challenges: string[];        // 4-6 bullets
+  wayForward: string[];        // 4-6 bullets — recommendations / reforms
+  relatedSchemes: string[];    // schemes, acts, cases, committees, reports
+  internationalAngle: string[]; // 2-4 bullets — global comparison / conventions
+  quotes: string[];            // 2-3 crisp quotable lines for Mains answers
+  mindMap: string;             // 1 short paragraph tying everything together
+};
+
 function htmlToPlain(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
