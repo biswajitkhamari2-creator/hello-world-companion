@@ -454,6 +454,148 @@ ${text}
     return { ...parsed, sourceUrl: data.url };
   });
 
+// ------------------------------------------------------------------
+// Generic article notes — accepts ANY http(s) news URL
+// (Hindu, Indian Express, PIB, PRS, TOI, etc.). Uses the same crisp
+// / comprehensive pipeline so homepage news cards get the same
+// syllabus-tagged notes the Institution Engine produces.
+// ------------------------------------------------------------------
+
+const GenericUrl = z.object({
+  url: z.string().url().refine((u) => /^https?:\/\//i.test(u), "Only http(s) URLs allowed"),
+  sourceLabel: z.string().max(80).optional(),
+});
+
+function pickHost(u: string): string {
+  try { return new URL(u).host.replace(/^www\./, ""); } catch { return ""; }
+}
+
+async function fetchArticleText(url: string): Promise<{ text: string; rawTitle: string }> {
+  const html = await fetchHtml(url);
+  const stripped = html
+    .replace(/<head[\s\S]*?<\/head>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+    .replace(/<header[\s\S]*?<\/header>/gi, "")
+    .replace(/<aside[\s\S]*?<\/aside>/gi, "");
+  const mainMatch =
+    stripped.match(/<article[\s\S]*?<\/article>/i) ||
+    stripped.match(/<main[\s\S]*?<\/main>/i) ||
+    stripped.match(/<div[^>]+class=["'][^"']*(?:article|content|post|entry|story)[^"']*["'][\s\S]*?<\/div>/i);
+  const bodyHtml = mainMatch ? mainMatch[0] : stripped;
+  const text = htmlToPlain(bodyHtml);
+  const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+  return { text, rawTitle: titleMatch ? titleMatch[1].trim() : "" };
+}
+
+export const getArticleCrispNotes = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => GenericUrl.parse(data))
+  .handler(async ({ data }): Promise<InstitutionCrispNotes> => {
+    const { text, rawTitle } = await fetchArticleText(data.url);
+    const trimmed = text.slice(0, 18000);
+    const source = data.sourceLabel || pickHost(data.url) || "News";
+
+    const { createGateway, getAiTaskProfile, UPSC_SYSTEM_PROMPT } = await import("./ai-gateway.server");
+    const { generateText } = await import("ai");
+    const profile = getAiTaskProfile("crisp_notes");
+    const gw = createGateway(undefined, profile.provider);
+
+    const prompt = `You are preparing CRISP UPSC/State-PCS notes from a news article. DO NOT copy sentences verbatim. Rewrite tightly. Every note MUST be tagged with the correct UPSC GS Paper + Subject + Topic per the official UPSC Civil Services syllabus.
+
+UPSC syllabus mapping (mandatory):
+- GS-1 → History, Art & Culture, Indian Society, Geography (Physical/Human/Economic)
+- GS-2 → Polity, Constitution, Governance, Social Justice, International Relations
+- GS-3 → Economy, Agriculture, Science & Tech, Environment/Ecology/Biodiversity, Internal Security, Disaster Management
+- GS-4 → Ethics, Integrity & Aptitude, Case Studies
+- Prelims → factual current-affairs item with no Mains hook
+- Essay → philosophical/abstract themes
+
+Return STRICT JSON only, no markdown fences, matching:
+{"title":string,"gsPaper":"GS-1"|"GS-2"|"GS-3"|"GS-4"|"Prelims"|"Essay","subject":string,"topic":string,"syllabusAnchor":string,"oneLine":string,"whyInNews":string[],"keyPoints":string[],"facts":string[],"keyTerms":Array<{term:string,meaning:string}>,"prelimsAngle":string[],"mainsAngle":string[],"probableQuestion":string}
+
+Hard rules: no verbatim copy, no fabricated facts, each bullet ≤25 words, gsPaper/subject/topic/syllabusAnchor MANDATORY, JSON ONLY.
+
+Source: ${source}
+Site title: ${rawTitle}
+URL: ${data.url}
+
+ARTICLE:
+"""
+${trimmed}
+"""`;
+
+    const { text: out } = await generateText({
+      model: gw(profile.model),
+      system: UPSC_SYSTEM_PROMPT,
+      prompt,
+      maxRetries: 1,
+    });
+    const cleaned = out.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "");
+    let parsed: Omit<InstitutionCrispNotes, "sourceUrl">;
+    try { parsed = JSON.parse(cleaned); }
+    catch {
+      const m = cleaned.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error("AI returned non-JSON response");
+      parsed = JSON.parse(m[0]);
+    }
+    return { ...parsed, sourceUrl: data.url };
+  });
+
+export const getArticleComprehensiveNotes = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => GenericUrl.parse(data))
+  .handler(async ({ data }): Promise<InstitutionComprehensiveNotes> => {
+    const { text, rawTitle } = await fetchArticleText(data.url);
+    const trimmed = text.slice(0, 24000);
+    const source = data.sourceLabel || pickHost(data.url) || "News";
+
+    const { createGateway, getAiTaskProfile, UPSC_SYSTEM_PROMPT } = await import("./ai-gateway.server");
+    const { generateText } = await import("ai");
+    const profile = getAiTaskProfile("comprehensive_notes");
+    const gw = createGateway(undefined, profile.provider);
+
+    const prompt = `You are preparing COMPREHENSIVE UPSC/State-PCS notes from a news article. Full 360° exam-ready: background → status → stakeholders → challenges → way forward → global angle. Rewrite in tight bullets. Every note MUST be tagged with the correct UPSC GS Paper + Subject + Topic.
+
+UPSC syllabus mapping (mandatory):
+- GS-1 → History, Art & Culture, Society, Geography
+- GS-2 → Polity, Constitution, Governance, Social Justice, IR
+- GS-3 → Economy, Agriculture, S&T, Environment, Internal Security, Disaster Mgmt
+- GS-4 → Ethics, Integrity, Aptitude, Case Studies
+- Prelims → factual current-affairs with no Mains hook
+- Essay → philosophical/abstract themes
+
+Return STRICT JSON only, no markdown fences, matching:
+{"title":string,"gsPaper":"GS-1"|"GS-2"|"GS-3"|"GS-4"|"Prelims"|"Essay","subject":string,"topic":string,"syllabusAnchor":string,"oneLine":string,"whyInNews":string[],"keyPoints":string[],"facts":string[],"keyTerms":Array<{term:string,meaning:string}>,"background":string[],"currentStatus":string[],"stakeholders":string[],"challenges":string[],"wayForward":string[],"relatedSchemes":string[],"internationalAngle":string[],"quotes":string[],"mindMap":string,"prelimsAngle":string[],"mainsAngle":string[],"probableQuestion":string}
+
+Hard rules: no verbatim copy, no fabricated facts/cases/schemes, each bullet ≤30 words, tags MANDATORY, JSON ONLY.
+
+Source: ${source}
+Site title: ${rawTitle}
+URL: ${data.url}
+
+ARTICLE:
+"""
+${trimmed}
+"""`;
+
+    const { text: out } = await generateText({
+      model: gw(profile.model),
+      system: UPSC_SYSTEM_PROMPT,
+      prompt,
+      maxRetries: 1,
+    });
+    const cleaned = out.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "");
+    let parsed: Omit<InstitutionComprehensiveNotes, "sourceUrl">;
+    try { parsed = JSON.parse(cleaned); }
+    catch {
+      const m = cleaned.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error("AI returned non-JSON response");
+      parsed = JSON.parse(m[0]);
+    }
+    return { ...parsed, sourceUrl: data.url };
+  });
+
 export const getInstitutionComprehensiveNotes = createServerFn({ method: "POST" })
   .inputValidator((data: { url: string }) => {
     return z
