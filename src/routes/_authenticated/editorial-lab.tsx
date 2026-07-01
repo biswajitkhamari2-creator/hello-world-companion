@@ -302,6 +302,15 @@ function EditorialLabPage() {
                   <RefreshCw className={"h-3 w-3 " + (refreshing ? "animate-spin" : "")} />
                   {refreshing ? "Checking" : "Refresh"}
                 </button>
+                <button
+                  onClick={squashDuplicates}
+                  disabled={squashing || pdfsQ.isLoading}
+                  className="inline-flex items-center gap-1 border border-amber-700/60 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-900 hover:bg-amber-100 disabled:opacity-60 dark:border-amber-300/40 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60"
+                  title="Trash duplicate PDFs, keep the oldest of each"
+                >
+                  <Layers className={"h-3 w-3 " + (squashing ? "animate-pulse" : "")} />
+                  {squashing ? "Squashing" : "Squash dupes"}
+                </button>
                 <span
                   className="border border-stone-300/70 bg-white/70 px-2 py-0.5 text-[10px] uppercase tracking-widest text-stone-600 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300"
                   style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
