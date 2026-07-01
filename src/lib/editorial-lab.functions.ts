@@ -336,7 +336,14 @@ export const analyseEditorialFromInbox = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
 
-    let source = inbox
+    let source: {
+      id: string;
+      inboxId: string | null;
+      fileName: string | null;
+      caption: string | null;
+      postedAt: string;
+      driveFileId: string | null;
+    } | null = inbox
       ? {
           id: inbox.id as string,
           inboxId: inbox.id as string,
