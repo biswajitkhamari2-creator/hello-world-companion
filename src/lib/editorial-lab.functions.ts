@@ -253,48 +253,6 @@ function salvageEditorialJson(raw: string): EditorialAnalysisFull {
   };
 }
 
-async function repairEditorialJson(raw: string, schema: unknown): Promise<EditorialAnalysisFull> {
-  const key = (process.env.GEMINI_API_KEY || "").trim();
-  if (!key) throw new Error("GEMINI_API_KEY not configured");
-
-  const damaged = extractJsonCandidate(raw).slice(0, 120_000);
-  const body = {
-    contents: [
-      {
-        parts: [
-          {
-            text: `Repair this malformed JSON into valid JSON that matches the schema already supplied in generationConfig.\nDo not add facts. Do not rewrite content. Preserve all complete fields. If a field is incomplete, close it safely with an empty string or empty array. Return JSON only.\n\nMALFORMED JSON:\n${damaged}`,
-          },
-        ],
-      },
-    ],
-    generationConfig: {
-      response_mime_type: "application/json",
-      response_schema: schema,
-      temperature: 0,
-      maxOutputTokens: 32768,
-    },
-  };
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
-  const r = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) {
-    const txt = await r.text().catch(() => "");
-    throw new Error(`Gemini JSON repair failed: ${r.status} ${txt.slice(0, 240)}`);
-  }
-  const j: any = await r.json();
-  const finishReason = j?.candidates?.[0]?.finishReason;
-  const repaired = j?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text ?? "").join("") ?? "";
-  if (finishReason === "MAX_TOKENS") {
-    throw new Error("Editorial JSON repair hit Gemini output limit. Try extracting a smaller PDF.");
-  }
-  return parseEditorialJson(repaired);
-}
-
 async function callGeminiOnPdf(pdfBytes: ArrayBuffer): Promise<EditorialAnalysisFull> {
   const key = (process.env.GEMINI_API_KEY || "").trim();
   if (!key) throw new Error("GEMINI_API_KEY not configured");
@@ -398,12 +356,12 @@ For EACH distinct editorial / op-ed piece you find, produce a rich UPSC-oriented
 - newspaper: detected newspaper name (e.g. "The Hindu").
 - pageHint: page label if visible ("Page 8", "Editorial page").
 - syllabus: Prelims/Mains stage + GS paper mapping + fine subject + specific syllabus topic (and sub-topic if meaningful). MUST be tagged for every editorial.
-- crispNotes: 6-10 sharp bullet points — the fastest possible read of the piece.
-- comprehensiveNotes: 300-500 words in Markdown with clear headings (## Context, ## Core Argument, ## Analysis, ## Way Forward). Use only material grounded in the editorial itself.
+- crispNotes: 5-7 sharp bullet points — the fastest possible read of the piece.
+- comprehensiveNotes: 180-260 words in Markdown with headings (## Context, ## Core Argument, ## Analysis, ## Way Forward). Grounded in the editorial.
 - keyFacts: hard data / dates / articles / schemes / court cases mentioned.
-- vocabulary: 5-8 exam-useful terms with crisp meanings.
+- vocabulary: 4-6 exam-useful terms with crisp meanings.
 - argumentsFor / argumentsAgainst: balanced sides of the debate.
-- wayForward: 3-5 actionable ideas.
+- wayForward: 3-4 actionable ideas.
 - diagramMermaid: a VALID mermaid diagram (prefer 'flowchart TD' or 'mindmap') that visualises the argument or cause-effect chain. Keep node labels short, no special characters that break mermaid. Wrap labels with quotes if they contain spaces. This field is REQUIRED whenever a diagram meaningfully aids understanding.
 - pyqLinks: link to *actual* UPSC/State PSC PYQ themes if the topic has genuinely appeared before. Do NOT fabricate years or exact wordings — if unsure, omit the year and describe the theme only.
 - probablePrelimsMCQ + probableMainsQuestion: exam-ready questions grounded in the editorial.
@@ -413,6 +371,8 @@ Rules:
 - Do NOT invent facts, schemes, judgements or statistics.
 - Everything must be in English (translate if source is Hindi/Odia).
 - Return valid JSON ONLY that matches the provided schema.
+- Hard cap: process AT MOST 4 distinct editorials (pick the highest-value ones). Skip the rest to keep output compact.
+- Keep every string field concise. No prose padding.
 - If the PDF has NO editorial pages, return { "detectedNewspaper": "...", "editorials": [] }.`;
 
   const body = {
@@ -427,8 +387,8 @@ Rules:
     generationConfig: {
       response_mime_type: "application/json",
       response_schema: schema,
-      temperature: 0.3,
-      maxOutputTokens: 32768,
+      temperature: 0.2,
+      maxOutputTokens: 24576,
     },
   };
 
@@ -445,22 +405,15 @@ Rules:
   const j: any = await r.json();
   const finishReason = j?.candidates?.[0]?.finishReason;
   const text = j?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text ?? "").join("") ?? "";
-  if (finishReason === "MAX_TOKENS") {
-    throw new Error(
-      "Editorial too large — Gemini hit the output token limit. Try a smaller PDF (single day / editorial pages only) and retry.",
-    );
-  }
+  // Always attempt parse first — salvage will recover complete editorials even on MAX_TOKENS,
+  // so we never waste a second paid Gemini call.
   let parsed: EditorialAnalysisFull;
   try {
     parsed = parseEditorialJson(text);
-  } catch (firstParseError) {
-    try {
-      parsed = await repairEditorialJson(text, schema);
-    } catch (repairError) {
-      throw new Error(
-        `Gemini returned malformed JSON (finishReason=${finishReason ?? "unknown"}). Initial parse: ${(firstParseError as Error).message}. Repair failed: ${(repairError as Error).message}`,
-      );
-    }
+  } catch (parseError) {
+    throw new Error(
+      `Gemini returned unrecoverable JSON (finishReason=${finishReason ?? "unknown"}): ${(parseError as Error).message.slice(0, 200)}`,
+    );
   }
   if (!Array.isArray(parsed.editorials)) parsed.editorials = [];
   return parsed;
