@@ -57,10 +57,11 @@ function DashboardBackdrop() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-[#0b1024] to-slate-950 opacity-0 dark:opacity-100 transition-opacity" />
-      <div className="absolute -top-40 -left-40 h-[520px] w-[520px] rounded-full bg-gradient-to-br from-indigo-500/25 via-fuchsia-500/20 to-transparent blur-3xl animate-float-slow" />
-      <div className="absolute top-1/3 -right-40 h-[520px] w-[520px] rounded-full bg-gradient-to-br from-cyan-400/20 via-blue-500/20 to-transparent blur-3xl animate-float-slow" style={{ animationDelay: "1.5s" }} />
-      <div className="absolute -bottom-40 left-1/4 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-fuchsia-500/20 via-purple-500/15 to-transparent blur-3xl animate-float-slow" style={{ animationDelay: "3s" }} />
-      <div className="absolute inset-0 opacity-[0.035] dark:opacity-[0.06]" style={{
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 opacity-100 dark:opacity-0 transition-opacity" />
+      <div className="absolute -top-40 -left-40 h-[520px] w-[520px] rounded-full bg-gradient-to-br from-indigo-500/40 via-fuchsia-500/30 to-transparent blur-3xl animate-float-slow" />
+      <div className="absolute top-1/3 -right-40 h-[520px] w-[520px] rounded-full bg-gradient-to-br from-cyan-400/35 via-blue-500/30 to-transparent blur-3xl animate-float-slow" style={{ animationDelay: "1.5s" }} />
+      <div className="absolute -bottom-40 left-1/4 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-fuchsia-500/30 via-purple-500/25 to-transparent blur-3xl animate-float-slow" style={{ animationDelay: "3s" }} />
+      <div className="absolute inset-0 opacity-[0.05] dark:opacity-[0.08]" style={{
         backgroundImage:
           "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
         backgroundSize: "44px 44px",
@@ -337,12 +338,12 @@ export function AppShell({
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   return (
     <SidebarProvider defaultOpen={false}>
-      <div className="relative min-h-dvh flex w-full bg-background">
+      <div className="relative min-h-dvh flex w-full bg-transparent">
         <DashboardBackdrop />
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <AiQuotaBanner />
-          <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/10 bg-background/60 px-3 backdrop-blur-2xl shadow-[0_1px_0_0_rgba(255,255,255,0.04)]">
+          <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/40 dark:border-white/10 bg-white/50 dark:bg-white/[0.03] px-3 backdrop-blur-2xl shadow-[0_8px_24px_-16px_rgba(15,23,42,0.25)]">
             <HamburgerTrigger />
             <Link to="/" className="ml-1 block min-w-0">
               <BrandMark size="sm" />
