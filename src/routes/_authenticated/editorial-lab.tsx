@@ -541,8 +541,8 @@ function EditorialCard({
   selected?: boolean;
   onToggleSelect?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const items = row.analysis?.editorials ?? [];
+  const [open, setOpen] = useState(true);
   const [dlBusy, setDlBusy] = useState<"md" | "pdf" | null>(null);
   const removePiece = useServerFn(removeEditorialPiece);
   const qc = useQueryClient();
