@@ -17,6 +17,7 @@ import { Route as ApiMentorRouteImport } from './routes/api/mentor'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedEditorialRouteImport } from './routes/_authenticated/editorial'
+import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiOauthGoogleStartRouteImport } from './routes/api/oauth/google/start'
@@ -61,6 +62,11 @@ const AuthenticatedEditorialRoute = AuthenticatedEditorialRouteImport.update({
   path: '/editorial',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDownloadsRoute = AuthenticatedDownloadsRouteImport.update({
+  id: '/downloads',
+  path: '/downloads',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/downloads': typeof AuthenticatedDownloadsRoute
   '/editorial': typeof AuthenticatedEditorialRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/mentor': typeof AuthenticatedMentorRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/downloads': typeof AuthenticatedDownloadsRoute
   '/editorial': typeof AuthenticatedEditorialRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/mentor': typeof AuthenticatedMentorRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/downloads': typeof AuthenticatedDownloadsRoute
   '/_authenticated/editorial': typeof AuthenticatedEditorialRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/sitemap.xml'
     | '/dashboard'
+    | '/downloads'
     | '/editorial'
     | '/inbox'
     | '/mentor'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/sitemap.xml'
     | '/dashboard'
+    | '/downloads'
     | '/editorial'
     | '/inbox'
     | '/mentor'
@@ -158,6 +169,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/sitemap.xml'
     | '/_authenticated/dashboard'
+    | '/_authenticated/downloads'
     | '/_authenticated/editorial'
     | '/_authenticated/inbox'
     | '/_authenticated/mentor'
@@ -236,6 +248,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEditorialRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/downloads': {
+      id: '/_authenticated/downloads'
+      path: '/downloads'
+      fullPath: '/downloads'
+      preLoaderRoute: typeof AuthenticatedDownloadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -269,6 +288,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDownloadsRoute: typeof AuthenticatedDownloadsRoute
   AuthenticatedEditorialRoute: typeof AuthenticatedEditorialRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
@@ -276,6 +296,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDownloadsRoute: AuthenticatedDownloadsRoute,
   AuthenticatedEditorialRoute: AuthenticatedEditorialRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
