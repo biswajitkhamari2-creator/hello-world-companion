@@ -395,10 +395,15 @@ export async function uploadFinalResumableChunk(opts: {
   const bytes = opts.chunk instanceof Uint8Array ? opts.chunk : new Uint8Array(opts.chunk);
   const requestBody = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(requestBody).set(bytes);
-  const res = await fetch(opts.uploadUrl, {
+  const useDirectOAuth = hasDirectGoogleOAuth();
+  const lovableApiKey = getConnectorEnv("lovable");
+  const driveApiKey = getConnectorEnv("drive");
+  const res = await fetch(useDirectOAuth ? opts.uploadUrl : toDriveGatewayUrl(opts.uploadUrl), {
     method: "PUT",
     headers: {
-      ...(hasDirectGoogleOAuth() ? { Authorization: `Bearer ${await getAccessToken()}` } : {}),
+      ...(useDirectOAuth
+        ? { Authorization: `Bearer ${await getAccessToken()}` }
+        : { Authorization: `Bearer ${lovableApiKey}`, "X-Connection-Api-Key": driveApiKey }),
       "Content-Length": String(bytes.byteLength),
       "Content-Range": `bytes ${opts.start}-${opts.end - 1}/${opts.total}`,
     },
