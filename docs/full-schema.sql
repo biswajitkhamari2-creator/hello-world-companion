@@ -248,3 +248,35 @@ DROP POLICY IF EXISTS "Inbox delete by authenticated" ON public.telegram_inbox;
 -- which bypasses RLS. No authenticated UPDATE/DELETE policies = no client-side write access.
 
 
+-- ============================================================
+-- 20260701080434_telegram_news_items.sql
+-- Auto-extracted UPSC news items from Telegram-forwarded newspaper PDFs.
+-- ============================================================
+ALTER TABLE public.telegram_inbox
+  ADD COLUMN IF NOT EXISTS analysed_at timestamptz;
+
+CREATE TABLE IF NOT EXISTS public.telegram_news_items (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  inbox_id uuid NOT NULL REFERENCES public.telegram_inbox(id) ON DELETE CASCADE,
+  gs_paper text NOT NULL CHECK (gs_paper IN ('GS1','GS2','GS3','GS4','General')),
+  subject text,
+  title text NOT NULL,
+  summary text,
+  importance smallint NOT NULL DEFAULT 3 CHECK (importance BETWEEN 1 AND 5),
+  posted_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT ON public.telegram_news_items TO authenticated;
+GRANT ALL ON public.telegram_news_items TO service_role;
+ALTER TABLE public.telegram_news_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "News items readable by authenticated"
+  ON public.telegram_news_items FOR SELECT TO authenticated USING (true);
+CREATE INDEX IF NOT EXISTS telegram_news_items_posted_at_idx
+  ON public.telegram_news_items (posted_at DESC);
+CREATE INDEX IF NOT EXISTS telegram_news_items_gs_paper_idx
+  ON public.telegram_news_items (gs_paper);
+CREATE INDEX IF NOT EXISTS telegram_news_items_inbox_id_idx
+  ON public.telegram_news_items (inbox_id);
+CREATE INDEX IF NOT EXISTS telegram_inbox_analysed_at_idx
+  ON public.telegram_inbox (analysed_at);
+
