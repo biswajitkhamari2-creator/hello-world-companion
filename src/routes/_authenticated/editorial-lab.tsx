@@ -355,7 +355,20 @@ function EditorialLabPage() {
                               </a>
                             </>
                           )}
+                          {p.status && p.status !== "ready" && (
+                            <>
+                              <span className="opacity-30">|</span>
+                              <span className="font-bold text-amber-800 dark:text-amber-200">
+                                {String(p.status)}
+                              </span>
+                            </>
+                          )}
                         </div>
+                        {p.error_message && (
+                          <p className="mt-2 text-xs leading-relaxed text-rose-700 dark:text-rose-300">
+                            {p.error_message}
+                          </p>
+                        )}
                         <div className="mt-3">
                           <button
                             onClick={() => analyseMut.mutate(p.id)}

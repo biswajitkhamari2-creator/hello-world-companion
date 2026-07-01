@@ -51,6 +51,15 @@ export interface EditorialRow {
   created_at: string;
 }
 
+const TELEGRAM_SHARED_OWNER = "telegram-inbox";
+
+function getTelegramFileIdFromRaw(raw: any, kind: string): string | null {
+  const msg = raw?.message || raw?.channel_post || raw?.edited_message || raw?.edited_channel_post || {};
+  if (kind === "pdf") return msg?.document?.file_id || null;
+  if (Array.isArray(msg?.photo)) return msg.photo.at(-1)?.file_id || null;
+  return null;
+}
+
 function getAdmin() {
   const url =
     process.env.SUPABASE_URL ||
@@ -71,9 +80,8 @@ export const listInboxNewspapers = createServerFn({ method: "GET" })
     const supabase = getAdmin();
     const { data: inboxRows, error: inboxError } = await supabase
       .from("telegram_inbox")
-      .select("id,file_name,caption,posted_at,size_bytes,drive_file_id,drive_view_link")
+      .select("id,file_name,caption,posted_at,size_bytes,drive_file_id,drive_view_link,status,error_message")
       .eq("kind", "pdf")
-      .not("drive_file_id", "is", null)
       .is("archived_at", null)
       .order("posted_at", { ascending: false })
       .limit(50);
@@ -81,9 +89,8 @@ export const listInboxNewspapers = createServerFn({ method: "GET" })
 
     const { data: docRows, error: docError } = await supabase
       .from("documents")
-      .select("id,title,file_name,created_at,size_bytes,drive_file_id,drive_view_link,mime,source_type,status")
+      .select("id,title,file_name,created_at,size_bytes,drive_file_id,drive_view_link,mime,source_type,status,error_message")
       .eq("user_id", context.userId)
-      .not("drive_file_id", "is", null)
       .order("created_at", { ascending: false })
       .limit(50);
     if (docError) throw new Error(docError.message);
@@ -104,6 +111,8 @@ export const listInboxNewspapers = createServerFn({ method: "GET" })
         size_bytes: r.size_bytes,
         drive_file_id: r.drive_file_id,
         drive_view_link: r.drive_view_link,
+        status: r.status,
+        error_message: r.error_message,
         source: "documents",
       }));
 
@@ -481,7 +490,7 @@ export const analyseEditorialFromInbox = createServerFn({ method: "POST" })
 
     const { data: inbox, error } = await supabase
       .from("telegram_inbox")
-      .select("id,file_name,caption,posted_at,drive_file_id")
+      .select("id,file_name,caption,posted_at,drive_file_id,drive_view_link,mime,size_bytes,status,raw")
       .eq("id", data.inboxId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -493,6 +502,9 @@ export const analyseEditorialFromInbox = createServerFn({ method: "POST" })
       caption: string | null;
       postedAt: string;
       driveFileId: string | null;
+      mime: string | null;
+      sizeBytes: number | null;
+      raw?: unknown;
     } | null = inbox
       ? {
           id: inbox.id as string,
@@ -501,13 +513,55 @@ export const analyseEditorialFromInbox = createServerFn({ method: "POST" })
           caption: inbox.caption as string | null,
           postedAt: inbox.posted_at as string,
           driveFileId: inbox.drive_file_id as string | null,
+          mime: inbox.mime as string | null,
+          sizeBytes: inbox.size_bytes as number | null,
+          raw: inbox.raw,
         }
       : null;
+
+    if (source && !source.driveFileId && inbox?.raw) {
+      const telegramFileId = getTelegramFileIdFromRaw(inbox.raw, "pdf");
+      if (telegramFileId) {
+        try {
+          const [{ tgDownload }, { uploadBufferToDrive }] = await Promise.all([
+            import("./telegram.server"),
+            import("./gdrive.server"),
+          ]);
+          const { bytes } = await tgDownload(telegramFileId);
+          const uploaded = await uploadBufferToDrive({
+            userId: TELEGRAM_SHARED_OWNER,
+            fileName: source.fileName || `telegram-${source.id}.pdf`,
+            mime: source.mime || "application/pdf",
+            data: bytes,
+          });
+          await supabase
+            .from("telegram_inbox")
+            .update({
+              drive_file_id: uploaded.fileId,
+              drive_view_link: uploaded.webViewLink,
+              mime: uploaded.mimeType,
+              size_bytes: uploaded.size,
+              status: "ready",
+              error_message: null,
+            })
+            .eq("id", source.id);
+          source.driveFileId = uploaded.fileId;
+          source.mime = uploaded.mimeType;
+          source.sizeBytes = uploaded.size;
+        } catch (e: any) {
+          const msg = String(e?.message || e || "");
+          if (/file is too big/i.test(msg)) {
+            throw new Error("Telegram bots cannot download PDFs larger than 20 MB. Upload this newspaper manually or send a Drive link.");
+          }
+          throw new Error(`Could not fetch this Telegram PDF. Please resend it to the bot, then refresh. Details: ${msg}`);
+        }
+      }
+    }
 
     if (!source?.driveFileId) {
       const { data: doc, error: docError } = await supabase
         .from("documents")
-        .select("id,title,file_name,created_at,drive_file_id,mime,source_type")
+        .select("id,title,file_name,created_at,drive_file_id,mime,source_type,size_bytes")
         .eq("id", data.inboxId)
         .eq("user_id", context.userId)
         .maybeSingle();
@@ -520,11 +574,13 @@ export const analyseEditorialFromInbox = createServerFn({ method: "POST" })
           caption: doc.title as string | null,
           postedAt: doc.created_at as string,
           driveFileId: doc.drive_file_id as string,
+          mime: doc.mime as string | null,
+          sizeBytes: doc.size_bytes as number | null,
         };
       }
     }
 
-    if (!source?.driveFileId) throw new Error("Newspaper PDF has no Drive file id");
+    if (!source?.driveFileId) throw new Error("Newspaper PDF is visible but has no downloadable file yet. Resend it to Telegram or upload it manually, then press Refresh.");
 
     const { downloadDriveFile } = await import("./gdrive.server");
     const { buffer } = await downloadDriveFile(source.driveFileId);
