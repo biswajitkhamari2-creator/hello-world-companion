@@ -240,6 +240,15 @@ function EditorialLabPage() {
                 Telegram Inbox
               </h2>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={refreshAll}
+                  disabled={refreshing}
+                  className="inline-flex items-center gap-1 border border-stone-300/70 bg-white/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-stone-700 hover:bg-white disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-200 dark:hover:bg-stone-900"
+                  title="Check for new newspapers"
+                >
+                  <RefreshCw className={"h-3 w-3 " + (refreshing ? "animate-spin" : "")} />
+                  {refreshing ? "Checking" : "Refresh"}
+                </button>
                 <span
                   className="border border-stone-300/70 bg-white/70 px-2 py-0.5 text-[10px] uppercase tracking-widest text-stone-600 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300"
                   style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
