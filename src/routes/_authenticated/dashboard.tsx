@@ -821,6 +821,24 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
               ))}
             </div>
           )}
+          {pending && pending !== "infographics" && pending !== "newspaper" && nonInfo.includes(pending as (typeof nonInfo)[number]) && progress && (
+            <div className="mt-3 space-y-1.5 rounded-lg border border-border bg-muted/40 p-3">
+              <div className="flex items-center justify-between text-xs font-medium">
+                <span>Generating {OUTPUT_LABELS[pending as OutputType]?.label ?? pending}…</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {progress.total ? Math.round((progress.done / progress.total) * 100) : 0}%
+                </span>
+              </div>
+              <Progress value={progress.total ? (progress.done / progress.total) * 100 : 0} className="h-2" />
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>{progress.total === 0 ? "Planning chunks…" : `Processing ${progress.done}/${progress.total} chunks`}</span>
+                <span className="flex items-center gap-2">
+                  {progress.retrying > 0 && <span className="text-amber-700">↻ retrying {progress.retrying}</span>}
+                  {progress.failed > 0 && <span className="text-rose-700">{progress.failed} skipped</span>}
+                </span>
+              </div>
+            </div>
+          )}
           {nonInfo.length === 0 && !prefs.generateInfographics && (
             <p className="mt-3 text-xs text-muted-foreground">All outputs are disabled in Processing options.</p>
           )}
