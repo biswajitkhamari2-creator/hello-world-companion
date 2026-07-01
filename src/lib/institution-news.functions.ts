@@ -387,9 +387,10 @@ export const getInstitutionCrispNotes = createServerFn({ method: "POST" })
     const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
     const rawTitle = titleMatch ? titleMatch[1].trim() : "";
 
-    const { createGateway, DEFAULT_MODEL, UPSC_SYSTEM_PROMPT } = await import("./ai-gateway.server");
+    const { createGateway, getAiTaskProfile, UPSC_SYSTEM_PROMPT } = await import("./ai-gateway.server");
     const { generateText } = await import("ai");
-    const gw = createGateway();
+    const profile = getAiTaskProfile("crisp_notes");
+    const gw = createGateway(undefined, profile.provider);
 
     const prompt = `You are preparing CRISP UPSC/State-PCS notes from a coaching-institute article. DO NOT copy sentences verbatim. Rewrite in tight, aspirant-friendly bullets. Every note MUST be tagged with the correct UPSC GS Paper + Subject + Topic per the official UPSC Civil Services syllabus.
 
@@ -435,7 +436,7 @@ ${text}
 """`;
 
     const { text: out } = await generateText({
-      model: gw(DEFAULT_MODEL),
+      model: gw(profile.model),
       system: UPSC_SYSTEM_PROMPT,
       prompt,
       maxRetries: 1,
