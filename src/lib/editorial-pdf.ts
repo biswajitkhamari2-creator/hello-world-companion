@@ -1,5 +1,7 @@
 import { jsPDF } from "jspdf";
 import type { EditorialRow, EditorialItem } from "@/lib/editorial-lab.functions";
+import { PDFDocument } from "pdf-lib";
+import { applyWatermarkToAllPages } from "@/lib/pdf-watermark";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
@@ -144,5 +146,17 @@ export async function editorialsToPdf(row: EditorialRow): Promise<Blob> {
     divider();
   });
 
-  return doc.output("blob");
+  const rawBlob = doc.output("blob");
+  // Stamp the user's logo (or the default SIDHESWAR watermark) onto every
+  // page so Editorial Lab exports match the rest of the app.
+  try {
+    const bytes = new Uint8Array(await rawBlob.arrayBuffer());
+    const pdfDoc = await PDFDocument.load(bytes);
+    await applyWatermarkToAllPages(pdfDoc, "editorial-lab");
+    const stamped = await pdfDoc.save();
+    return new Blob([stamped.buffer.slice(stamped.byteOffset, stamped.byteOffset + stamped.byteLength) as ArrayBuffer], { type: "application/pdf" });
+  } catch (err) {
+    console.warn("[editorial-pdf] watermark failed, returning unstamped PDF", err);
+    return rawBlob;
+  }
 }
