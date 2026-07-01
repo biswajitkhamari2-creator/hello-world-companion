@@ -4,6 +4,7 @@ import {
   getDefaultModel,
   getLovableAiGatewayResponseHeaders,
   getLovableAiGatewayRunId,
+  resolveAvailableAiProvider,
   withLovableAiGatewayRunIdHeader,
 } from "@/lib/ai-gateway.server";
 import { createFileRoute } from "@tanstack/react-router";
@@ -83,16 +84,18 @@ export const Route = createFileRoute("/api/mentor")({
               "AI_KEY_MISSING",
             );
           }
-          // Doubts/chat run on FREE providers (Groq → NVIDIA → Gemini fallback)
-          // so paid Gemini credits are reserved for note generation.
+          // Doubts/chat prefer free providers, but verify the selected key first.
+          // If a free key is rejected/expired, fall back automatically instead of
+          // showing the user an authorization error.
           const preferred: "groq" | "nvidia" | "gemini" =
             process.env.GROQ_API_KEY?.trim()
               ? "groq"
               : process.env.NVIDIA_API_KEY?.trim()
                 ? "nvidia"
                 : "gemini";
-          const gateway = createGateway(initialRunId, preferred);
-          const model = gateway(getDefaultModel(preferred));
+          const availableProvider = await resolveAvailableAiProvider(preferred);
+          const gateway = createGateway(initialRunId, availableProvider);
+          const model = gateway(getDefaultModel(availableProvider));
           const result = streamText({
             model,
             maxRetries: 0,
