@@ -53,6 +53,39 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
 }) {
   const fileName = doc.file_name || `telegram-${base.message_id}.pdf`;
   try {
+    // Duplicate guard — same newspaper PDF (same name + size) already imported?
+    // Skip the Drive upload + document insert entirely to save bandwidth/credit.
+    if (INBOX_OWNER_USER_ID && doc.file_size) {
+      try {
+        const admin = await getAdmin();
+        const { data: dupe } = await admin
+          .from("documents")
+          .select("id")
+          .eq("user_id", INBOX_OWNER_USER_ID)
+          .eq("file_name", fileName)
+          .eq("size_bytes", doc.file_size)
+          .limit(1)
+          .maybeSingle();
+        if (dupe) {
+          await upsertInbox({
+            chat_id: base.chat_id,
+            message_id: base.message_id,
+            kind: "pdf",
+            caption: base.caption,
+            posted_at: base.posted_at,
+            file_name: fileName,
+            mime: doc.mime_type || "application/pdf",
+            size_bytes: doc.file_size,
+            status: "duplicate",
+            error_message: "Duplicate file not accepted — already imported.",
+            raw: base.raw as any,
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn("[telegram dedup check failed]", (e as Error).message);
+      }
+    }
     const { bytes } = await tgDownload(doc.file_id);
     const { bytes: shrunk } = await shrinkPdf(bytes);
     const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
