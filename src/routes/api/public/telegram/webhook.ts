@@ -100,7 +100,6 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
       size_bytes: up.size,
       drive_file_id: up.fileId,
       drive_view_link: up.webViewLink,
-      document_id: documentId,
       status: "ready",
       raw: base.raw as any,
     });
