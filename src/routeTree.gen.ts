@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as PcsDigestRouteImport } from './routes/pcs-digest'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -31,6 +32,11 @@ import { Route as ApiOauthGoogleCallbackRouteImport } from './routes/api/oauth/g
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PcsDigestRoute = PcsDigestRouteImport.update({
+  id: '/pcs-digest',
+  path: '/pcs-digest',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -123,6 +129,7 @@ const ApiOauthGoogleCallbackRoute = ApiOauthGoogleCallbackRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/pcs-digest': typeof PcsDigestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/bookmarks': typeof AuthenticatedBookmarksRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/pcs-digest': typeof PcsDigestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/bookmarks': typeof AuthenticatedBookmarksRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -163,6 +171,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/pcs-digest': typeof PcsDigestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/bookmarks': typeof AuthenticatedBookmarksRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -184,6 +193,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/pcs-digest'
     | '/sitemap.xml'
     | '/bookmarks'
     | '/dashboard'
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/pcs-digest'
     | '/sitemap.xml'
     | '/bookmarks'
     | '/dashboard'
@@ -223,6 +234,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/pcs-digest'
     | '/sitemap.xml'
     | '/_authenticated/bookmarks'
     | '/_authenticated/dashboard'
@@ -244,6 +256,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  PcsDigestRoute: typeof PcsDigestRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiMentorRoute: typeof ApiMentorRoute
   ApiOauthGoogleCallbackRoute: typeof ApiOauthGoogleCallbackRoute
@@ -258,6 +271,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pcs-digest': {
+      id: '/pcs-digest'
+      path: '/pcs-digest'
+      fullPath: '/pcs-digest'
+      preLoaderRoute: typeof PcsDigestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -415,6 +435,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  PcsDigestRoute: PcsDigestRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiMentorRoute: ApiMentorRoute,
   ApiOauthGoogleCallbackRoute: ApiOauthGoogleCallbackRoute,
