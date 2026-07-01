@@ -72,6 +72,12 @@ function NewsPage() {
     };
   }, [reloadKey]);
 
+  // Auto-refresh every minute.
+  useEffect(() => {
+    const id = setInterval(() => setReloadKey((k) => k + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   // Auto-drain pending PDFs one at a time (each call ~ 15–40 s).
   useEffect(() => {
     if (!pending || draining.current) return;
