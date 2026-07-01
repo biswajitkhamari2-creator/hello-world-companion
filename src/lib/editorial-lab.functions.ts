@@ -163,6 +163,79 @@ function bufferToBase64(buf: ArrayBuffer): string {
 
 const GEMINI_MODEL = "gemini-2.5-pro"; // paid tier — highest quality for editorial mining
 
+function extractJsonCandidate(raw: string): string {
+  const cleaned = raw
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+
+  if (cleaned.startsWith("{") || cleaned.startsWith("[")) return cleaned;
+
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start !== -1 && end > start) return cleaned.slice(start, end + 1);
+
+  throw new Error("Gemini returned invalid JSON");
+}
+
+function parseEditorialJson(raw: string): EditorialAnalysisFull {
+  const candidate = extractJsonCandidate(raw);
+  try {
+    return JSON.parse(candidate) as EditorialAnalysisFull;
+  } catch {
+    return JSON.parse(
+      candidate
+        .replace(/,\s*}/g, "}")
+        .replace(/,\s*]/g, "]")
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ""),
+    ) as EditorialAnalysisFull;
+  }
+}
+
+async function repairEditorialJson(raw: string, schema: unknown): Promise<EditorialAnalysisFull> {
+  const key = (process.env.GEMINI_API_KEY || "").trim();
+  if (!key) throw new Error("GEMINI_API_KEY not configured");
+
+  const damaged = extractJsonCandidate(raw).slice(0, 120_000);
+  const body = {
+    contents: [
+      {
+        parts: [
+          {
+            text: `Repair this malformed JSON into valid JSON that matches the schema already supplied in generationConfig.\nDo not add facts. Do not rewrite content. Preserve all complete fields. If a field is incomplete, close it safely with an empty string or empty array. Return JSON only.\n\nMALFORMED JSON:\n${damaged}`,
+          },
+        ],
+      },
+    ],
+    generationConfig: {
+      response_mime_type: "application/json",
+      response_schema: schema,
+      temperature: 0,
+      maxOutputTokens: 32768,
+    },
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`Gemini JSON repair failed: ${r.status} ${txt.slice(0, 240)}`);
+  }
+  const j: any = await r.json();
+  const finishReason = j?.candidates?.[0]?.finishReason;
+  const repaired = j?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text ?? "").join("") ?? "";
+  if (finishReason === "MAX_TOKENS") {
+    throw new Error("Editorial JSON repair hit Gemini output limit. Try extracting a smaller PDF.");
+  }
+  return parseEditorialJson(repaired);
+}
+
 async function callGeminiOnPdf(pdfBytes: ArrayBuffer): Promise<EditorialAnalysisFull> {
   const key = (process.env.GEMINI_API_KEY || "").trim();
   if (!key) throw new Error("GEMINI_API_KEY not configured");
@@ -320,15 +393,13 @@ Rules:
   }
   let parsed: EditorialAnalysisFull;
   try {
-    parsed = JSON.parse(text);
-  } catch {
-    const m = text.match(/\{[\s\S]*\}/);
-    if (!m) throw new Error("Gemini returned invalid JSON");
+    parsed = parseEditorialJson(text);
+  } catch (firstParseError) {
     try {
-      parsed = JSON.parse(m[0]);
-    } catch (e) {
+      parsed = await repairEditorialJson(text, schema);
+    } catch (repairError) {
       throw new Error(
-        `Gemini returned malformed JSON (finishReason=${finishReason ?? "unknown"}). ${(e as Error).message}`,
+        `Gemini returned malformed JSON (finishReason=${finishReason ?? "unknown"}). Initial parse: ${(firstParseError as Error).message}. Repair failed: ${(repairError as Error).message}`,
       );
     }
   }
