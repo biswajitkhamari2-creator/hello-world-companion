@@ -108,17 +108,18 @@ async function geminiExtractStructured(pdfBytes: ArrayBuffer): Promise<Array<{
   } as const;
 
   const prompt = `You are a senior UPSC / OPSC mentor scanning a full newspaper PDF.
+The newspaper may be in English, Hindi, or Odia (ଓଡ଼ିଆ) — read all scripts.
 Extract ONLY articles that are directly relevant to the UPSC / OPSC syllabus.
 SKIP crime blotter, local city notices, sports scores, horoscope, advertisements, obituaries, movie reviews, film/celebrity gossip, share-market ticker.
 
 For every relevant article return:
  - gs_paper: one of GS1 (History, Geography, Society, Art & Culture), GS2 (Polity, Governance, IR, Social Justice), GS3 (Economy, Environment, S&T, Security, Disaster), GS4 (Ethics), General (only if truly cross-cutting).
  - subject: fine-grained tag (e.g. "Indian Polity", "Environment", "International Relations", "Economy").
- - title: crisp headline in your own words, max 110 chars, no clickbait.
- - summary: 2 to 4 sentence crisp brief with WHAT / WHY it matters for UPSC — no fluff, no "according to article".
+ - title: crisp English headline in your own words, max 110 chars, no clickbait. Translate Odia/Hindi headlines to English.
+ - summary: 2 to 4 sentence crisp brief in ENGLISH with WHAT / WHY it matters for UPSC — no fluff, no "according to article". Always translate source content to English regardless of original language.
  - importance: 1..5 where 5 = must-read for prelims/mains, 4 = high, 3 = useful, 2 = optional, 1 = skip.
 
-Return at most 20 items. Prefer quality over quantity. Return valid JSON only.`;
+Return at most 20 items. Prefer quality over quantity. Give special attention to Odisha state, OPSC-relevant governance, and regional angles when present. Return valid JSON only.`;
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
