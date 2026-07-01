@@ -95,7 +95,13 @@ interface WMImage {
 async function loadWatermark(canvasWidthPx: number): Promise<WMImage | null> {
   const s = getWatermarkSettings();
   const userLogo = getUserLogoDataUrl();
-  let src = userLogo;
+  // Respect the "enabled" toggle: user logo is used ONLY when the user has
+  // uploaded one AND enabled stamping. Otherwise fall back to the default
+  // SIDHESWAR watermark. This makes the toggle behave as a persistent
+  // on/off switch — once ON with a logo, every download uses that logo
+  // until the user disables it or replaces the logo.
+  const useUserLogo = s.enabled && !!userLogo;
+  let src: string | null = useUserLogo ? userLogo : null;
   if (!src) {
     try {
       const res = await fetch(logoUrl);
@@ -114,11 +120,17 @@ async function loadWatermark(canvasWidthPx: number): Promise<WMImage | null> {
   if (!src) return null;
   const img = await loadImage(src);
   const marginPx = Math.round(canvasWidthPx * 0.04);
-  console.log("[preview-pdf] watermark loaded", { w: img.naturalWidth, h: img.naturalHeight });
+  console.log("[preview-pdf] watermark loaded", { w: img.naturalWidth, h: img.naturalHeight, source: useUserLogo ? "user" : "default" });
+  // The default background watermark stays subtle (≤ 0.15). When the user
+  // has explicitly uploaded their own logo, honor their opacity setting up
+  // to a stronger cap so the brand mark is actually visible.
+  const opacityCap = useUserLogo ? 0.85 : 0.15;
+  const opacityFloor = useUserLogo ? 0.25 : 0;
+  const opacity = Math.max(opacityFloor, Math.min(opacityCap, s.opacity || (useUserLogo ? 0.45 : 0.08)));
   return {
     img,
     placement: s.placement,
-    opacity: Math.max(0, Math.min(0.15, s.opacity || 0.08)),
+    opacity,
     sizeFactor: sizeFactorFor(s.size),
     blurPx: blurPxFor(s.blur),
     rotationDeg: s.rotation || 0,
