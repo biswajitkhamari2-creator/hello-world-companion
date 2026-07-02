@@ -246,6 +246,51 @@ function NewsAnalyserPage() {
         </div>
       )}
 
+      {/* Diagnostic banner: explain why headlines might be empty */}
+      {diag && (diag.deadDrive > 0 || diag.failed > 0 || (diag.total > 0 && diag.newsCount === 0)) && (
+        <div className="mb-4 rounded-2xl border border-amber-400/30 bg-amber-400/5 p-4 text-xs sm:text-sm">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+            <div className="flex-1 space-y-2">
+              <div className="font-medium text-amber-200">
+                Inbox status — {diag.total} items · {diag.newsCount} headlines extracted
+              </div>
+              <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground sm:grid-cols-4">
+                <li>Pending: <span className="font-semibold text-foreground">{diag.pending}</span></li>
+                <li>Analysed OK: <span className="font-semibold text-foreground">{diag.done}</span></li>
+                <li>Drive lost: <span className="font-semibold text-rose-300">{diag.deadDrive}</span></li>
+                <li>Failed: <span className="font-semibold text-amber-300">{diag.failed}</span></li>
+              </ul>
+              {diag.deadDrive > 0 && (
+                <p className="text-rose-300">
+                  {diag.deadDrive} PDF{diag.deadDrive > 1 ? "s were" : " was"} uploaded under an older Google Drive credential and can no longer be read. <b>Re-forward the newspaper PDF(s) to your Telegram bot</b> — the fresh copy will be processed automatically.
+                </p>
+              )}
+              {diag.failed > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-amber-200">{diag.failed} item(s) failed with a transient error.</span>
+                  <button
+                    onClick={handleResetRetry}
+                    disabled={analysing}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-[11px] font-medium text-amber-100 hover:bg-amber-400/20 disabled:opacity-60"
+                  >
+                    <RotateCw className="h-3 w-3" /> Reset & retry
+                  </button>
+                </div>
+              )}
+              {diag.sampleErr?.length > 0 && (
+                <details className="text-[11px] text-muted-foreground">
+                  <summary className="cursor-pointer">Show error samples</summary>
+                  <ul className="mt-1 list-inside list-disc space-y-0.5">
+                    {diag.sampleErr.map((s, i) => <li key={i} className="break-words">{s}</li>)}
+                  </ul>
+                </details>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {!filtered && !err && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading headlines…
