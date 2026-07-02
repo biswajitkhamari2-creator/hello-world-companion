@@ -72,10 +72,12 @@ function ArchivePage() {
     try {
       let processedAny = false;
       // Batch through pending PDFs — server processes ~1 per call.
-      for (let i = 0; i < 12; i++) {
+      // Loop until inbox is empty (cap at 60 to avoid runaway on huge backlogs).
+      for (let i = 0; i < 60; i++) {
         const res = await extractPendingInboxNews();
         if (res.processed) processedAny = true;
         if (!res.remaining) break;
+        await refreshPendingCount();
       }
       await Promise.all([refreshDates(), refreshPendingCount()]);
       if (!silent) {
@@ -264,8 +266,24 @@ function ArchivePage() {
         )}
 
         {!loading && items && list.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-            {dateLabel} ke liye {tab === "odisha" ? "Odisha" : "National"} headlines nahi mile.
+          <div className="space-y-3 rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            <p>
+              {dateLabel} ke liye {tab === "odisha" ? "Odisha" : "National"} headlines nahi mile.
+            </p>
+            {pending > 0 ? (
+              <p className="text-xs">
+                <span className="text-amber-400">{pending}</span> newspaper Telegram inbox mein
+                pending hai — <b>Sync</b> dabao, us din ka bhi analyse ho jayega.
+              </p>
+            ) : items.length === 0 ? (
+              <p className="text-xs">
+                Is date ka newspaper Telegram bot pe forward nahi hua. Bhejo, phir <b>Sync</b> click karo.
+              </p>
+            ) : null}
+            <Button size="sm" variant="outline" className="gap-1.5" disabled={syncing} onClick={() => runSync(false)}>
+              {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+              Sync now
+            </Button>
           </div>
         )}
 
