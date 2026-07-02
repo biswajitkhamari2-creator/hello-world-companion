@@ -1,10 +1,12 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, RefreshCw, Sparkles, Flame, ArrowLeft, Radio, Newspaper } from "lucide-react";
+import { Loader2, RefreshCw, Sparkles, Flame, ArrowLeft, Radio, Newspaper, AlertTriangle, RotateCw } from "lucide-react";
 import {
   listNewsItems,
   extractPendingInboxNews,
   countPendingInbox,
+  diagnoseInbox,
+  resetFailedInbox,
   type NewsItem,
   type GsPaper,
 } from "@/lib/news-items.functions";
@@ -53,6 +55,7 @@ function NewsAnalyserPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [pending, setPending] = useState<number | null>(null);
   const [analysing, setAnalysing] = useState(false);
+  const [diag, setDiag] = useState<Awaited<ReturnType<typeof diagnoseInbox>> | null>(null);
   const draining = useRef(false);
 
   async function handleRefresh() {
@@ -73,9 +76,22 @@ function NewsAnalyserPage() {
         setItems(fresh);
         const c = await countPendingInbox();
         setPending(c.pending);
+        setDiag(await diagnoseInbox());
       } catch (e) {
         setErr((e as Error).message);
       }
+      setAnalysing(false);
+    }
+  }
+
+  async function handleResetRetry() {
+    setErr(null);
+    setAnalysing(true);
+    try {
+      await resetFailedInbox();
+      await handleRefresh();
+    } catch (e) {
+      setErr((e as Error).message);
       setAnalysing(false);
     }
   }
@@ -88,6 +104,9 @@ function NewsAnalyserPage() {
       .catch((e) => alive && setErr((e as Error).message));
     countPendingInbox()
       .then((r) => alive && setPending(r.pending))
+      .catch(() => {});
+    diagnoseInbox()
+      .then((r) => alive && setDiag(r))
       .catch(() => {});
     return () => {
       alive = false;
