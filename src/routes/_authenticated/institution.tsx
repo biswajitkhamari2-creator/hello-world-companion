@@ -450,7 +450,10 @@ function InstitutionPage() {
               </Button>
             </div>
             <div className="max-h-[75vh] overflow-y-auto px-6 py-5">
-              <div ref={printRef} className="bg-white p-2 text-slate-900">
+              <div
+                ref={printRef}
+                className="pdf-light-scope bg-white p-2 text-slate-900"
+              >
               <div className="mb-4">
                 <h1 className="text-2xl font-bold">{articleTitle || open.title}</h1>
                 <p className="mt-1 text-xs text-slate-500">
