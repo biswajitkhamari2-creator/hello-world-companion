@@ -1,12 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CalendarIcon, ExternalLink, Flame, Loader2, MapPin, Newspaper, Sparkles } from "lucide-react";
-import { format } from "date-fns";
+import { CalendarIcon, ExternalLink, Flame, Loader2, MapPin, Newspaper, RefreshCcw, Sparkles } from "lucide-react";
+import { addDays, format } from "date-fns";
 import {
   searchNewsArchive,
   listArchiveDates,
+  extractPendingInboxNews,
+  countPendingInbox,
   type NewsItem,
 } from "@/lib/news-items.functions";
+import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -40,19 +43,74 @@ function ArchivePage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [dates, setDates] = useState<Set<string>>(new Set());
+  const [syncing, setSyncing] = useState(false);
+  const [pending, setPending] = useState(0);
+
+  async function refreshDates() {
+    try {
+      const d = await listArchiveDates();
+      setDates(new Set(d));
+      return d;
+    } catch {
+      return [];
+    }
+  }
+
+  async function refreshPendingCount() {
+    try {
+      const { pending } = await countPendingInbox();
+      setPending(pending);
+      return pending;
+    } catch {
+      return 0;
+    }
+  }
+
+  async function runSync(silent = false) {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      let processedAny = false;
+      // Batch through pending PDFs — server processes ~1 per call.
+      for (let i = 0; i < 12; i++) {
+        const res = await extractPendingInboxNews();
+        if (res.processed) processedAny = true;
+        if (!res.remaining) break;
+      }
+      await Promise.all([refreshDates(), refreshPendingCount()]);
+      if (!silent) {
+        toast.success(processedAny ? "Sync complete — new headlines added." : "Sab kuch already synced hai.");
+      }
+      return processedAny;
+    } catch (e) {
+      if (!silent) toast.error(`Sync failed: ${(e as Error).message}`);
+      return false;
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   useEffect(() => {
-    listArchiveDates()
-      .then((d) => {
-        const set = new Set(d);
-        setDates(set);
-        // Pre-select the most recent date so the user sees something instantly.
-        if (!date && d.length) {
-          const latest = [...d].sort().pop();
-          if (latest) setDate(new Date(`${latest}T00:00:00`));
+    (async () => {
+      const d = await refreshDates();
+      if (!date && d.length) {
+        const latest = [...d].sort().pop();
+        if (latest) setDate(new Date(`${latest}T00:00:00`));
+      }
+      // Auto-sync in the background so kal ka newspaper appear ho jaaye
+      // agar Telegram inbox mein pending pada hai.
+      const p = await refreshPendingCount();
+      if (p > 0) {
+        const added = await runSync(true);
+        if (added) {
+          const d2 = await refreshDates();
+          if (d2.length) {
+            const latest = [...d2].sort().pop();
+            if (latest) setDate(new Date(`${latest}T00:00:00`));
+          }
         }
-      })
-      .catch(() => {});
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -64,10 +122,20 @@ function ArchivePage() {
     let cancelled = false;
     setLoading(true);
     setErr(null);
-    const ymd = format(date, "yyyy-MM-dd");
-    searchNewsArchive({ data: { from: ymd, to: ymd, limit: 500 } })
+    // Expand the server-side window by ±1 day so IST-vs-UTC boundary
+    // doesn't hide items whose posted_at slid into the next/prev UTC day,
+    // then filter to the user's local calendar day on the client.
+    const ymdLocal = format(date, "yyyy-MM-dd");
+    const from = format(addDays(date, -1), "yyyy-MM-dd");
+    const to = format(addDays(date, 1), "yyyy-MM-dd");
+    searchNewsArchive({ data: { from, to, limit: 1000 } })
       .then((res) => {
-        if (!cancelled) setItems(res);
+        if (cancelled) return;
+        const filtered = res.filter((it) => {
+          const d = new Date(it.posted_at);
+          return format(d, "yyyy-MM-dd") === ymdLocal;
+        });
+        setItems(filtered);
       })
       .catch((e) => {
         if (!cancelled) setErr((e as Error).message);
@@ -154,6 +222,27 @@ function ArchivePage() {
               <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">{odisha.length}</span>
             </button>
           </div>
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto gap-1.5"
+            onClick={async () => {
+              const added = await runSync(false);
+              if (added && date) {
+                // Re-run the current date's query to pick up new items.
+                setDate(new Date(date));
+              }
+            }}
+            disabled={syncing}
+          >
+            {syncing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCcw className="h-3.5 w-3.5" />
+            )}
+            Sync {pending > 0 ? `(${pending})` : ""}
+          </Button>
         </div>
 
         {err && (
