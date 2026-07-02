@@ -5,9 +5,19 @@ import { applyWatermarkToAllPages } from "@/lib/pdf-watermark";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
-const MARGIN = 42;
+const MARGIN = 48;
 const MAX_W = PAGE_W - MARGIN * 2;
 const USABLE_H = PAGE_H - MARGIN * 2;
+
+// Palette — richer, editorial magazine feel.
+const INK: [number, number, number] = [22, 22, 34];
+const ACCENT: [number, number, number] = [79, 46, 168];      // deep violet
+const ACCENT_SOFT: [number, number, number] = [246, 242, 255];
+const MUTED: [number, number, number] = [110, 110, 130];
+const RULE: [number, number, number] = [220, 216, 232];
+const WARN: [number, number, number] = [190, 90, 40];
+const GOOD: [number, number, number] = [30, 120, 80];
+const BAD: [number, number, number] = [175, 45, 60];
 
 function sanitize(s: unknown): string {
   if (s == null) return "";
@@ -24,8 +34,10 @@ function sanitize(s: unknown): string {
 type LineOpts = {
   size?: number;
   bold?: boolean;
+  italic?: boolean;
   color?: [number, number, number];
   gap?: number;
+  lineGap?: number;
 };
 
 /**
@@ -38,152 +50,310 @@ function paintEditorial(
   doc: jsPDF,
   it: EditorialItem,
   index: number,
+  totalCount: number,
   startY: number,
-  scale: number,
-  draw: boolean,
 ): number {
   let y = startY;
 
-  const line = (txt: string, opts: LineOpts = {}) => {
-    const size = (opts.size ?? 11) * scale;
-    if (draw) {
-      doc.setFont("helvetica", opts.bold ? "bold" : "normal");
-      doc.setFontSize(size);
-      doc.setTextColor(...(opts.color ?? [30, 30, 40]));
-    } else {
-      doc.setFontSize(size);
+  const ensureRoom = (need: number) => {
+    if (y + need > PAGE_H - MARGIN) {
+      doc.addPage();
+      y = MARGIN;
+      drawPageChrome(doc, `${index + 1} / ${totalCount}  •  ${sanitize(it.title)}`);
+      y += 8;
     }
+  };
+
+  const line = (txt: string, opts: LineOpts = {}) => {
+    const size = opts.size ?? 12;
+    const font = opts.italic ? "times" : "helvetica";
+    const style = opts.italic ? (opts.bold ? "bolditalic" : "italic") : opts.bold ? "bold" : "normal";
+    doc.setFont(font, style);
+    doc.setFontSize(size);
+    doc.setTextColor(...(opts.color ?? INK));
     const wrapped = doc.splitTextToSize(sanitize(txt), MAX_W) as string[];
     for (const w of wrapped) {
-      if (draw) doc.text(w, MARGIN, y);
-      y += size + 3 * scale;
+      ensureRoom(size + (opts.lineGap ?? 4));
+      doc.text(w, MARGIN, y);
+      y += size + (opts.lineGap ?? 4);
     }
-    y += (opts.gap ?? 2) * scale;
+    y += opts.gap ?? 3;
   };
 
-  const heading = (txt: string, size = 13) => {
-    y += 5 * scale;
-    line(txt, { size, bold: true, color: [60, 40, 120] });
+  const heading = (txt: string) => {
+    ensureRoom(34);
+    y += 8;
+    // Accent bar
+    doc.setFillColor(...ACCENT);
+    doc.rect(MARGIN, y - 10, 4, 16, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(...ACCENT);
+    doc.text(sanitize(txt).toUpperCase(), MARGIN + 12, y + 2);
+    y += 14;
+    doc.setDrawColor(...RULE);
+    doc.setLineWidth(0.5);
+    doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+    y += 10;
   };
 
-  const bullets = (items: string[]) => {
-    for (const it of items) line(`- ${it}`, { size: 10.5 });
+  const bullets = (items: string[], opts: { color?: [number, number, number] } = {}) => {
+    for (const b of items) {
+      const size = 12;
+      const wrapped = doc.splitTextToSize(sanitize(b), MAX_W - 16) as string[];
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(size);
+      doc.setTextColor(...(opts.color ?? ACCENT));
+      ensureRoom(size + 5);
+      doc.text("•", MARGIN + 2, y);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...INK);
+      for (let i = 0; i < wrapped.length; i++) {
+        if (i > 0) ensureRoom(size + 5);
+        doc.text(wrapped[i], MARGIN + 16, y);
+        y += size + 5;
+      }
+      y += 2;
+    }
   };
 
-  // Title + syllabus
-  line(`${index + 1}. ${it.title}`, { size: 15, bold: true, color: [30, 30, 60] });
-  line(
-    `${it.syllabus.stage} • ${it.syllabus.paper} • ${it.syllabus.subject} • ${it.syllabus.topic}${it.syllabus.subTopic ? " • " + it.syllabus.subTopic : ""}`,
-    { size: 9.5, color: [110, 110, 130] },
-  );
-  line(`Importance: ${it.importance}`, { size: 9.5, color: [180, 90, 40] });
+  // ---------- Title block ----------
+  // Small eyebrow: index / importance chip row.
+  doc.setFillColor(...ACCENT_SOFT);
+  doc.roundedRect(MARGIN, y - 4, 62, 20, 4, 4, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...ACCENT);
+  doc.text(`EDITORIAL ${String(index + 1).padStart(2, "0")}`, MARGIN + 8, y + 10);
 
+  const impColor: [number, number, number] =
+    it.importance?.toLowerCase() === "high"
+      ? BAD
+      : it.importance?.toLowerCase() === "medium"
+        ? WARN
+        : GOOD;
+  const impLabel = `Importance: ${it.importance || "—"}`;
+  doc.setFontSize(9.5);
+  doc.setTextColor(...impColor);
+  const impW = doc.getTextWidth(impLabel) + 16;
+  doc.setDrawColor(...impColor);
+  doc.setLineWidth(0.8);
+  doc.roundedRect(MARGIN + 72, y - 4, impW, 20, 4, 4, "S");
+  doc.text(impLabel, MARGIN + 80, y + 10);
+  y += 30;
+
+  // Big serif title.
+  doc.setFont("times", "bold");
+  doc.setFontSize(26);
+  doc.setTextColor(...INK);
+  const titleLines = doc.splitTextToSize(sanitize(it.title), MAX_W) as string[];
+  for (const t of titleLines) {
+    ensureRoom(30);
+    doc.text(t, MARGIN, y);
+    y += 30;
+  }
+  y += 2;
+
+  // Syllabus tag row.
+  const syll = `${it.syllabus.stage}  ›  ${it.syllabus.paper}  ›  ${it.syllabus.subject}  ›  ${it.syllabus.topic}${it.syllabus.subTopic ? "  ›  " + it.syllabus.subTopic : ""}`;
+  line(syll, { size: 10, color: MUTED, italic: true, gap: 6 });
+
+  // Divider.
+  doc.setDrawColor(...ACCENT);
+  doc.setLineWidth(1.2);
+  doc.line(MARGIN, y, MARGIN + 60, y);
+  y += 14;
+
+  // ---------- Sections ----------
   if (it.crispNotes?.length) {
     heading("Crisp Notes");
     bullets(it.crispNotes);
   }
   if (it.comprehensiveNotes) {
-    heading("Comprehensive Notes");
-    line(it.comprehensiveNotes, { size: 10.5 });
+    heading("Comprehensive Analysis");
+    line(it.comprehensiveNotes, { size: 12, lineGap: 5 });
   }
   if (it.argumentsFor?.length) {
     heading("Arguments — For");
-    bullets(it.argumentsFor);
+    bullets(it.argumentsFor, { color: GOOD });
   }
   if (it.argumentsAgainst?.length) {
     heading("Arguments — Against");
-    bullets(it.argumentsAgainst);
+    bullets(it.argumentsAgainst, { color: BAD });
   }
   if (it.keyFacts?.length) {
-    heading("Key Facts");
+    heading("Key Facts & Data");
     bullets(it.keyFacts);
   }
   if (it.vocabulary?.length) {
     heading("Vocabulary");
-    it.vocabulary.forEach((v) => line(`• ${v.word} — ${v.meaning}`, { size: 10.5 }));
+    it.vocabulary.forEach((v) => {
+      ensureRoom(20);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(...ACCENT);
+      doc.text(sanitize(v.word), MARGIN, y);
+      const wW = doc.getTextWidth(sanitize(v.word));
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...INK);
+      const meaning = doc.splitTextToSize(sanitize(" — " + v.meaning), MAX_W - wW) as string[];
+      doc.text(meaning[0] ?? "", MARGIN + wW, y);
+      y += 17;
+      for (let i = 1; i < meaning.length; i++) {
+        ensureRoom(17);
+        doc.text(meaning[i], MARGIN, y);
+        y += 17;
+      }
+      y += 2;
+    });
   }
   if (it.wayForward?.length) {
     heading("Way Forward");
-    bullets(it.wayForward);
+    bullets(it.wayForward, { color: GOOD });
   }
   if (it.pyqLinks?.length) {
     heading("PYQ Links");
-    it.pyqLinks.forEach((p) =>
-      line(`${p.year ? p.year + " " : ""}${p.paper ? "(" + p.paper + ") " : ""}${p.question}`, {
-        size: 10.5,
-      }),
-    );
+    it.pyqLinks.forEach((p) => {
+      const tag = `${p.year ? p.year + " " : ""}${p.paper ? "(" + p.paper + ")" : ""}`.trim();
+      if (tag) line(tag, { size: 10, bold: true, color: ACCENT, gap: 1 });
+      line(p.question, { size: 12, lineGap: 5 });
+    });
   }
   if (it.probablePrelimsMCQ) {
     heading("Probable Prelims MCQ");
-    line(it.probablePrelimsMCQ.q, { size: 10.5, bold: true });
-    it.probablePrelimsMCQ.options.forEach((o, j) =>
-      line(
-        `${String.fromCharCode(65 + j)}. ${o}${j === it.probablePrelimsMCQ!.answer ? "  (correct)" : ""}`,
-        { size: 10.5 },
-      ),
-    );
-    line(`Explanation: ${it.probablePrelimsMCQ.explanation}`, { size: 9.5, color: [90, 90, 110] });
+    line(it.probablePrelimsMCQ.q, { size: 12.5, bold: true, lineGap: 5 });
+    it.probablePrelimsMCQ.options.forEach((o, j) => {
+      const correct = j === it.probablePrelimsMCQ!.answer;
+      line(`${String.fromCharCode(65 + j)}.  ${o}${correct ? "   ✓" : ""}`, {
+        size: 12,
+        bold: correct,
+        color: correct ? GOOD : INK,
+      });
+    });
+    line(`Why: ${it.probablePrelimsMCQ.explanation}`, {
+      size: 10.5,
+      italic: true,
+      color: MUTED,
+    });
   }
   if (it.probableMainsQuestion) {
     heading("Probable Mains Question");
     line(
-      `${it.probableMainsQuestion.paper} • ${it.probableMainsQuestion.marks} marks`,
-      { size: 9.5, color: [110, 110, 130] },
+      `${it.probableMainsQuestion.paper}  •  ${it.probableMainsQuestion.marks} marks`,
+      { size: 10, bold: true, color: ACCENT },
     );
-    line(it.probableMainsQuestion.q, { size: 10.5, bold: true });
-    line(`Approach: ${it.probableMainsQuestion.approach}`, { size: 9.5 });
+    line(it.probableMainsQuestion.q, { size: 13, bold: true, lineGap: 5 });
+    line(`Approach: ${it.probableMainsQuestion.approach}`, { size: 11, italic: true, color: MUTED });
   }
   if (it.diagramMermaid) {
-    heading("Diagram (Mermaid source)");
-    line(it.diagramMermaid, { size: 8.5, color: [90, 90, 110] });
+    heading("Diagram (Mermaid Source)");
+    line(it.diagramMermaid, { size: 9.5, color: MUTED, lineGap: 3 });
   }
 
   return y;
 }
 
+function drawPageChrome(doc: jsPDF, header: string) {
+  // Top header rule.
+  doc.setDrawColor(...RULE);
+  doc.setLineWidth(0.5);
+  doc.line(MARGIN, MARGIN - 18, PAGE_W - MARGIN, MARGIN - 18);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...MUTED);
+  doc.text(sanitize(header), MARGIN, MARGIN - 24);
+  doc.text("UPSC Genius AI · Editorial Lab", PAGE_W - MARGIN, MARGIN - 24, { align: "right" });
+  // Bottom footer.
+  const page = doc.getNumberOfPages();
+  doc.text(`Page ${page}`, PAGE_W - MARGIN, PAGE_H - 20, { align: "right" });
+}
+
 export async function editorialsToPdf(row: EditorialRow): Promise<Blob> {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
 
-  // ---- Cover page ----
-  let y = MARGIN;
-  const drawCoverLine = (txt: string, size: number, color: [number, number, number], bold = false) => {
-    doc.setFont("helvetica", bold ? "bold" : "normal");
-    doc.setFontSize(size);
-    doc.setTextColor(...color);
-    const wrapped = doc.splitTextToSize(sanitize(txt), MAX_W) as string[];
-    for (const w of wrapped) {
-      doc.text(w, MARGIN, y);
-      y += size + 4;
-    }
-    y += 4;
-  };
-  drawCoverLine(row.newspaper || "Newspaper", 22, [40, 30, 100], true);
-  drawCoverLine(
-    `${row.edition_date || row.created_at?.slice(0, 10) || ""}  •  UPSC Genius AI — Editorial Notes`,
-    11,
-    [100, 100, 120],
-  );
-  if (row.source_label) drawCoverLine(row.source_label, 10, [120, 120, 140]);
-  doc.setDrawColor(200, 200, 210);
-  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-
-  // ---- One editorial per page (auto-shrink to fit) ----
   const items = row.analysis?.editorials ?? [];
-  const scaleSteps = [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5];
+
+  // ---- Cover page (magazine style) ----
+  // Solid accent band on the left.
+  doc.setFillColor(...ACCENT);
+  doc.rect(0, 0, 14, PAGE_H, "F");
+  // Soft header wash.
+  doc.setFillColor(...ACCENT_SOFT);
+  doc.rect(0, 0, PAGE_W, 220, "F");
+
+  let y = 120;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...ACCENT);
+  doc.text("UPSC GENIUS AI  ·  EDITORIAL LAB", MARGIN, y);
+  y += 40;
+
+  doc.setFont("times", "bold");
+  doc.setFontSize(46);
+  doc.setTextColor(...INK);
+  const titleWrap = doc.splitTextToSize(sanitize(row.newspaper || "Newspaper"), MAX_W) as string[];
+  for (const t of titleWrap) {
+    doc.text(t, MARGIN, y);
+    y += 48;
+  }
+  y += 6;
+  doc.setFont("times", "italic");
+  doc.setFontSize(16);
+  doc.setTextColor(...MUTED);
+  doc.text(
+    sanitize(row.edition_date || row.created_at?.slice(0, 10) || ""),
+    MARGIN,
+    y,
+  );
+  y += 30;
+  doc.setDrawColor(...ACCENT);
+  doc.setLineWidth(2);
+  doc.line(MARGIN, y, MARGIN + 80, y);
+  y += 40;
+
+  // Table of contents.
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(...ACCENT);
+  doc.text("IN THIS ISSUE", MARGIN, y);
+  y += 18;
+  doc.setDrawColor(...RULE);
+  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+  y += 14;
 
   items.forEach((it, i) => {
+    if (y > PAGE_H - MARGIN - 40) return;
+    doc.setFont("times", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(...INK);
+    const num = `${String(i + 1).padStart(2, "0")}`;
+    doc.text(num, MARGIN, y);
+    const wrap = doc.splitTextToSize(sanitize(it.title), MAX_W - 40) as string[];
+    doc.text(wrap[0] ?? "", MARGIN + 32, y);
+    y += 18;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...MUTED);
+    doc.text(
+      sanitize(`${it.syllabus.paper}  ›  ${it.syllabus.subject}  ›  ${it.syllabus.topic}`),
+      MARGIN + 32,
+      y,
+    );
+    y += 16;
+  });
+
+  if (row.source_label) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(...MUTED);
+    doc.text(sanitize(row.source_label), MARGIN, PAGE_H - 30);
+  }
+
+  // ---- One (or more) pages per editorial ----
+  items.forEach((it, i) => {
     doc.addPage();
-    // Find the largest scale that keeps the editorial within one page.
-    let fitScale = scaleSteps[scaleSteps.length - 1];
-    for (const s of scaleSteps) {
-      const endY = paintEditorial(doc, it, i, MARGIN, s, false);
-      if (endY - MARGIN <= USABLE_H) {
-        fitScale = s;
-        break;
-      }
-    }
-    paintEditorial(doc, it, i, MARGIN, fitScale, true);
+    drawPageChrome(doc, `${i + 1} / ${items.length}  •  ${sanitize(it.title)}`);
+    paintEditorial(doc, it, i, items.length, MARGIN + 8);
   });
 
   const rawBlob = doc.output("blob");
