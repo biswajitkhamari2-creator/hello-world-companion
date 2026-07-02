@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Landmark, ExternalLink, Sparkles, Loader2, X, ArrowLeft } from "lucide-react";
+import { Landmark, ExternalLink, Sparkles, Loader2, X, ArrowLeft, Download } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { getOdishaNews, extractPcsPoints, type OdishaNewsItem } from "@/lib/odisha-news.functions";
+import { downloadStylishArticlePdf } from "@/lib/news-article-pdf";
 
 export const Route = createFileRoute("/pcs-digest")({
   head: () => ({
@@ -33,6 +34,7 @@ function PcsDigestPage() {
   const [extract, setExtract] = useState<string>("");
   const [extracting, setExtracting] = useState(false);
   const [extractErr, setExtractErr] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const [tab, setTab] = useState<string>("All");
 
   useEffect(() => {
@@ -59,6 +61,24 @@ function PcsDigestPage() {
       setExtractErr(e instanceof Error ? e.message : "Extraction failed");
     } finally {
       setExtracting(false);
+    }
+  }
+
+  async function downloadActive() {
+    if (!active || !extract) return;
+    setDownloading(true);
+    try {
+      await downloadStylishArticlePdf({
+        title: active.title,
+        source: active.source,
+        category: active.category,
+        url: active.link,
+        markdown: extract,
+        accent: "emerald",
+        filename: `pcs-${active.title}`,
+      });
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -143,7 +163,18 @@ function PcsDigestPage() {
               </div>
               <div className="flex items-center justify-between border-t border-border/50 p-3">
                 <a href={active.link} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-emerald-600 hover:underline">Open original article →</a>
-                <button type="button" onClick={() => setActive(null)} className="rounded-full bg-foreground/90 px-3 py-1.5 text-xs font-semibold text-background hover:bg-foreground">Close</button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={downloadActive}
+                    disabled={!extract || extracting || downloading}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-lg shadow-emerald-500/40 ring-1 ring-emerald-300/60 transition-all hover:brightness-110 hover:shadow-emerald-500/60 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed animate-pulse"
+                  >
+                    {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                    {downloading ? "Preparing…" : "Download PDF"}
+                  </button>
+                  <button type="button" onClick={() => setActive(null)} className="rounded-full bg-foreground/90 px-3 py-1.5 text-xs font-semibold text-background hover:bg-foreground">Close</button>
+                </div>
               </div>
             </div>
           </div>
