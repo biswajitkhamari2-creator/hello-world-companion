@@ -583,6 +583,43 @@ export const analyseEditorialFromInbox = createServerFn({ method: "POST" })
         }
       : null;
 
+    if (source && !source.driveFileId) {
+      const driveUrl = getDriveUrlFromInboxRow(inbox);
+      const driveId = driveUrl ? extractDriveFileId(driveUrl) : null;
+      if (driveId) {
+        try {
+          const { uploadBufferToDrive } = await import("./gdrive.server");
+          const dl = await fetchPublicDrivePdf(driveId);
+          const uploaded = await uploadBufferToDrive({
+            userId: TELEGRAM_SHARED_OWNER,
+            fileName: dl.name || source.fileName || `drive-${driveId}.pdf`,
+            mime: dl.mime || "application/pdf",
+            data: dl.bytes,
+          });
+          await supabase
+            .from("telegram_inbox")
+            .update({
+              kind: "pdf",
+              file_name: dl.name || source.fileName || `drive-${driveId}.pdf`,
+              drive_file_id: uploaded.fileId,
+              drive_view_link: uploaded.webViewLink,
+              mime: uploaded.mimeType,
+              size_bytes: uploaded.size,
+              status: "ready",
+              error_message: null,
+              source_url: driveUrl,
+            })
+            .eq("id", source.id);
+          source.driveFileId = uploaded.fileId;
+          source.fileName = dl.name || source.fileName || `drive-${driveId}.pdf`;
+          source.mime = uploaded.mimeType;
+          source.sizeBytes = uploaded.size;
+        } catch (e: any) {
+          throw new Error(`Could not import the Drive PDF for Editorial Lab. ${String(e?.message || e)}`);
+        }
+      }
+    }
+
     if (source && !source.driveFileId && inbox?.raw) {
       const telegramFileId = getTelegramFileIdFromRaw(inbox.raw, "pdf");
       if (telegramFileId) {
@@ -618,43 +655,6 @@ export const analyseEditorialFromInbox = createServerFn({ method: "POST" })
             throw new Error("Telegram bots cannot download PDFs larger than 20 MB. Upload this newspaper manually or send a Drive link.");
           }
           throw new Error(`Could not fetch this Telegram PDF. Please resend it to the bot, then refresh. Details: ${msg}`);
-        }
-      }
-    }
-
-    if (source && !source.driveFileId && (inbox as any)?.kind === "link") {
-      const driveUrl = getDriveUrlFromInboxRow(inbox);
-      const driveId = driveUrl ? extractDriveFileId(driveUrl) : null;
-      if (driveId) {
-        try {
-          const { uploadBufferToDrive } = await import("./gdrive.server");
-          const dl = await fetchPublicDrivePdf(driveId);
-          const uploaded = await uploadBufferToDrive({
-            userId: TELEGRAM_SHARED_OWNER,
-            fileName: dl.name || source.fileName || `drive-${driveId}.pdf`,
-            mime: dl.mime || "application/pdf",
-            data: dl.bytes,
-          });
-          await supabase
-            .from("telegram_inbox")
-            .update({
-              kind: "pdf",
-              file_name: dl.name || source.fileName || `drive-${driveId}.pdf`,
-              drive_file_id: uploaded.fileId,
-              drive_view_link: uploaded.webViewLink,
-              mime: uploaded.mimeType,
-              size_bytes: uploaded.size,
-              status: "ready",
-              error_message: null,
-              source_url: driveUrl,
-            })
-            .eq("id", source.id);
-          source.driveFileId = uploaded.fileId;
-          source.fileName = dl.name || source.fileName || `drive-${driveId}.pdf`;
-          source.mime = uploaded.mimeType;
-          source.sizeBytes = uploaded.size;
-        } catch (e: any) {
-          throw new Error(`Could not import the Drive PDF for Editorial Lab. ${String(e?.message || e)}`);
         }
       }
     }

@@ -41,6 +41,34 @@ export interface InboxItem {
   archived_at: string | null;
 }
 
+function extractDriveFileIdFromUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)google\.com$/.test(u.hostname) && !/(^|\.)googleusercontent\.com$/.test(u.hostname)) return null;
+    const pathMatch = u.pathname.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{20,})/);
+    if (pathMatch) return pathMatch[1];
+    const idParam = u.searchParams.get("id");
+    return idParam && /^[a-zA-Z0-9_-]{20,}$/.test(idParam) ? idParam : null;
+  } catch {
+    return null;
+  }
+}
+
+function extractUrls(text: string): string[] {
+  return Array.from(new Set(text.match(/https?:\/\/[^\s)]+/gi) ?? []));
+}
+
+function getDriveRecovery(item: any): { driveId: string | null; sourceUrl: string | null } {
+  const candidates = [item.source_url, item.caption, item.file_name, JSON.stringify(item.raw ?? {})]
+    .filter(Boolean)
+    .flatMap((value) => extractUrls(String(value)));
+  for (const url of candidates) {
+    const driveId = extractDriveFileIdFromUrl(url);
+    if (driveId) return { driveId, sourceUrl: url };
+  }
+  return { driveId: null, sourceUrl: (item.source_url as string | null) ?? null };
+}
+
 export const listInbox = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d?: { archived?: boolean }) => d ?? {})
@@ -69,11 +97,14 @@ export const importInboxItem = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!item) throw new Error("Inbox item not found");
-    const inboxItem = item;
-    if (inboxItem.kind === "link") throw new Error("Link items cannot be imported as documents — open the URL directly.");
-    if (inboxItem.status === "too_large") {
+    const inboxItem = item as any;
+    const driveRecovery = getDriveRecovery(inboxItem);
+    if (inboxItem.kind === "link" && !driveRecovery.driveId) {
+      throw new Error("This link is not a recoverable Google Drive PDF. Open the URL directly or resend a public Drive PDF link.");
+    }
+    if (inboxItem.status === "too_large" && !driveRecovery.driveId) {
       throw new Error(
-        "This PDF is over Telegram's 20 MB bot limit and cannot be fetched. Please compress it (ilovepdf.com / Adobe compress) OR share it as a Google Drive link (Anyone with the link — Viewer) — the link will re-appear in Inbox and import automatically.",
+        "This PDF is over Telegram's 20 MB bot limit and has no saved Google Drive recovery link. Please send the newspaper as a Google Drive link shared with 'Anyone with the link — Viewer'.",
       );
     }
 
@@ -94,12 +125,8 @@ export const importInboxItem = createServerFn({ method: "POST" })
 
       // Fallback: if the item originally came from a Google Drive share link,
       // re-fetch it from Drive directly (public "Anyone with the link" files).
-      const sourceUrl = inboxItem.source_url as string | null;
-      if (!telegramFileId && sourceUrl) {
-        const m = sourceUrl.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{20,})/)
-          || sourceUrl.match(/[?&]id=([a-zA-Z0-9_-]{20,})/);
-        const driveId = m?.[1];
-        if (driveId) {
+      const { driveId, sourceUrl } = getDriveRecovery(inboxItem);
+      if (driveId) {
           try {
             const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -116,6 +143,9 @@ export const importInboxItem = createServerFn({ method: "POST" })
             sizeBytes = uploaded.size;
             await supabaseAdmin.from("telegram_inbox").update({
               drive_file_id: driveFileId, drive_view_link: driveViewLink,
+              source_url: sourceUrl,
+              kind: "pdf",
+              file_name: inboxItem.file_name || dl.name || `drive-${driveId}.pdf`,
               mime, size_bytes: sizeBytes, status: "ready", error_message: null,
             }).eq("id", inboxItem.id);
             return;
@@ -124,12 +154,11 @@ export const importInboxItem = createServerFn({ method: "POST" })
               `Could not fetch the Drive file. Make sure it is shared as "Anyone with the link — Viewer", then retry. Details: ${(e as Error).message}`,
             );
           }
-        }
       }
 
       if (!telegramFileId) {
         throw new Error(
-          "This Telegram item has no downloadable file attached (it may be a text message, or the original file expired on Telegram's servers). Please resend the PDF/image to the bot.",
+          "This Telegram item has no permanent file reference. Send it as a Google Drive link shared with 'Anyone with the link — Viewer' so the app can recover it anytime.",
         );
       }
       try {
@@ -162,7 +191,7 @@ export const importInboxItem = createServerFn({ method: "POST" })
         const msg = (e as Error).message || "";
         if (/file is too big/i.test(msg)) {
           throw new Error(
-            "Telegram bots cannot download files larger than 20 MB. Please post a smaller PDF/image, or share a Google Drive/Dropbox link instead — the link will appear in Inbox and can be opened directly.",
+            "Telegram bots cannot download files larger than 20 MB. Send the newspaper as a Google Drive link shared with 'Anyone with the link — Viewer' so it can be imported permanently.",
           );
         }
         throw new Error(

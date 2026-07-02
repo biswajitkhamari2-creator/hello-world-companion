@@ -11,6 +11,15 @@ const FALLBACK_SUPABASE_URL = "https://ffkyjnswyfeghmfmlapu.supabase.co";
 // manual upload needed. Set TELEGRAM_INBOX_OWNER_USER_ID in project secrets.
 const INBOX_OWNER_USER_ID = process.env.TELEGRAM_INBOX_OWNER_USER_ID || "";
 
+type TelegramBase = {
+  chat_id: number;
+  message_id: number;
+  caption: string | null;
+  posted_at: string;
+  raw: unknown;
+  source_url?: string | null;
+};
+
 // Best-effort PDF shrink (Cloudflare Worker safe). Rewrites the PDF with
 // object streams — typically 10-30% smaller for text-heavy newspaper PDFs.
 // Image-heavy scans won't shrink much; that's expected.
@@ -95,9 +104,7 @@ function extractDriveFileId(url: string): string | null {
   }
 }
 
-async function handleDrivePdfLink(url: string, driveId: string, base: {
-  chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
-}) {
+async function handleDrivePdfLink(url: string, driveId: string, base: TelegramBase) {
   try {
     const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
     // Public download — works for any "Anyone with the link" Drive file,
@@ -177,9 +184,7 @@ async function handleDrivePdfLink(url: string, driveId: string, base: {
   }
 }
 
-async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?: string; file_size?: number }, base: {
-  chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
-}) {
+async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?: string; file_size?: number }, base: TelegramBase) {
   const fileName = doc.file_name || `telegram-${base.message_id}.pdf`;
   // Telegram Bot API has a hard 20 MB download cap (server-side, non-negotiable).
   // We CANNOT fetch the file first and then shrink — the download itself is blocked.
@@ -200,7 +205,8 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
       status: "too_large",
       error_message:
         `PDF is ${mb} MB. Telegram bots can only download files up to 20 MB (Telegram's own limit — we cannot bypass it). ` +
-        `Please compress the PDF first (e.g. ilovepdf.com / Adobe compress) OR share a Google Drive / Dropbox link — the link will appear in Inbox and open directly.`,
+        `Please compress the PDF first (e.g. ilovepdf.com / Adobe compress) OR share a Google Drive link — the Drive link will be imported permanently.`,
+      source_url: base.source_url ?? null,
       raw: base.raw as any,
     });
     return;
@@ -231,6 +237,7 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
             size_bytes: doc.file_size,
             status: "duplicate",
             error_message: "Duplicate file not accepted — already imported.",
+            source_url: base.source_url ?? null,
             raw: base.raw as any,
           });
           return;
@@ -282,6 +289,7 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
       size_bytes: up.size,
       drive_file_id: up.fileId,
       drive_view_link: up.webViewLink,
+      source_url: base.source_url ?? null,
       status: "ready",
       raw: base.raw as any,
     });
@@ -298,14 +306,13 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
       size_bytes: doc.file_size ?? null,
       status: "failed",
       error_message: (e as Error).message,
+      source_url: base.source_url ?? null,
       raw: base.raw as any,
     });
   }
 }
 
-async function handlePhoto(photo: { file_id: string; file_size?: number }, base: {
-  chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
-}) {
+async function handlePhoto(photo: { file_id: string; file_size?: number }, base: TelegramBase) {
   const fileName = `telegram-${base.message_id}.jpg`;
   try {
     const { bytes } = await tgDownload(photo.file_id);
@@ -348,9 +355,7 @@ async function handlePhoto(photo: { file_id: string; file_size?: number }, base:
   }
 }
 
-async function handleLink(url: string, base: {
-  chat_id: number; message_id: number; caption: string | null; posted_at: string; raw: unknown;
-}) {
+async function handleLink(url: string, base: TelegramBase) {
   await upsertInbox({
     chat_id: base.chat_id,
     message_id: base.message_id,
@@ -403,21 +408,37 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             url_count: allUrls.length, urls: allUrls,
           });
 
-          if (msg.document && (msg.document.mime_type === "application/pdf" || (msg.document.file_name || "").toLowerCase().endsWith(".pdf"))) {
+          const driveUrls = allUrls
+            .map((url, index) => ({ url, index, driveId: extractDriveFileId(url) }))
+            .filter((item): item is { url: string; index: number; driveId: string } => Boolean(item.driveId));
+          const nonDriveUrls = allUrls.filter((url) => !extractDriveFileId(url));
+          const hasPdfDocument = Boolean(
+            msg.document && (msg.document.mime_type === "application/pdf" || (msg.document.file_name || "").toLowerCase().endsWith(".pdf")),
+          );
+
+          // Drive links are the permanent path for >20 MB newspapers. Handle them
+          // before Telegram media so a captioned Drive link never gets hidden by
+          // Telegram's bot download limit.
+          for (const item of driveUrls) {
+            const perLinkBase = {
+              ...base,
+              message_id: -(base.message_id * 1000 + item.index + 1),
+              source_url: item.url,
+            };
+            console.log("[telegram webhook] drive url routed", { url: item.url, driveId: item.driveId });
+            await handleDrivePdfLink(item.url, item.driveId, perLinkBase);
+          }
+
+          if (hasPdfDocument && driveUrls.length === 0) {
             await handlePdf(msg.document, base);
-          } else if (Array.isArray(msg.photo) && msg.photo.length) {
+          } else if (Array.isArray(msg.photo) && msg.photo.length && driveUrls.length === 0) {
             const best = msg.photo[msg.photo.length - 1];
             await handlePhoto(best, base);
-          } else if (allUrls.length) {
-            for (const u of allUrls) {
-              const perLinkBase = { ...base, message_id: base.message_id + Math.floor(Math.random() * 1000) };
-              const driveId = extractDriveFileId(u);
-              console.log("[telegram webhook] url routed", { url: u, driveId });
-              if (driveId) {
-                await handleDrivePdfLink(u, driveId, perLinkBase);
-              } else {
-                await handleLink(u, perLinkBase);
-              }
+          } else if (!hasPdfDocument && nonDriveUrls.length) {
+            for (const [index, u] of nonDriveUrls.entries()) {
+              const perLinkBase = { ...base, message_id: -(base.message_id * 1000 + driveUrls.length + index + 1) };
+              console.log("[telegram webhook] url routed", { url: u, driveId: null });
+              await handleLink(u, perLinkBase);
             }
           }
           return Response.json({ ok: true });
