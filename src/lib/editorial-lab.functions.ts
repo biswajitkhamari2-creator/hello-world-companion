@@ -117,7 +117,7 @@ function getAdmin() {
     process.env.VITE_SUPABASE_URL ||
     "https://ffkyjnswyfeghmfmlapu.supabase.co";
   const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.APP_SUPABASE_SERVICE_ROLE_KEY;
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.APP_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || process.env.APP_SUPABASE_SECRET_KEY;
   if (!key) throw new Error("Supabase service key missing");
   return createClient(url, key, {
     auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
