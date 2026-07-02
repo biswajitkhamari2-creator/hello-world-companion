@@ -18,7 +18,6 @@ type TelegramBase = {
   posted_at: string;
   raw: unknown;
   source_url?: string | null;
-  source_drive_file_id?: string | null;
 };
 
 // Best-effort PDF shrink (Cloudflare Worker safe). Rewrites the PDF with
@@ -137,7 +136,7 @@ async function handleDrivePdfLink(url: string, driveId: string, base: TelegramBa
           caption: base.caption, posted_at: base.posted_at,
           file_name: fileName, mime: dl.mime, size_bytes: sizeBytes,
           status: "duplicate", error_message: "Duplicate file — already imported.",
-          source_url: url, source_drive_file_id: driveId, raw: base.raw as any,
+          source_url: url, raw: base.raw as any,
         });
         return;
       }
@@ -169,7 +168,7 @@ async function handleDrivePdfLink(url: string, driveId: string, base: TelegramBa
       caption: base.caption, posted_at: base.posted_at,
       file_name: fileName, mime: up.mimeType, size_bytes: up.size,
       drive_file_id: up.fileId, drive_view_link: up.webViewLink,
-      source_url: url, source_drive_file_id: driveId, status: "ready", raw: base.raw as any,
+      source_url: url, status: "ready", raw: base.raw as any,
     });
   } catch (e) {
     console.error("[telegram drive-link import]", e);
@@ -180,7 +179,7 @@ async function handleDrivePdfLink(url: string, driveId: string, base: TelegramBa
     await upsertInbox({
       chat_id: base.chat_id, message_id: base.message_id, kind: "pdf",
       caption: base.caption, posted_at: base.posted_at,
-      source_url: url, source_drive_file_id: driveId, status: "failed", error_message: friendly, raw: base.raw as any,
+      source_url: url, status: "failed", error_message: friendly, raw: base.raw as any,
     });
   }
 }
@@ -207,9 +206,7 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
       error_message:
         `PDF is ${mb} MB. Telegram bots can only download files up to 20 MB (Telegram's own limit — we cannot bypass it). ` +
         `Please compress the PDF first (e.g. ilovepdf.com / Adobe compress) OR share a Google Drive link — the Drive link will be imported permanently.`,
-      telegram_file_id: doc.file_id,
       source_url: base.source_url ?? null,
-      source_drive_file_id: base.source_drive_file_id ?? null,
       raw: base.raw as any,
     });
     return;
@@ -240,9 +237,7 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
             size_bytes: doc.file_size,
             status: "duplicate",
             error_message: "Duplicate file not accepted — already imported.",
-            telegram_file_id: doc.file_id,
             source_url: base.source_url ?? null,
-            source_drive_file_id: base.source_drive_file_id ?? null,
             raw: base.raw as any,
           });
           return;
@@ -294,9 +289,7 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
       size_bytes: up.size,
       drive_file_id: up.fileId,
       drive_view_link: up.webViewLink,
-      telegram_file_id: doc.file_id,
       source_url: base.source_url ?? null,
-      source_drive_file_id: base.source_drive_file_id ?? null,
       status: "ready",
       raw: base.raw as any,
     });
@@ -313,9 +306,7 @@ async function handlePdf(doc: { file_id: string; file_name?: string; mime_type?:
       size_bytes: doc.file_size ?? null,
       status: "failed",
       error_message: (e as Error).message,
-      telegram_file_id: doc.file_id,
       source_url: base.source_url ?? null,
-      source_drive_file_id: base.source_drive_file_id ?? null,
       raw: base.raw as any,
     });
   }
@@ -343,7 +334,6 @@ async function handlePhoto(photo: { file_id: string; file_size?: number }, base:
       size_bytes: up.size,
       drive_file_id: up.fileId,
       drive_view_link: up.webViewLink,
-      telegram_file_id: photo.file_id,
       status: "ready",
       raw: base.raw as any,
     });
@@ -360,7 +350,6 @@ async function handlePhoto(photo: { file_id: string; file_size?: number }, base:
       size_bytes: photo.file_size ?? null,
       status: "failed",
       error_message: (e as Error).message,
-      telegram_file_id: photo.file_id,
       raw: base.raw as any,
     });
   }
@@ -435,7 +424,6 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
               ...base,
               message_id: base.message_id * 1000 + item.index + 1,
               source_url: item.url,
-              source_drive_file_id: item.driveId,
             };
             console.log("[telegram webhook] drive url routed", { url: item.url, driveId: item.driveId });
             await handleDrivePdfLink(item.url, item.driveId, perLinkBase);

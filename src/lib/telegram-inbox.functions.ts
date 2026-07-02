@@ -37,8 +37,6 @@ export interface InboxItem {
   drive_file_id: string | null;
   drive_view_link: string | null;
   source_url: string | null;
-  source_drive_file_id: string | null;
-  telegram_file_id: string | null;
   status: string;
   archived_at: string | null;
 }
@@ -61,10 +59,6 @@ function extractUrls(text: string): string[] {
 }
 
 function getDriveRecovery(item: any): { driveId: string | null; sourceUrl: string | null } {
-  const storedDriveId = typeof item.source_drive_file_id === "string" ? item.source_drive_file_id : null;
-  if (storedDriveId && /^[a-zA-Z0-9_-]{20,}$/.test(storedDriveId)) {
-    return { driveId: storedDriveId, sourceUrl: (item.source_url as string | null) ?? null };
-  }
   const candidates = [item.source_url, item.caption, item.file_name, JSON.stringify(item.raw ?? {})]
     .filter(Boolean)
     .flatMap((value) => extractUrls(String(value)));
@@ -81,7 +75,7 @@ export const listInbox = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("telegram_inbox")
-      .select("id,kind,caption,posted_at,file_name,mime,size_bytes,drive_file_id,drive_view_link,source_url,source_drive_file_id,telegram_file_id,status,archived_at")
+      .select("id,kind,caption,posted_at,file_name,mime,size_bytes,drive_file_id,drive_view_link,source_url,status,archived_at")
       .order("posted_at", { ascending: false })
       .limit(100);
     if (data.archived) q = q.not("archived_at", "is", null);
@@ -122,8 +116,7 @@ export const importInboxItem = createServerFn({ method: "POST" })
     async function repairFromTelegram() {
       const rawMsg = (inboxItem.raw as any)?.message || (inboxItem.raw as any)?.channel_post || (inboxItem.raw as any)?.edited_message || (inboxItem.raw as any)?.edited_channel_post || {};
       const telegramFileId: string | undefined =
-        inboxItem.telegram_file_id
-        || rawMsg.document?.file_id
+        rawMsg.document?.file_id
         || (Array.isArray(rawMsg.photo) ? rawMsg.photo.at(-1)?.file_id : undefined)
         || rawMsg.video?.file_id
         || rawMsg.audio?.file_id
@@ -151,7 +144,6 @@ export const importInboxItem = createServerFn({ method: "POST" })
             await supabaseAdmin.from("telegram_inbox").update({
               drive_file_id: driveFileId, drive_view_link: driveViewLink,
               source_url: sourceUrl,
-              source_drive_file_id: driveId,
               kind: "pdf",
               file_name: inboxItem.file_name || dl.name || `drive-${driveId}.pdf`,
               mime, size_bytes: sizeBytes, status: "ready", error_message: null,
