@@ -73,11 +73,12 @@ export async function downloadStylishArticlePdf(input: StylishArticleInput): Pro
   wrapper.setAttribute("data-stylish-article-pdf", "true");
   // Off-screen but rendered so html2canvas can capture it.
   wrapper.style.cssText = `
-    position: fixed; left: -10000px; top: 0; width: 794px;
+    position: fixed; left: 0; top: 0; width: 794px;
     background: #ffffff; color: #0f172a;
     font-family: 'Fraunces', 'Georgia', serif;
     padding: 56px 60px 72px; box-sizing: border-box;
     line-height: 1.6;
+    opacity: 0.01; pointer-events: none; z-index: -1;
   `;
 
   wrapper.innerHTML = `
