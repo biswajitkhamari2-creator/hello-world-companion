@@ -242,13 +242,20 @@ async function geminiExtractStructured(pdfBytes: ArrayBuffer): Promise<Array<{
 
   const prompt = `You are a senior UPSC / OPSC mentor scanning a full newspaper PDF.
 The newspaper may be in English, Hindi, or Odia (ଓଡ଼ିଆ) — read all scripts.
-Extract ONLY articles that are directly relevant to the UPSC / OPSC syllabus.
-SKIP crime blotter, local city notices, sports scores, horoscope, advertisements, obituaries, movie reviews, film/celebrity gossip, share-market ticker.
+Extract ONLY real, standalone news / editorial ARTICLES that are directly relevant to the UPSC / OPSC syllabus.
+
+HARD REJECT — never emit an item whose title or summary is or contains any of:
+ - Subscription banners, "give a missed call", phone numbers, QR-code prompts, "To subscribe", "IN BRIEF" section headers alone, page-jump pointers ("STATES » PAGE 3", "» PAGE 7", "contd. on page…").
+ - Masthead / edition strip / date line / weather box / crossword / sudoku / horoscope / cartoons.
+ - Crime blotter, local city notices, sports scores, advertisements, obituaries, movie reviews, film / celebrity gossip, share-market ticker, classifieds, tender notices.
+ - Garbled OCR fragments, single-word titles, ALL-CAPS scream headers with no sentence, or titles that look like a mash-up of unrelated snippets from different columns.
+
+If you are not confident the text is one coherent article headline, DROP it. Better to return fewer items than junk.
 
 For every relevant article return:
  - gs_paper: one of GS1 (History, Geography, Society, Art & Culture), GS2 (Polity, Governance, IR, Social Justice), GS3 (Economy, Environment, S&T, Security, Disaster), GS4 (Ethics), General (only if truly cross-cutting).
  - subject: fine-grained tag (e.g. "Indian Polity", "Environment", "International Relations", "Economy").
- - title: full, complete English headline in your own words — do NOT truncate or cut mid-sentence. Keep it self-contained and specific (aim 60-160 chars, hard cap 220). Translate Odia/Hindi headlines fully to English.
+ - title: full, complete, grammatical English headline in your own words describing ONE article — do NOT truncate, do NOT concatenate multiple headlines, do NOT copy subscription / QR / "IN BRIEF" text. Self-contained and specific (aim 60-160 chars, hard cap 220). Translate Odia/Hindi headlines fully to English.
  - summary: 2 to 4 sentence crisp brief in ENGLISH with WHAT / WHY it matters for UPSC — no fluff, no "according to article". Always translate source content to English regardless of original language.
  - importance: 1..5 where 5 = must-read for prelims/mains, 4 = high, 3 = useful, 2 = optional, 1 = skip.
 
