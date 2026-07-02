@@ -126,7 +126,7 @@ export const importInboxItem = createServerFn({ method: "POST" })
       // Fallback: if the item originally came from a Google Drive share link,
       // re-fetch it from Drive directly (public "Anyone with the link" files).
       const { driveId, sourceUrl } = getDriveRecovery(inboxItem);
-      if (!telegramFileId && driveId) {
+      if (driveId) {
           try {
             const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -191,7 +191,7 @@ export const importInboxItem = createServerFn({ method: "POST" })
         const msg = (e as Error).message || "";
         if (/file is too big/i.test(msg)) {
           throw new Error(
-            "Telegram bots cannot download files larger than 20 MB. Please post a smaller PDF/image, or share a Google Drive/Dropbox link instead — the link will appear in Inbox and can be opened directly.",
+            "Telegram bots cannot download files larger than 20 MB. Send the newspaper as a Google Drive link shared with 'Anyone with the link — Viewer' so it can be imported permanently.",
           );
         }
         throw new Error(
