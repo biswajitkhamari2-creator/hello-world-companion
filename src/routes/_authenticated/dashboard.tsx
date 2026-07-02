@@ -777,40 +777,6 @@ function DocCard({ doc, onDelete }: { doc: any; onDelete: () => void }) {
             </div>
           )}
 
-          <div className="mt-3 rounded-lg border border-rose-300/60 bg-gradient-to-r from-rose-50 to-amber-50 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="flex items-center gap-2 font-serif font-semibold">
-                  <Newspaper className="h-4 w-4 text-rose-700" /> Newspaper Intelligence
-                </div>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Auto-detects source (The Hindu, Indian Express, PIB, PRS, Yojana…), splits the issue into articles, and classifies each with GS Paper, syllabus path, PYQs, importance & related links.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild size="sm" variant="outline" className="border-rose-300 text-rose-700 hover:bg-rose-50">
-                  <a href="/inbox">📅 Pick date from Telegram</a>
-                </Button>
-                <Button size="sm" onClick={() => run("newspaper")} disabled={pending !== null} className="bg-green-600 hover:bg-green-700 text-white animate-pulse">
-                  {pending === "newspaper" ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Newspaper className="mr-2 h-3.5 w-3.5" />}
-                  Analyse as Newspaper
-                </Button>
-              </div>
-            </div>
-            {pending === "newspaper" && progress && (
-              <div className="mt-3 space-y-1.5">
-                <Progress value={progress.total ? (progress.done / progress.total) * 100 : 0} className="h-2" />
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span>{progress.total === 0 ? "Planning chunks…" : `Processing ${progress.done}/${progress.total} chunks`}</span>
-                  <span className="flex items-center gap-2">
-                    {progress.retrying > 0 && <span className="text-amber-700">↻ retrying {progress.retrying}</span>}
-                    {progress.failed > 0 && <span className="text-rose-700">{progress.failed} skipped</span>}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
           {nonInfo.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {nonInfo.map((t) => (
