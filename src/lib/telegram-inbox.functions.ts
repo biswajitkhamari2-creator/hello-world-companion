@@ -1,6 +1,31 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+/** Public Drive download (Anyone-with-the-link files). Handles the >100MB confirm interstitial. */
+async function fetchPublicDriveFile(fileId: string): Promise<{ bytes: ArrayBuffer; mime: string; name: string | null }> {
+  const primary = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`;
+  let res = await fetch(primary, { redirect: "follow" });
+  let ct = res.headers.get("content-type") || "";
+  if (res.ok && /text\/html/i.test(ct)) {
+    const html = await res.text();
+    const uuid = html.match(/name="uuid"\s+value="([^"]+)"/i)?.[1];
+    const confirm = html.match(/name="confirm"\s+value="([^"]+)"/i)?.[1] || "t";
+    if (uuid) {
+      const retry = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=${encodeURIComponent(confirm)}&uuid=${encodeURIComponent(uuid)}`;
+      res = await fetch(retry, { redirect: "follow" });
+      ct = res.headers.get("content-type") || "";
+    }
+  }
+  if (!res.ok || /text\/html/i.test(ct)) {
+    throw new Error(`Drive public download failed (${res.status}). Ensure the file is shared as "Anyone with the link — Viewer".`);
+  }
+  const cd = res.headers.get("content-disposition") || "";
+  const nameMatch = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+  const name = nameMatch ? decodeURIComponent(nameMatch[1]) : null;
+  const bytes = await res.arrayBuffer();
+  return { bytes, mime: ct.split(";")[0].trim() || "application/pdf", name };
+}
+
 export interface InboxItem {
   id: string;
   kind: "pdf" | "image" | "link";
