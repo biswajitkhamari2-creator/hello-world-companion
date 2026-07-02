@@ -2,7 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
+
+// Mermaid (~500KB) is lazy-loaded on first diagram render / download so it
+// doesn't bloat the editorial-lab route chunk.
+let _mermaid: typeof import("mermaid")["default"] | null = null;
+async function getMermaid() {
+  if (!_mermaid) {
+    _mermaid = (await import("mermaid")).default;
+    _mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose" });
+  }
+  return _mermaid;
+}
 import {
   FileEdit,
   Sparkles,
@@ -930,7 +940,7 @@ function EditorialPiece({
       return;
     }
     try {
-      mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose" });
+      const mermaid = await getMermaid();
       const { svg } = await mermaid.render(`mm-dl-${rowId}-${idx}`, item.diagramMermaid);
       const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
       triggerDownload(blob, `${baseName}_mindmap.svg`);
@@ -1201,10 +1211,10 @@ function MermaidBlock({ code, id }: { code: string; id: string }) {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose" });
     let cancelled = false;
     (async () => {
       try {
+        const mermaid = await getMermaid();
         const { svg } = await mermaid.render(id.replace(/[^a-zA-Z0-9_-]/g, "_"), code);
         if (!cancelled && ref.current) ref.current.innerHTML = svg;
       } catch (e: any) {
