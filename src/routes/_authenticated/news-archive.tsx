@@ -72,10 +72,12 @@ function ArchivePage() {
     try {
       let processedAny = false;
       // Batch through pending PDFs — server processes ~1 per call.
-      for (let i = 0; i < 12; i++) {
+      // Loop until inbox is empty (cap at 60 to avoid runaway on huge backlogs).
+      for (let i = 0; i < 60; i++) {
         const res = await extractPendingInboxNews();
         if (res.processed) processedAny = true;
         if (!res.remaining) break;
+        await refreshPendingCount();
       }
       await Promise.all([refreshDates(), refreshPendingCount()]);
       if (!silent) {
