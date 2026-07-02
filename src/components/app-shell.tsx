@@ -119,18 +119,6 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Generate",
-    items: [
-      { title: "Handwritten Notes", url: "/dashboard?gen=handwritten", icon: PenLine },
-      { title: "Short Notes", url: "/dashboard?gen=short", icon: StickyNote },
-      { title: "Infographics", url: "/dashboard?gen=infographics", icon: ImageIcon },
-      { title: "Mind Maps", url: "/dashboard?gen=mindmap", icon: Brain },
-      { title: "Flashcards", url: "/dashboard?gen=flashcards", icon: Layers },
-      { title: "Question Generator", url: "/dashboard?gen=questions", icon: HelpCircle },
-      { title: "PYQ Explorer", url: "/dashboard?gen=pyq", icon: Library },
-    ],
-  },
-  {
     label: "Daily Practice",
     items: [
       { title: "Current Affairs", url: "/dashboard?tab=current-affairs", icon: CalendarClock },
