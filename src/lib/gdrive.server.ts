@@ -193,8 +193,12 @@ export async function uploadBufferToDrive(opts: {
   fileName: string;
   mime: string;
   data: ArrayBuffer | Uint8Array;
+  folderName?: string;
 }): Promise<DriveUploadResult> {
-  const parentId = await getUserFolderId(opts.userId);
+  const userFolderId = await getUserFolderId(opts.userId);
+  const parentId = opts.folderName
+    ? await ensureFolder(opts.folderName.slice(0, 80), userFolderId)
+    : userFolderId;
   const metadata = {
     name: opts.fileName,
     parents: [parentId],

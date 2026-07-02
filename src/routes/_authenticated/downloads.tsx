@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Download, FileText, Loader2, Sparkles, ExternalLink, Trash2, HardDrive } from "lucide-react";
+import { Download, FileText, Loader2, Sparkles, ExternalLink, Trash2, HardDrive, Cloud, CloudUpload } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,14 @@ import {
   listDownloads,
   deleteDownload,
   clearDownloads,
+  getDownloadBlob,
   redownload,
   onDownloadsUpdated,
   formatSize,
+  updateDownloadMeta,
   type StoredDownloadRecord,
 } from "@/lib/downloads-store";
+import { deleteDriveDownload, listDriveDownloads, saveGeneratedDownloadToDrive } from "@/lib/downloads.functions";
 
 export const Route = createFileRoute("/_authenticated/downloads")({
   head: () => ({ meta: [{ title: "Downloads — UPSC Genius AI" }] }),
@@ -58,13 +61,19 @@ function KindBadge({ kind }: { kind: StoredDownloadRecord["kind"] }) {
 function DownloadsPage() {
   const list = useServerFn(listDocuments);
   const del = useServerFn(deleteDocument);
+  const listDrive = useServerFn(listDriveDownloads);
+  const delDrive = useServerFn(deleteDriveDownload);
+  const saveDrive = useServerFn(saveGeneratedDownloadToDrive);
   const qc = useQueryClient();
   const [confirmDocId, setConfirmDocId] = useState<string | null>(null);
+  const [confirmDriveId, setConfirmDriveId] = useState<string | null>(null);
   const [confirmLocalId, setConfirmLocalId] = useState<string | null>(null);
+  const [savingDriveId, setSavingDriveId] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
 
   const local = useLocalDownloads();
   const q = useQuery({ queryKey: ["downloads-docs"], queryFn: () => list() });
+  const driveQ = useQuery({ queryKey: ["drive-downloads"], queryFn: () => listDrive() });
 
   const mDelete = useMutation({
     mutationFn: (id: string) => del({ data: { id } }),
@@ -76,6 +85,42 @@ function DownloadsPage() {
     },
     onError: (e: any) => toast.error(e?.message || "Delete failed"),
   });
+
+  const mDeleteDrive = useMutation({
+    mutationFn: (id: string) => delDrive({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Drive download deleted");
+      setConfirmDriveId(null);
+      qc.invalidateQueries({ queryKey: ["drive-downloads"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Delete failed"),
+  });
+
+  const saveLocalToDrive = async (r: StoredDownloadRecord) => {
+    try {
+      setSavingDriveId(r.id);
+      const blob = await getDownloadBlob(r.id);
+      if (!blob) throw new Error("Local file not found. Please download it again once.");
+      const fd = new FormData();
+      fd.set("file", blob, r.name || "download");
+      fd.set("source", r.source || "downloads-page");
+      fd.set("kind", r.kind || "other");
+      const saved = await saveDrive({ data: fd } as any);
+      await updateDownloadMeta(r.id, {
+        driveDocumentId: saved.documentId,
+        driveFileId: saved.driveFileId,
+        driveViewLink: saved.driveViewLink,
+        driveSavedAt: Date.now(),
+      });
+      await local.reload();
+      qc.invalidateQueries({ queryKey: ["drive-downloads"] });
+      toast.success("Saved directly to Google Drive");
+    } catch (e: any) {
+      toast.error(e?.message || "Drive save failed");
+    } finally {
+      setSavingDriveId(null);
+    }
+  };
 
   const totalSize = (local.rows ?? []).reduce((n, r) => n + r.size, 0);
 
@@ -90,11 +135,96 @@ function DownloadsPage() {
             <div>
               <h1 className="font-serif text-2xl font-bold">Downloads</h1>
               <p className="text-sm text-muted-foreground">
-                Every PDF / notes / report you download is saved here until you delete it.
+                Every PDF / notes / report is saved to this page and copied to your Google Drive.
               </p>
             </div>
           </div>
         </header>
+
+        {/* Google Drive saved downloads */}
+        <section className="mb-10">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Cloud className="h-4 w-4 text-sky-600" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Saved to Google Drive
+              </h2>
+              {driveQ.data && (
+                <Badge variant="outline" className="text-[10px]">
+                  {driveQ.data.length} file{driveQ.data.length === 1 ? "" : "s"}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {driveQ.isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading Drive downloads…
+            </div>
+          ) : !driveQ.data?.length ? (
+            <div className="rounded-xl border border-dashed border-border bg-card/60 p-8 text-center text-sm text-muted-foreground">
+              New downloads are now copied to Google Drive automatically. For old local files, use “Save to Drive” below.
+            </div>
+          ) : (
+            <ul className="grid gap-2.5">
+              {driveQ.data.map((d: any, i: number) => (
+                <li
+                  key={d.id}
+                  className="group flex flex-col gap-2 rounded-xl border border-border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md animate-fade-in sm:flex-row sm:items-center"
+                  style={{ animationDelay: `${i * 30}ms`, animationFillMode: "both" }}
+                >
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-sky-500 to-emerald-500 text-white">
+                      <Cloud className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{d.file_name || d.title || "Download"}</p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <Badge variant="outline" className="text-[10px]">Drive</Badge>
+                        <span>{new Date(d.created_at).toLocaleString()}</span>
+                        {d.size_bytes ? <span>· {formatSize(Number(d.size_bytes))}</span> : null}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {d.drive_view_link ? (
+                      <Button size="sm" asChild>
+                        <a href={d.drive_view_link} target="_blank" rel="noreferrer">
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Open Drive
+                        </a>
+                      </Button>
+                    ) : null}
+                    {confirmDriveId === d.id ? (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={mDeleteDrive.isPending}
+                          onClick={() => mDeleteDrive.mutate(d.id)}
+                        >
+                          {mDeleteDrive.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm"}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmDriveId(null)} disabled={mDeleteDrive.isPending}>
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                        onClick={() => setConfirmDriveId(d.id)}
+                        title="Delete from Drive downloads"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         {/* Saved downloads (local, persistent) */}
         <section className="mb-10">
@@ -102,7 +232,7 @@ function DownloadsPage() {
             <div className="flex items-center gap-2">
               <HardDrive className="h-4 w-4 text-emerald-600" />
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Saved downloads
+                Local browser cache
               </h2>
               {local.rows && (
                 <Badge variant="outline" className="text-[10px]">
@@ -136,7 +266,7 @@ function DownloadsPage() {
             </div>
           ) : local.rows.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              No downloads yet. Anything you download from the app — PDFs, notes, editorial extracts — will appear here.
+              No local downloads yet. Anything you download from the app — PDFs, notes, editorial extracts — will appear here.
             </div>
           ) : (
             <ul className="grid gap-2.5">
@@ -161,6 +291,23 @@ function DownloadsPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-2">
+                    {(r.meta as any)?.driveViewLink ? (
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={(r.meta as any).driveViewLink} target="_blank" rel="noreferrer">
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Drive
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={savingDriveId === r.id}
+                        onClick={() => saveLocalToDrive(r)}
+                      >
+                        {savingDriveId === r.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <CloudUpload className="mr-1.5 h-3.5 w-3.5" />}
+                        Save to Drive
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"

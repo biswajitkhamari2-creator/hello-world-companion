@@ -476,7 +476,9 @@ export async function downloadPreviewAsPdf(
   }
 
   const safe = filename.replace(/[^\w\-]+/g, "_").slice(0, 80) || "document";
-  pdf.save(`${safe}.pdf`);
+  const blob = pdf.output("blob");
+  const { saveAndDownload } = await import("@/lib/downloads-store");
+  await saveAndDownload(blob, `${safe}.pdf`, { kind: "pdf", source: "dashboard-preview" });
   console.log("[preview-pdf] exported", { filename: safe, pages: pdf.getNumberOfPages(), report });
   return report;
 }
