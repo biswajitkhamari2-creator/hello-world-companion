@@ -6,6 +6,41 @@ const RUN_ID_HEADER = "X-AI-Run-ID";
 
 export type AiProviderName = "openrouter" | "nvidia" | "groq" | "gemini";
 
+// ---------------------------------------------------------------------------
+// AI analytics (in-memory)
+// ---------------------------------------------------------------------------
+// Records every AI provider request made through createGateway. Data is kept
+// per serverless instance only (resets on cold start) — good enough for a
+// live admin dashboard without adding a new database table.
+
+export interface AiRequestRecord {
+  ts: number;
+  provider: AiProviderName;
+  model?: string;
+  status: number;
+  ok: boolean;
+  durationMs: number;
+  errorMessage?: string;
+}
+
+const AI_LOG_LIMIT = 500;
+const aiRequestLog: AiRequestRecord[] = [];
+
+function recordAiRequest(record: AiRequestRecord) {
+  aiRequestLog.push(record);
+  if (aiRequestLog.length > AI_LOG_LIMIT) {
+    aiRequestLog.splice(0, aiRequestLog.length - AI_LOG_LIMIT);
+  }
+  if (!record.ok) {
+    // eslint-disable-next-line no-console
+    console.warn(`[ai] ${record.provider} ${record.model ?? ""} ${record.status} ${record.durationMs}ms ${record.errorMessage ?? ""}`);
+  }
+}
+
+export function getAiRequestLog(): AiRequestRecord[] {
+  return aiRequestLog.slice();
+}
+
 function cleanSecretValue(value: string | undefined): string | undefined {
   if (!value) return undefined;
   let cleaned = value.trim().replace(/^['"]|['"]$/g, "");
@@ -127,6 +162,53 @@ export function createGateway(initialRunId?: string, preferredProvider?: AiProvi
             "X-Title": "UPSC Genius AI",
           }
         : {}),
+    },
+    fetch: async (input, init) => {
+      const started = Date.now();
+      let modelHint: string | undefined;
+      try {
+        if (init?.body && typeof init.body === "string") {
+          const parsed = JSON.parse(init.body);
+          if (parsed && typeof parsed.model === "string") modelHint = parsed.model;
+        }
+      } catch {
+        // ignore body parse errors
+      }
+      try {
+        const response = await fetch(input, init);
+        const durationMs = Date.now() - started;
+        let errorMessage: string | undefined;
+        if (!response.ok) {
+          try {
+            const clone = response.clone();
+            const text = await clone.text();
+            errorMessage = text.slice(0, 400);
+          } catch {
+            errorMessage = response.statusText;
+          }
+        }
+        recordAiRequest({
+          ts: started,
+          provider: providerName,
+          model: modelHint,
+          status: response.status,
+          ok: response.ok,
+          durationMs,
+          errorMessage,
+        });
+        return response;
+      } catch (error) {
+        recordAiRequest({
+          ts: started,
+          provider: providerName,
+          model: modelHint,
+          status: 0,
+          ok: false,
+          durationMs: Date.now() - started,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
     },
   });
 
