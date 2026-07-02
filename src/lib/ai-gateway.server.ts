@@ -172,20 +172,69 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
   const hasGroq = Boolean(getAiApiKey("groq"));
   const hasGemini = Boolean(getAiApiKey("gemini"));
 
-  if (hasOpenRouter) {
-    const model =
-      task === "newspaper" || task === "infographics"
-        ? "google/gemini-2.5-flash"
-        : task === "handwritten_notes"
-        ? "google/gemini-2.5-flash"
-        : "google/gemini-2.5-flash";
+  // Hybrid routing:
+  //  - Premium generation tasks (handwritten notes, infographics, long/structured
+  //    notes, mind maps, essays, answer writing, PDFs) prefer Gemini for quality.
+  //  - Chat / analysis / summarisation tasks (mentor, news, editorial, Q&A,
+  //    MCQ explanations, quick summaries) prefer OpenRouter for cost + speed.
+  // Whichever primary is missing, we fall back to the other configured provider.
+  const premiumTasks = new Set([
+    "handwritten_notes",
+    "infographics",
+    "mindmap",
+    "mind_map",
+    "long_notes",
+    "comprehensive_notes",
+    "structured_notes",
+    "answer_writing",
+    "essay",
+    "pdf",
+  ]);
+  const isPremium = task ? premiumTasks.has(task) : false;
+
+  // Premium → Gemini preferred
+  if (isPremium && hasGemini) {
+    return {
+      provider: "gemini",
+      model: "gemini-2.5-flash",
+      chunkSize: task === "infographics" ? 60_000 : task === "handwritten_notes" ? 28_000 : 80_000,
+      recommendedConcurrency: 4,
+      minGapMs: 250,
+      maxOutputTokens: task === "infographics" ? 3_500 : task === "handwritten_notes" ? 7_000 : 4_000,
+    };
+  }
+
+  // Chat / analysis → OpenRouter preferred (cheap + fast)
+  if (!isPremium && hasOpenRouter) {
     return {
       provider: "openrouter",
-      model,
+      model: "google/gemini-2.5-flash-lite",
+      chunkSize: 60_000,
+      recommendedConcurrency: 4,
+      minGapMs: 250,
+      maxOutputTokens: task === "newspaper" ? 3_500 : 3_000,
+    };
+  }
+
+  // Fallbacks when the preferred provider for the category is missing.
+  if (isPremium && hasOpenRouter) {
+    return {
+      provider: "openrouter",
+      model: "google/gemini-2.5-flash",
       chunkSize: task === "infographics" ? 60_000 : task === "handwritten_notes" ? 28_000 : 60_000,
       recommendedConcurrency: 4,
       minGapMs: 250,
       maxOutputTokens: task === "infographics" ? 3_500 : task === "handwritten_notes" ? 6_000 : 3_000,
+    };
+  }
+  if (!isPremium && hasGemini) {
+    return {
+      provider: "gemini",
+      model: "gemini-2.5-flash",
+      chunkSize: 60_000,
+      recommendedConcurrency: 4,
+      minGapMs: 250,
+      maxOutputTokens: 3_000,
     };
   }
 
