@@ -194,6 +194,11 @@ export const importInboxItem = createServerFn({ method: "POST" })
             "Telegram bots cannot download files larger than 20 MB. Send the newspaper as a Google Drive link shared with 'Anyone with the link — Viewer' so it can be imported permanently.",
           );
         }
+        if (/TELEGRAM_BOT_TOKEN is not configured/i.test(msg)) {
+          throw new Error(
+            "Telegram bot token missing on the server. Add TELEGRAM_BOT_TOKEN in your Vercel Project → Settings → Environment Variables (Production + Preview + Development), then redeploy. Meanwhile, send the newspaper as a Google Drive link shared with 'Anyone with the link — Viewer' and it will import automatically without needing the bot token.",
+          );
+        }
         throw new Error(
           `Telegram file could not be fetched. Please resend the PDF/image to the bot, then import the new inbox item. Details: ${msg}`,
         );
