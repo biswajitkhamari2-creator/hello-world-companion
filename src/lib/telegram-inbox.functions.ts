@@ -103,8 +103,7 @@ export const importInboxItem = createServerFn({ method: "POST" })
           try {
             const { uploadBufferToDrive } = await import("@/lib/gdrive.server");
             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-            const dl = await (await import("@/lib/gdrive.server")).fetchPublicDriveFile?.(driveId)
-              ?? await fetchPublicDriveFileInline(driveId);
+            const dl = await fetchPublicDriveFile(driveId);
             const uploaded = await uploadBufferToDrive({
               userId: "telegram-inbox",
               fileName: inboxItem.file_name || dl.name || `drive-${driveId}.pdf`,
