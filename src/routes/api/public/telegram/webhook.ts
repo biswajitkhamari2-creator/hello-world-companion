@@ -422,7 +422,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           for (const item of driveUrls) {
             const perLinkBase = {
               ...base,
-              message_id: base.message_id * 1000 + item.index + 1,
+              message_id: -(base.message_id * 1000 + item.index + 1),
               source_url: item.url,
             };
             console.log("[telegram webhook] drive url routed", { url: item.url, driveId: item.driveId });
@@ -436,7 +436,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             await handlePhoto(best, base);
           } else if (!hasPdfDocument && nonDriveUrls.length) {
             for (const [index, u] of nonDriveUrls.entries()) {
-              const perLinkBase = { ...base, message_id: base.message_id * 1000 + driveUrls.length + index + 1 };
+              const perLinkBase = { ...base, message_id: -(base.message_id * 1000 + driveUrls.length + index + 1) };
               console.log("[telegram webhook] url routed", { url: u, driveId: null });
               await handleLink(u, perLinkBase);
             }
