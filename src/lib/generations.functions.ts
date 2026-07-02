@@ -543,11 +543,50 @@ function extractJsonCandidate(text: string): unknown {
       try {
         return JSON.parse(stripped);
       } catch {
-        return JSON.parse(stripped.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, ""));
+        const cleaned = stripped.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
+        try { return JSON.parse(cleaned); } catch { return JSON.parse(repairTruncatedJson(cleaned)); }
       }
     }
+    // Nothing looked like JSON at all — try repairing from the first opener.
+    const anyStart = stripped.search(/[{[]/);
+    if (anyStart >= 0) return JSON.parse(repairTruncatedJson(stripped.slice(anyStart)));
     throw new Error("No JSON object found in AI response");
   }
+}
+
+// Best-effort repair for JSON that was cut off mid-stream (e.g. model hit
+// maxOutputTokens). Closes an open string, drops the last dangling key/value,
+// and appends missing closers so JSON.parse succeeds with partial data.
+function repairTruncatedJson(src: string): string {
+  let s = src;
+  // Track structural context character-by-character, respecting strings/escapes.
+  const stack: string[] = [];
+  let inStr = false;
+  let esc = false;
+  let lastSafe = -1; // end index (exclusive) of last complete top-of-stack element
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) { esc = false; continue; }
+      if (c === "\\") { esc = true; continue; }
+      if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === "{" || c === "[") stack.push(c);
+    else if (c === "}" || c === "]") stack.pop();
+    else if (c === "," && stack.length) lastSafe = i;
+  }
+  // Close an unterminated string.
+  if (inStr) s += '"';
+  // If we're mid-value after the last complete comma, truncate back to it.
+  if (lastSafe >= 0 && stack.length) s = s.slice(0, lastSafe);
+  // Append missing closers in reverse order.
+  while (stack.length) {
+    const opener = stack.pop();
+    s += opener === "{" ? "}" : "]";
+  }
+  return s;
 }
 
 function compactWhitespace(text: string): string {
