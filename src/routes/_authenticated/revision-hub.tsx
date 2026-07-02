@@ -479,8 +479,8 @@ function MindMapTab() {
   const doPdf = async () => {
     if (!printRef.current) return;
     try {
-      const { exportPreviewPdf } = await import("@/lib/preview-pdf");
-      await exportPreviewPdf(printRef.current, `mindmap-${topic || "upsc"}.pdf`);
+      const { downloadPreviewAsPdf } = await import("@/lib/preview-pdf");
+      await downloadPreviewAsPdf(printRef.current, `mindmap-${topic || "upsc"}`, { verifyBefore: false });
     } catch { toast.info("Use Print → Save as PDF"); window.print(); }
   };
 
@@ -627,8 +627,8 @@ function NotesTab() {
   const doPdf = async () => {
     if (!printRef.current) return;
     try {
-      const { exportPreviewPdf } = await import("@/lib/preview-pdf");
-      await exportPreviewPdf(printRef.current, `notes-${topic || "upsc"}.pdf`);
+      const { downloadPreviewAsPdf } = await import("@/lib/preview-pdf");
+      await downloadPreviewAsPdf(printRef.current, `notes-${topic || "upsc"}`, { verifyBefore: false });
     } catch { window.print(); }
   };
   return (
