@@ -167,9 +167,27 @@ export interface AiTaskProfile {
 }
 
 export function getAiTaskProfile(task?: string): AiTaskProfile {
+  const hasOpenRouter = Boolean(getAiApiKey("openrouter"));
   const hasNvidia = Boolean(getAiApiKey("nvidia"));
   const hasGroq = Boolean(getAiApiKey("groq"));
   const hasGemini = Boolean(getAiApiKey("gemini"));
+
+  if (hasOpenRouter) {
+    const model =
+      task === "newspaper" || task === "infographics"
+        ? "google/gemini-2.5-flash"
+        : task === "handwritten_notes"
+        ? "google/gemini-2.5-flash"
+        : "google/gemini-2.5-flash";
+    return {
+      provider: "openrouter",
+      model,
+      chunkSize: task === "infographics" ? 60_000 : task === "handwritten_notes" ? 28_000 : 60_000,
+      recommendedConcurrency: 4,
+      minGapMs: 250,
+      maxOutputTokens: task === "infographics" ? 3_500 : task === "handwritten_notes" ? 6_000 : 3_000,
+    };
+  }
 
   // Newspaper analysis is prompt + output heavy. With Groq free TPM, the
   // generation layer uses a deterministic local parser instead of sending a
