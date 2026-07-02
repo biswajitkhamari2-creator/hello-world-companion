@@ -15,6 +15,7 @@ export interface NewsItem {
   summary: string | null;
   importance: number; // 1..5
   posted_at: string;
+  link?: string | null;
 }
 
 function getAdmin() {
@@ -169,7 +170,20 @@ export const searchNewsArchive = createServerFn({ method: "GET" })
     }
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return (rows ?? []) as NewsItem[];
+    const items = (rows ?? []) as NewsItem[];
+    const ids = Array.from(new Set(items.map((r) => r.inbox_id).filter(Boolean)));
+    if (ids.length) {
+      const { data: inboxRows } = await supabase
+        .from("telegram_inbox")
+        .select("id,drive_view_link,source_url")
+        .in("id", ids);
+      const linkMap = new Map<string, string | null>();
+      for (const r of (inboxRows ?? []) as Array<{ id: string; drive_view_link: string | null; source_url: string | null }>) {
+        linkMap.set(r.id, r.drive_view_link || r.source_url || null);
+      }
+      for (const it of items) it.link = linkMap.get(it.inbox_id) ?? null;
+    }
+    return items;
   });
 
 export const listArchiveDates = createServerFn({ method: "GET" }).handler(async () => {
