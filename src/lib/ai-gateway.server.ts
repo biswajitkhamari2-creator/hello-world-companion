@@ -211,162 +211,22 @@ export interface AiTaskProfile {
 }
 
 export function getAiTaskProfile(task?: string): AiTaskProfile {
-  const hasOpenRouter = Boolean(getAiApiKey("openrouter"));
-  const hasNvidia = Boolean(getAiApiKey("nvidia"));
-  const hasGroq = Boolean(getAiApiKey("groq"));
-  const hasGemini = Boolean(getAiApiKey("gemini"));
-
-  // Hybrid routing:
-  //  - Premium generation tasks (handwritten notes, infographics, long/structured
-  //    notes, mind maps, essays, answer writing, PDFs) prefer Gemini for quality.
-  //  - Chat / analysis / summarisation tasks (mentor, news, editorial, Q&A,
-  //    MCQ explanations, quick summaries) prefer OpenRouter for cost + speed.
-  // Whichever primary is missing, we fall back to the other configured provider.
-  const premiumTasks = new Set([
-    "handwritten_notes",
-    "infographics",
-    "mindmap",
-    "mind_map",
-    "long_notes",
-    "comprehensive_notes",
-    "structured_notes",
-    "answer_writing",
-    "essay",
-    "pdf",
-  ]);
-  const isPremium = task ? premiumTasks.has(task) : false;
-
-  // Premium → Gemini preferred
-  if (isPremium && hasGemini) {
-    return {
-      provider: "gemini",
-      model: "gemini-2.5-flash",
-      chunkSize: task === "infographics" ? 60_000 : task === "handwritten_notes" ? 28_000 : 80_000,
-      recommendedConcurrency: 4,
-      minGapMs: 250,
-      maxOutputTokens: task === "infographics" ? 3_500 : task === "handwritten_notes" ? 7_000 : 4_000,
-    };
-  }
-
-  // Newspaper analysis needs the strongest OCR/layout handling. Keep it on
-  // direct Gemini when available; OpenRouter remains for chat and light analysis.
-  if (task === "newspaper") {
-    if (hasGemini) {
-      return {
-        provider: "gemini",
-        model: "gemini-2.5-flash",
-        chunkSize: 60_000,
-        recommendedConcurrency: 2,
-        minGapMs: 750,
-        maxOutputTokens: 3_800,
-      };
-    }
-    if (hasOpenRouter) {
-      return {
-        provider: "openrouter",
-        model: "google/gemini-2.5-flash",
-        chunkSize: 60_000,
-        recommendedConcurrency: 2,
-        minGapMs: 750,
-        maxOutputTokens: 3_500,
-      };
-    }
-    if (hasNvidia) {
-      return {
-        provider: "nvidia",
-        model: "meta/llama-3.3-70b-instruct",
-        chunkSize: 32_000,
-        recommendedConcurrency: 3,
-        minGapMs: 500,
-        maxOutputTokens: 2_500,
-      };
-    }
-    if (hasGroq) {
-      return {
-        provider: "groq",
-        model: "llama-3.1-8b-instant",
-        chunkSize: 10_000,
-        recommendedConcurrency: 1,
-        minGapMs: 1_500,
-        maxOutputTokens: 1_400,
-      };
-    }
-  }
-
-  // Chat / analysis → OpenRouter preferred (cheap + fast)
-  if (!isPremium && hasOpenRouter) {
-    return {
-      provider: "openrouter",
-      model: "google/gemini-2.5-flash-lite",
-      chunkSize: 60_000,
-      recommendedConcurrency: 4,
-      minGapMs: 250,
-      maxOutputTokens: task === "newspaper" ? 3_500 : 3_000,
-    };
-  }
-
-  // Fallbacks when the preferred provider for the category is missing.
-  if (isPremium && hasOpenRouter) {
-    return {
-      provider: "openrouter",
-      model: "google/gemini-2.5-flash",
-      chunkSize: task === "infographics" ? 60_000 : task === "handwritten_notes" ? 28_000 : 60_000,
-      recommendedConcurrency: 4,
-      minGapMs: 250,
-      maxOutputTokens: task === "infographics" ? 3_500 : task === "handwritten_notes" ? 6_000 : 3_000,
-    };
-  }
-  if (!isPremium && hasGemini) {
-    return {
-      provider: "gemini",
-      model: "gemini-2.5-flash",
-      chunkSize: 60_000,
-      recommendedConcurrency: 4,
-      minGapMs: 250,
-      maxOutputTokens: 3_000,
-    };
-  }
-
-  if (hasGemini) {
-    return {
-      provider: "gemini",
-      model: "gemini-2.5-flash",
-      chunkSize: task === "infographics" ? 60_000 : task === "handwritten_notes" ? 28_000 : 80_000,
-      recommendedConcurrency: 4,
-      minGapMs: 250,
-      maxOutputTokens: task === "infographics" ? 3_500 : task === "handwritten_notes" ? 7_000 : 3_000,
-    };
-  }
-
-  if (hasNvidia) {
-    return {
-      provider: "nvidia",
-      model: "meta/llama-3.3-70b-instruct",
-      chunkSize: task === "infographics" ? 32_000 : task === "handwritten_notes" ? 18_000 : 40_000,
-      recommendedConcurrency: 3,
-      minGapMs: 500,
-      maxOutputTokens: task === "infographics" ? 2_500 : task === "handwritten_notes" ? 5_000 : 2_200,
-    };
-  }
-
-  if (hasGroq) {
-    return {
-      provider: "groq",
-      model: "llama-3.1-8b-instant",
-      chunkSize: task === "infographics" ? 12_000 : task === "handwritten_notes" ? 8_000 : 14_000,
-      recommendedConcurrency: 1,
-      minGapMs: 65_000,
-      maxOutputTokens: task === "infographics" ? 1_800 : task === "handwritten_notes" ? 4_000 : 1_600,
-    };
-  }
-
+  // Gemini-only routing. Sizes tuned per task; all traffic goes to Google Gemini.
   return {
     provider: "gemini",
     model: "gemini-2.5-flash",
-    chunkSize: task === "infographics" ? 32_000 : 40_000,
-    recommendedConcurrency: 2,
-    minGapMs: 4_000,
-    maxOutputTokens: task === "infographics" ? 3_000 : 2_500,
+    chunkSize:
+      task === "infographics" ? 60_000 :
+      task === "handwritten_notes" ? 28_000 :
+      task === "newspaper" ? 60_000 :
+      80_000,
+    recommendedConcurrency: task === "newspaper" ? 2 : 4,
+    minGapMs: task === "newspaper" ? 750 : 250,
+    maxOutputTokens:
+      task === "infographics" ? 3_500 :
+      task === "handwritten_notes" ? 7_000 :
+      task === "newspaper" ? 3_800 :
+      4_000,
   };
 }
 
