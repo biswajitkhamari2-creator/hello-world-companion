@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CalendarIcon, ExternalLink, Flame, Loader2, MapPin, Newspaper, RefreshCcw, Sparkles } from "lucide-react";
+import { CalendarIcon, ExternalLink, Flame, Loader2, MapPin, Newspaper, RefreshCcw, RotateCcw, Sparkles } from "lucide-react";
 import { addDays, format } from "date-fns";
 import {
   searchNewsArchive,
   listArchiveDates,
   extractPendingInboxNews,
   countPendingInbox,
+  hardResetNewsAnalysis,
   type NewsItem,
 } from "@/lib/news-items.functions";
 import { toast } from "sonner";
@@ -44,6 +45,7 @@ function ArchivePage() {
   const [err, setErr] = useState<string | null>(null);
   const [dates, setDates] = useState<Set<string>>(new Set());
   const [syncing, setSyncing] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [pending, setPending] = useState(0);
 
   async function refreshDates() {
@@ -89,6 +91,25 @@ function ArchivePage() {
       return false;
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function runHardReset() {
+    if (resetting || syncing) return;
+    const ok = window.confirm("Hard reset news archive? This will delete extracted headlines and re-extract all ready Telegram newspaper PDFs using direct Gemini.");
+    if (!ok) return;
+    setResetting(true);
+    try {
+      const res = await hardResetNewsAnalysis();
+      setPending(res.pending);
+      toast.success(`Reset done — ${res.deleted} old headlines removed. Re-extracting with Gemini…`);
+      await runSync(false);
+      await refreshDates();
+      if (date) setDate(new Date(date));
+    } catch (e) {
+      toast.error(`Hard reset failed: ${(e as Error).message}`);
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -244,6 +265,17 @@ function ArchivePage() {
               <RefreshCcw className="h-3.5 w-3.5" />
             )}
             Sync {pending > 0 ? `(${pending})` : ""}
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-rose-400/40 text-rose-300 hover:bg-rose-500/10"
+            onClick={runHardReset}
+            disabled={syncing || resetting}
+          >
+            {resetting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+            Hard reset
           </Button>
         </div>
 
