@@ -28,6 +28,7 @@ import { Route as AuthenticatedEditorialRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBookmarksRouteImport } from './routes/_authenticated/bookmarks'
+import { Route as AuthenticatedAdminAiAnalyticsRouteImport } from './routes/_authenticated/admin.ai-analytics'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiOauthGoogleStartRouteImport } from './routes/api/oauth/google/start'
 import { Route as ApiOauthGoogleCallbackRouteImport } from './routes/api/oauth/google/callback'
@@ -130,6 +131,12 @@ const AuthenticatedBookmarksRoute = AuthenticatedBookmarksRouteImport.update({
   path: '/bookmarks',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminAiAnalyticsRoute =
+  AuthenticatedAdminAiAnalyticsRouteImport.update({
+    id: '/admin/ai-analytics',
+    path: '/admin/ai-analytics',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicTelegramWebhookRoute =
   ApiPublicTelegramWebhookRouteImport.update({
     id: '/api/public/telegram/webhook',
@@ -166,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/revision-hub': typeof AuthenticatedRevisionHubRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
+  '/admin/ai-analytics': typeof AuthenticatedAdminAiAnalyticsRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -189,6 +197,7 @@ export interface FileRoutesByTo {
   '/revision-hub': typeof AuthenticatedRevisionHubRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
+  '/admin/ai-analytics': typeof AuthenticatedAdminAiAnalyticsRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -214,6 +223,7 @@ export interface FileRoutesById {
   '/_authenticated/revision-hub': typeof AuthenticatedRevisionHubRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
+  '/_authenticated/admin/ai-analytics': typeof AuthenticatedAdminAiAnalyticsRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/google/start': typeof ApiOauthGoogleStartRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/revision-hub'
     | '/settings'
     | '/api/mentor'
+    | '/admin/ai-analytics'
     | '/api/oauth/google/callback'
     | '/api/oauth/google/start'
     | '/api/public/telegram/webhook'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/revision-hub'
     | '/settings'
     | '/api/mentor'
+    | '/admin/ai-analytics'
     | '/api/oauth/google/callback'
     | '/api/oauth/google/start'
     | '/api/public/telegram/webhook'
@@ -286,6 +298,7 @@ export interface FileRouteTypes {
     | '/_authenticated/revision-hub'
     | '/_authenticated/settings'
     | '/api/mentor'
+    | '/_authenticated/admin/ai-analytics'
     | '/api/oauth/google/callback'
     | '/api/oauth/google/start'
     | '/api/public/telegram/webhook'
@@ -438,6 +451,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBookmarksRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/ai-analytics': {
+      id: '/_authenticated/admin/ai-analytics'
+      path: '/admin/ai-analytics'
+      fullPath: '/admin/ai-analytics'
+      preLoaderRoute: typeof AuthenticatedAdminAiAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/telegram/webhook': {
       id: '/api/public/telegram/webhook'
       path: '/api/public/telegram/webhook'
@@ -476,6 +496,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedRevisionHubRoute: typeof AuthenticatedRevisionHubRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedAdminAiAnalyticsRoute: typeof AuthenticatedAdminAiAnalyticsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -492,6 +513,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedRevisionHubRoute: AuthenticatedRevisionHubRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedAdminAiAnalyticsRoute: AuthenticatedAdminAiAnalyticsRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
