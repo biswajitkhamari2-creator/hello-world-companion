@@ -120,7 +120,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Daily Practice",
     items: [
-      { title: "Current Affairs", url: "/dashboard?tab=current-affairs", icon: CalendarClock },
+      { title: "AI Revision Hub", url: "/revision-hub", icon: Sparkles, badge: "New" },
       { title: "Editorial Analyser", url: "/editorial", icon: FileEdit },
       { title: "Daily Revision", url: "/dashboard?tab=revision", icon: Repeat },
       { title: "Study Planner", url: "/dashboard?tab=planner", icon: CalendarRange },

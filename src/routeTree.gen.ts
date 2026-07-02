@@ -16,6 +16,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiMentorRouteImport } from './routes/api/mentor'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedRevisionHubRouteImport } from './routes/_authenticated/revision-hub'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedNewsArchiveRouteImport } from './routes/_authenticated/news-archive'
 import { Route as AuthenticatedMocksRouteImport } from './routes/_authenticated/mocks'
@@ -65,6 +66,12 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRevisionHubRoute =
+  AuthenticatedRevisionHubRouteImport.update({
+    id: '/revision-hub',
+    path: '/revision-hub',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/mocks': typeof AuthenticatedMocksRoute
   '/news-archive': typeof AuthenticatedNewsArchiveRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/revision-hub': typeof AuthenticatedRevisionHubRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
@@ -178,6 +186,7 @@ export interface FileRoutesByTo {
   '/mocks': typeof AuthenticatedMocksRoute
   '/news-archive': typeof AuthenticatedNewsArchiveRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/revision-hub': typeof AuthenticatedRevisionHubRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
@@ -202,6 +211,7 @@ export interface FileRoutesById {
   '/_authenticated/mocks': typeof AuthenticatedMocksRoute
   '/_authenticated/news-archive': typeof AuthenticatedNewsArchiveRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/_authenticated/revision-hub': typeof AuthenticatedRevisionHubRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/mentor': typeof ApiMentorRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
@@ -226,6 +236,7 @@ export interface FileRouteTypes {
     | '/mocks'
     | '/news-archive'
     | '/profile'
+    | '/revision-hub'
     | '/settings'
     | '/api/mentor'
     | '/api/oauth/google/callback'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/mocks'
     | '/news-archive'
     | '/profile'
+    | '/revision-hub'
     | '/settings'
     | '/api/mentor'
     | '/api/oauth/google/callback'
@@ -271,6 +283,7 @@ export interface FileRouteTypes {
     | '/_authenticated/mocks'
     | '/_authenticated/news-archive'
     | '/_authenticated/profile'
+    | '/_authenticated/revision-hub'
     | '/_authenticated/settings'
     | '/api/mentor'
     | '/api/oauth/google/callback'
@@ -339,6 +352,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/revision-hub': {
+      id: '/_authenticated/revision-hub'
+      path: '/revision-hub'
+      fullPath: '/revision-hub'
+      preLoaderRoute: typeof AuthenticatedRevisionHubRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/profile': {
@@ -454,6 +474,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMocksRoute: typeof AuthenticatedMocksRoute
   AuthenticatedNewsArchiveRoute: typeof AuthenticatedNewsArchiveRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedRevisionHubRoute: typeof AuthenticatedRevisionHubRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
 
@@ -469,6 +490,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMocksRoute: AuthenticatedMocksRoute,
   AuthenticatedNewsArchiveRoute: AuthenticatedNewsArchiveRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedRevisionHubRoute: AuthenticatedRevisionHubRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }
 
