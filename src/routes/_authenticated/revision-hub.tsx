@@ -27,6 +27,7 @@ export const Route = createFileRoute("/_authenticated/revision-hub")({
       { name: "description", content: "12-in-one AI revision engine: one-liners, PYQs, mind maps, flashcards, notes, planners, quizzes, mnemonics and analytics for UPSC." },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>) => ({ tab: typeof s.tab === "string" ? (s.tab as string) : undefined }),
   component: RevisionHubPage,
 });
 
@@ -134,7 +135,14 @@ function LoadingSkeleton({ rows = 4 }: { rows?: number }) {
 
 // ============================= PAGE =============================
 function RevisionHubPage() {
-  const [tab, setTab] = useState<TabKey>("one_liner");
+  const search = Route.useSearch();
+  const initial = (TABS.find((t) => t.key === search.tab)?.key ?? "one_liner") as TabKey;
+  const [tab, setTab] = useState<TabKey>(initial);
+  useEffect(() => {
+    const next = TABS.find((t) => t.key === search.tab)?.key as TabKey | undefined;
+    if (next && next !== tab) setTab(next);
+     
+  }, [search.tab]);
   const [streak, setStreak] = useState<{ last: string; count: number }>({ last: "", count: 0 });
   const startedAt = useRef<number>(Date.now());
 
