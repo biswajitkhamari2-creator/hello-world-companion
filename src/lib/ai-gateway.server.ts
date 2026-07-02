@@ -50,8 +50,9 @@ function cleanSecretValue(value: string | undefined): string | undefined {
 }
 
 function getAiApiKey(provider: AiProviderName): string | undefined {
-  // Gemini-only: OpenRouter / NVIDIA / Groq are disabled by request. Even if
-  // their env vars are set, we ignore them so all traffic routes to Gemini.
+  if (provider === "openrouter") return cleanSecretValue(process.env.OPENROUTER_API_KEY);
+  if (provider === "nvidia") return cleanSecretValue(process.env.NVIDIA_API_KEY);
+  if (provider === "groq") return cleanSecretValue(process.env.GROQ_API_KEY);
   if (provider === "gemini") return cleanSecretValue(process.env.GEMINI_API_KEY);
   return undefined;
 }
@@ -64,11 +65,18 @@ function providerBaseUrl(provider: AiProviderName) {
 }
 
 export function getConfiguredAiProviders(): AiProviderName[] {
-  return getAiApiKey("gemini") ? ["gemini"] : [];
+  const list: AiProviderName[] = [];
+  if (getAiApiKey("openrouter")) list.push("openrouter");
+  if (getAiApiKey("groq")) list.push("groq");
+  if (getAiApiKey("nvidia")) list.push("nvidia");
+  if (getAiApiKey("gemini")) list.push("gemini");
+  return list;
 }
 
 export function getDefaultModel(provider?: AiProviderName) {
-  void provider;
+  if (provider === "openrouter") return "openai/gpt-4o-mini";
+  if (provider === "groq") return "llama-3.1-8b-instant";
+  if (provider === "nvidia") return "meta/llama-3.1-8b-instruct";
   return "gemini-2.5-flash";
 }
 
@@ -90,18 +98,37 @@ async function isProviderAuthorized(provider: AiProviderName, apiKey: string): P
 }
 
 export async function resolveAvailableAiProvider(preferredProvider?: AiProviderName): Promise<AiProviderName> {
-  void preferredProvider;
-  const apiKey = getAiApiKey("gemini");
-  if (!apiKey) throw new Error("No AI key configured. Set GEMINI_API_KEY in project secrets.");
-  if (!(await isProviderAuthorized("gemini", apiKey))) throw new Error("GEMINI_API_KEY was rejected by Google.");
-  return "gemini";
+  const order: AiProviderName[] = [];
+  if (preferredProvider) order.push(preferredProvider);
+  for (const p of ["openrouter", "gemini", "groq", "nvidia"] as AiProviderName[]) {
+    if (!order.includes(p)) order.push(p);
+  }
+  let lastError = "No AI key configured. Set OPENROUTER_API_KEY or GEMINI_API_KEY.";
+  for (const p of order) {
+    const key = getAiApiKey(p);
+    if (!key) continue;
+    if (await isProviderAuthorized(p, key)) return p;
+    lastError = `${p.toUpperCase()}_API_KEY was rejected.`;
+  }
+  throw new Error(lastError);
 }
 
 export function createGateway(initialRunId?: string, preferredProvider?: AiProviderName) {
-  void preferredProvider;
-  const apiKey = getAiApiKey("gemini");
-  if (!apiKey) throw new Error("No AI key configured. Set GEMINI_API_KEY in project secrets.");
-  const providerName: AiProviderName = "gemini";
+  const order: AiProviderName[] = [];
+  if (preferredProvider) order.push(preferredProvider);
+  for (const p of ["openrouter", "gemini", "groq", "nvidia"] as AiProviderName[]) {
+    if (!order.includes(p)) order.push(p);
+  }
+  let providerName: AiProviderName | undefined;
+  let apiKey: string | undefined;
+  for (const p of order) {
+    const k = getAiApiKey(p);
+    if (k) { providerName = p; apiKey = k; break; }
+  }
+  if (!providerName || !apiKey) {
+    throw new Error("No AI key configured. Set OPENROUTER_API_KEY or GEMINI_API_KEY in project secrets.");
+  }
+  const resolvedProvider = providerName;
 
   let runId = initialRunId?.trim() || undefined;
   let resolveRunId: (value: string | undefined) => void = () => {};
@@ -120,10 +147,16 @@ export function createGateway(initialRunId?: string, preferredProvider?: AiProvi
   if (runId) publishRunId(runId);
 
   const provider = createOpenAICompatible({
-    name: providerName,
-    baseURL: providerBaseUrl(providerName),
+    name: resolvedProvider,
+    baseURL: providerBaseUrl(resolvedProvider),
     headers: {
       Authorization: `Bearer ${apiKey}`,
+      ...(resolvedProvider === "openrouter"
+        ? {
+            "HTTP-Referer": "https://upsc-genius.lovable.app",
+            "X-Title": "UPSC Genius AI",
+          }
+        : {}),
     },
     fetch: async (input, init) => {
       const started = Date.now();
@@ -151,7 +184,7 @@ export function createGateway(initialRunId?: string, preferredProvider?: AiProvi
         }
         recordAiRequest({
           ts: started,
-          provider: providerName,
+          provider: resolvedProvider,
           model: modelHint,
           status: response.status,
           ok: response.ok,
@@ -162,7 +195,7 @@ export function createGateway(initialRunId?: string, preferredProvider?: AiProvi
       } catch (error) {
         recordAiRequest({
           ts: started,
-          provider: providerName,
+          provider: resolvedProvider,
           model: modelHint,
           status: 0,
           ok: false,
@@ -211,10 +244,19 @@ export interface AiTaskProfile {
 }
 
 export function getAiTaskProfile(task?: string): AiTaskProfile {
-  // Gemini-only routing. Sizes tuned per task; all traffic goes to Google Gemini.
+  // Prefer OpenRouter (ChatGPT) when available — cheaper than direct Gemini for
+  // chat/analysis. Falls back to Gemini for vision-heavy tasks if no OpenRouter key.
+  const hasOpenRouter = !!getAiApiKey("openrouter");
+  const hasGemini = !!getAiApiKey("gemini");
+
+  // Newspaper / editorial need vision (PDF pages) — Gemini is required for those.
+  const needsVision = task === "newspaper" || task === "editorial" || task === "ocr";
+  const useOpenRouter = hasOpenRouter && !needsVision;
+  const provider: AiProviderName = useOpenRouter ? "openrouter" : (hasGemini ? "gemini" : "openrouter");
+  const model = useOpenRouter ? "openai/gpt-4o-mini" : "gemini-2.5-flash";
   return {
-    provider: "gemini",
-    model: "gemini-2.5-flash",
+    provider,
+    model,
     chunkSize:
       task === "infographics" ? 60_000 :
       task === "handwritten_notes" ? 28_000 :
