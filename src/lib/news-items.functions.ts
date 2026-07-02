@@ -242,13 +242,20 @@ async function geminiExtractStructured(pdfBytes: ArrayBuffer): Promise<Array<{
 
   const prompt = `You are a senior UPSC / OPSC mentor scanning a full newspaper PDF.
 The newspaper may be in English, Hindi, or Odia (ଓଡ଼ିଆ) — read all scripts.
-Extract ONLY articles that are directly relevant to the UPSC / OPSC syllabus.
-SKIP crime blotter, local city notices, sports scores, horoscope, advertisements, obituaries, movie reviews, film/celebrity gossip, share-market ticker.
+Extract ONLY real, standalone news / editorial ARTICLES that are directly relevant to the UPSC / OPSC syllabus.
+
+HARD REJECT — never emit an item whose title or summary is or contains any of:
+ - Subscription banners, "give a missed call", phone numbers, QR-code prompts, "To subscribe", "IN BRIEF" section headers alone, page-jump pointers ("STATES » PAGE 3", "» PAGE 7", "contd. on page…").
+ - Masthead / edition strip / date line / weather box / crossword / sudoku / horoscope / cartoons.
+ - Crime blotter, local city notices, sports scores, advertisements, obituaries, movie reviews, film / celebrity gossip, share-market ticker, classifieds, tender notices.
+ - Garbled OCR fragments, single-word titles, ALL-CAPS scream headers with no sentence, or titles that look like a mash-up of unrelated snippets from different columns.
+
+If you are not confident the text is one coherent article headline, DROP it. Better to return fewer items than junk.
 
 For every relevant article return:
  - gs_paper: one of GS1 (History, Geography, Society, Art & Culture), GS2 (Polity, Governance, IR, Social Justice), GS3 (Economy, Environment, S&T, Security, Disaster), GS4 (Ethics), General (only if truly cross-cutting).
  - subject: fine-grained tag (e.g. "Indian Polity", "Environment", "International Relations", "Economy").
- - title: full, complete English headline in your own words — do NOT truncate or cut mid-sentence. Keep it self-contained and specific (aim 60-160 chars, hard cap 220). Translate Odia/Hindi headlines fully to English.
+ - title: full, complete, grammatical English headline in your own words describing ONE article — do NOT truncate, do NOT concatenate multiple headlines, do NOT copy subscription / QR / "IN BRIEF" text. Self-contained and specific (aim 60-160 chars, hard cap 220). Translate Odia/Hindi headlines fully to English.
  - summary: 2 to 4 sentence crisp brief in ENGLISH with WHAT / WHY it matters for UPSC — no fluff, no "according to article". Always translate source content to English regardless of original language.
  - importance: 1..5 where 5 = must-read for prelims/mains, 4 = high, 3 = useful, 2 = optional, 1 = skip.
 
@@ -298,8 +305,20 @@ Return at most 20 items. Prefer quality over quantity. Give special attention to
     throw new Error("Gemini did not return valid JSON");
   }
   const items = Array.isArray(parsed?.items) ? parsed.items : [];
+  const JUNK_RE = /(missed call|scan qr|to subscribe|subscribe.*call|\d{10}|in brief\s*$|»\s*page|contd\.?\s*on\s*page|cu-cuecm|crossword|sudoku|horoscope)/i;
   return items
     .filter((it: any) => it && typeof it.title === "string" && it.title.trim().length)
+    .filter((it: any) => {
+      const t = String(it.title).trim();
+      if (t.length < 20) return false;
+      if (JUNK_RE.test(t)) return false;
+      if (JUNK_RE.test(String(it.summary || ""))) return false;
+      // Reject titles that are mostly UPPERCASE tokens with no lowercase words (masthead-style noise).
+      const words = t.split(/\s+/).filter(Boolean);
+      const upper = words.filter((w: string) => w.length > 2 && w === w.toUpperCase()).length;
+      if (words.length >= 4 && upper / words.length > 0.7) return false;
+      return true;
+    })
     .map((it: any) => ({
       gs_paper: (["GS1", "GS2", "GS3", "GS4", "General"].includes(it.gs_paper) ? it.gs_paper : "General") as GsPaper,
       subject: it.subject ? String(it.subject).slice(0, 80) : null,
