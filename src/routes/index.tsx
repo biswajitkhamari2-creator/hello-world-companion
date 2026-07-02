@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Sparkles,
   Search,
@@ -12,6 +12,7 @@ import {
   Loader2,
   X,
   ArrowRight,
+  Download,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ import {
   type InstitutionComprehensiveNotes,
 } from "@/lib/institution-news.functions";
 import { CrispNotesView, ComprehensiveNotesView } from "@/components/notes-view";
+import { downloadPreviewAsPdf } from "@/lib/preview-pdf";
 import { Wand2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import {
@@ -261,6 +263,8 @@ function UpscNews() {
   const [comprehensive, setComprehensive] = useState<InstitutionComprehensiveNotes | null>(null);
   const [notesErr, setNotesErr] = useState<string | null>(null);
   const [notesLoading, setNotesLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const notesRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -332,6 +336,16 @@ function UpscNews() {
     { key: "GS4", label: "GS-IV · Ethics" },
   ];
   const filtered = items.filter((n) => n.gs === tab);
+
+  async function downloadNotesPdf() {
+    if (!active || !notesRef.current) return;
+    setDownloading(true);
+    try {
+      await downloadPreviewAsPdf(notesRef.current, `${active.source}-${active.title}`.slice(0, 80), { verifyBefore: false });
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <section className="mt-14">
@@ -448,11 +462,21 @@ function UpscNews() {
                   <Wand2 className="h-3 w-3" /> Comprehensive
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={downloadNotesPdf}
+                disabled={downloading || notesLoading || (!crisp && !comprehensive)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-rose-500 via-amber-500 to-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-lg shadow-rose-500/40 ring-1 ring-rose-300/60 transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed animate-pulse"
+                title="Download stylish PDF"
+              >
+                {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                {downloading ? "Preparing…" : "Download PDF"}
+              </button>
               <button type="button" onClick={() => setActive(null)} className="rounded-full p-1 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="max-h-[75vh] overflow-y-auto px-6 py-5">
+            <div ref={notesRef} className="max-h-[75vh] overflow-y-auto px-6 py-5">
               {notesLoading && (
                 <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> Generating syllabus-tagged notes…
