@@ -286,6 +286,51 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
     };
   }
 
+  // Newspaper analysis needs the strongest OCR/layout handling. Keep it on
+  // direct Gemini when available; OpenRouter remains for chat and light analysis.
+  if (task === "newspaper") {
+    if (hasGemini) {
+      return {
+        provider: "gemini",
+        model: "gemini-2.5-flash",
+        chunkSize: 60_000,
+        recommendedConcurrency: 2,
+        minGapMs: 750,
+        maxOutputTokens: 3_800,
+      };
+    }
+    if (hasOpenRouter) {
+      return {
+        provider: "openrouter",
+        model: "google/gemini-2.5-flash",
+        chunkSize: 60_000,
+        recommendedConcurrency: 2,
+        minGapMs: 750,
+        maxOutputTokens: 3_500,
+      };
+    }
+    if (hasNvidia) {
+      return {
+        provider: "nvidia",
+        model: "meta/llama-3.3-70b-instruct",
+        chunkSize: 32_000,
+        recommendedConcurrency: 3,
+        minGapMs: 500,
+        maxOutputTokens: 2_500,
+      };
+    }
+    if (hasGroq) {
+      return {
+        provider: "groq",
+        model: "llama-3.1-8b-instant",
+        chunkSize: 10_000,
+        recommendedConcurrency: 1,
+        minGapMs: 1_500,
+        maxOutputTokens: 1_400,
+      };
+    }
+  }
+
   // Chat / analysis → OpenRouter preferred (cheap + fast)
   if (!isPremium && hasOpenRouter) {
     return {
@@ -316,50 +361,6 @@ export function getAiTaskProfile(task?: string): AiTaskProfile {
       chunkSize: 60_000,
       recommendedConcurrency: 4,
       minGapMs: 250,
-      maxOutputTokens: 3_000,
-    };
-  }
-
-  // Newspaper analysis is prompt + output heavy. With Groq free TPM, the
-  // generation layer uses a deterministic local parser instead of sending a
-  // huge prompt; keep Groq preferred because the user chose it over Gemini.
-  if (task === "newspaper") {
-    if (hasGemini) {
-      return {
-        provider: "gemini",
-        model: "gemini-2.5-flash",
-        chunkSize: 60_000,
-        recommendedConcurrency: 4,
-        minGapMs: 250,
-        maxOutputTokens: 3_500,
-      };
-    }
-    if (hasNvidia) {
-      return {
-        provider: "nvidia",
-        model: "meta/llama-3.3-70b-instruct",
-        chunkSize: 32_000,
-        recommendedConcurrency: 3,
-        minGapMs: 500,
-        maxOutputTokens: 2_500,
-      };
-    }
-    if (hasGroq) {
-      return {
-        provider: "groq",
-        model: "llama-3.1-8b-instant",
-        chunkSize: 10_000,
-        recommendedConcurrency: 1,
-        minGapMs: 1_500,
-        maxOutputTokens: 1_400,
-      };
-    }
-    return {
-      provider: "gemini",
-      model: "gemini-2.5-flash",
-      chunkSize: 18_000,
-      recommendedConcurrency: 1,
-      minGapMs: hasGemini ? 8_000 : 65_000,
       maxOutputTokens: 3_000,
     };
   }
