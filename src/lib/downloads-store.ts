@@ -48,28 +48,24 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-function tx<T = void>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest | Promise<T> | T): Promise<T> {
-  return openDB().then(
-    (db) =>
-      new Promise<T>((resolve, reject) => {
-        const t = db.transaction(STORE, mode);
-        const store = t.objectStore(STORE);
-        let out: any;
-        Promise.resolve(fn(store)).then((r: any) => {
-          if (r && typeof r === "object" && "onsuccess" in r) {
-            (r as IDBRequest).onsuccess = () => {
-              out = (r as IDBRequest).result;
-            };
-            (r as IDBRequest).onerror = () => reject((r as IDBRequest).error);
-          } else {
-            out = r;
-          }
-        });
-        t.oncomplete = () => resolve(out as T);
-        t.onerror = () => reject(t.error);
-        t.onabort = () => reject(t.error);
-      }),
-  );
+async function runTx<T = unknown>(
+  mode: IDBTransactionMode,
+  fn: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  const db = await openDB();
+  return new Promise<T>((resolve, reject) => {
+    const t = db.transaction(STORE, mode);
+    const store = t.objectStore(STORE);
+    let result: T;
+    const req = fn(store);
+    req.onsuccess = () => {
+      result = req.result as T;
+    };
+    req.onerror = () => reject(req.error);
+    t.oncomplete = () => resolve(result as T);
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error);
+  });
 }
 
 function notify() {
@@ -101,18 +97,24 @@ export interface SaveDownloadOptions {
 /** Persist a Blob to the local downloads store. */
 export async function saveDownload(blob: Blob, filename: string, opts: SaveDownloadOptions = {}): Promise<StoredDownloadRecord> {
   if (!isBrowser()) throw new Error("saveDownload only works in the browser");
+  // Some Blob subclasses (e.g. streams) don't structured-clone cleanly.
+  // Normalise to a plain Blob so IndexedDB always accepts it.
+  const safeBlob =
+    blob instanceof Blob && blob.constructor === Blob
+      ? blob
+      : new Blob([await blob.arrayBuffer()], { type: blob.type || "application/octet-stream" });
   const record: StoredDownload = {
     id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     name: filename || "download",
-    mime: blob.type || "application/octet-stream",
-    size: blob.size,
-    kind: opts.kind || inferKind(blob.type || "", filename || ""),
+    mime: safeBlob.type || "application/octet-stream",
+    size: safeBlob.size,
+    kind: opts.kind || inferKind(safeBlob.type || "", filename || ""),
     source: opts.source,
     meta: opts.meta,
     created_at: Date.now(),
-    blob,
+    blob: safeBlob,
   };
-  await tx("readwrite", (s) => s.put(record));
+  await runTx("readwrite", (s) => s.put(record));
   notify();
   const { blob: _b, ...meta } = record;
   return meta;
@@ -148,13 +150,13 @@ export async function getDownloadBlob(id: string): Promise<Blob | null> {
 
 export async function deleteDownload(id: string): Promise<void> {
   if (!isBrowser()) return;
-  await tx("readwrite", (s) => s.delete(id));
+  await runTx("readwrite", (s) => s.delete(id));
   notify();
 }
 
 export async function clearDownloads(): Promise<void> {
   if (!isBrowser()) return;
-  await tx("readwrite", (s) => s.clear());
+  await runTx("readwrite", (s) => s.clear());
   notify();
 }
 
