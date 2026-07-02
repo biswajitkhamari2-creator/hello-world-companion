@@ -55,6 +55,31 @@ function NewsAnalyserPage() {
   const [analysing, setAnalysing] = useState(false);
   const draining = useRef(false);
 
+  async function handleRefresh() {
+    if (analysing) return;
+    setErr(null);
+    setAnalysing(true);
+    try {
+      // Force-pull latest pending Telegram PDFs (up to 3), then reload list.
+      for (let i = 0; i < 3; i++) {
+        const r = await extractPendingInboxNews();
+        if (!r.remaining || r.processed === 0) break;
+      }
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      try {
+        const fresh = await listNewsItems({ data: { limit: 200 } });
+        setItems(fresh);
+        const c = await countPendingInbox();
+        setPending(c.pending);
+      } catch (e) {
+        setErr((e as Error).message);
+      }
+      setAnalysing(false);
+    }
+  }
+
   useEffect(() => {
     let alive = true;
     setErr(null);
@@ -146,7 +171,7 @@ function NewsAnalyserPage() {
           </p>
         </div>
         <button
-          onClick={() => setReloadKey((k) => k + 1)}
+          onClick={handleRefresh}
           disabled={analysing}
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-60"
         >
