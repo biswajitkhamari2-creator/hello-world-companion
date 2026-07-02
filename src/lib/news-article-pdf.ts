@@ -71,14 +71,16 @@ export async function downloadStylishArticlePdf(input: StylishArticleInput): Pro
 
   const wrapper = document.createElement("div");
   wrapper.setAttribute("data-stylish-article-pdf", "true");
-  // Off-screen but rendered so html2canvas can capture it.
+  // Rendered just below the fold so html2canvas captures it at full opacity
+  // (opacity is inherited by the clone — an opacity:0.01 source produces a
+  // near-blank canvas and the blank-page detector rejects every page).
   wrapper.style.cssText = `
-    position: fixed; left: 0; top: 0; width: 794px;
+    position: fixed; left: 0; top: 100vh; width: 794px;
     background: #ffffff; color: #0f172a;
     font-family: 'Fraunces', 'Georgia', serif;
     padding: 56px 60px 72px; box-sizing: border-box;
     line-height: 1.6;
-    opacity: 0.01; pointer-events: none; z-index: -1;
+    opacity: 1; pointer-events: none; z-index: 0;
   `;
 
   wrapper.innerHTML = `
