@@ -129,6 +129,23 @@ function scrapeDrishtiListing(
 
 export const getInstitutionNews = createServerFn({ method: "GET" }).handler(
   async () => {
+    // Build IST-anchored date strings for today + last 6 days so we always
+    // pull previous-day content even before the site publishes "today".
+    const istDates: string[] = (() => {
+      const out: string[] = [];
+      const nowUtcMs = Date.now();
+      // IST = UTC+5:30
+      const istMs = nowUtcMs + 5.5 * 60 * 60 * 1000;
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(istMs - i * 24 * 60 * 60 * 1000);
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+        const day = String(d.getUTCDate()).padStart(2, "0");
+        out.push(`${y}-${m}-${day}`);
+      }
+      return out;
+    })();
+
     const targets = [
       {
         url: "https://visionias.in/current-affairs/news-today",
@@ -154,6 +171,13 @@ export const getInstitutionNews = createServerFn({ method: "GET" }).handler(
         base: "weekly-focus" as const,
         source: "Vision IAS · Weekly Focus",
       },
+      // Explicit per-day URLs — Vision IAS serves date-scoped listings.
+      ...istDates.map((d) => ({
+        url: `https://visionias.in/current-affairs/news-today/${d}`,
+        kind: "daily" as const,
+        base: "news-today" as const,
+        source: "Vision IAS · Daily",
+      })),
     ];
 
     const results = await Promise.allSettled(
