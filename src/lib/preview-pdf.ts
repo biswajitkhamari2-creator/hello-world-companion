@@ -258,6 +258,20 @@ function buildPagedCaptureStage(node: HTMLElement): CaptureStage {
   } satisfies Partial<CSSStyleDeclaration>);
 
   clone.style.boxSizing = "border-box";
+  // The source node can be deliberately rendered outside the viewport for
+  // export-only PDFs (for example `position: fixed; top: 100vh`). Inline
+  // positioning survives cloneNode(), so reset it in the capture stage or the
+  // PDF gains blank/extra pages before the actual content starts.
+  clone.style.position = "relative";
+  clone.style.left = "0";
+  clone.style.top = "0";
+  clone.style.right = "auto";
+  clone.style.bottom = "auto";
+  clone.style.transform = "none";
+  clone.style.opacity = "1";
+  clone.style.overflow = "visible";
+  clone.style.height = "auto";
+  clone.style.maxHeight = "none";
   clone.style.width = `${A4_CSS_WIDTH}px`;
   clone.style.maxWidth = `${A4_CSS_WIDTH}px`;
   clone.style.margin = "0";
