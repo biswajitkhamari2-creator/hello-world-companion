@@ -338,7 +338,13 @@ Return at most 20 items. Prefer quality over quantity. Give special attention to
     return r.json();
   }
 
-  const json: any = await callDirectGemini("gemini-2.5-flash");
+  let json: any = null;
+  try {
+    json = await callDirectGemini("gemini-2.5-flash");
+  } catch (err) {
+    console.warn("[news-extract] gemini-2.5-flash failed, falling back:", (err as Error).message);
+    json = await callDirectGemini("gemini-2.0-flash");
+  }
   if (!json) throw new Error("Gemini returned no response");
   const text = json?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text ?? "").join("") ?? "";
   let parsed: any = null;
