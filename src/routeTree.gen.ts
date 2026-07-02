@@ -18,8 +18,6 @@ import { Route as ApiMentorRouteImport } from './routes/api/mentor'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedNewsArchiveRouteImport } from './routes/_authenticated/news-archive'
-import { Route as AuthenticatedNewsAnalyserRouteImport } from './routes/_authenticated/news-analyser'
-import { Route as AuthenticatedNewsRouteImport } from './routes/_authenticated/news'
 import { Route as AuthenticatedMocksRouteImport } from './routes/_authenticated/mocks'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
 import { Route as AuthenticatedInstitutionRouteImport } from './routes/_authenticated/institution'
@@ -78,17 +76,6 @@ const AuthenticatedNewsArchiveRoute =
     path: '/news-archive',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedNewsAnalyserRoute =
-  AuthenticatedNewsAnalyserRouteImport.update({
-    id: '/news-analyser',
-    path: '/news-analyser',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedNewsRoute = AuthenticatedNewsRouteImport.update({
-  id: '/news',
-  path: '/news',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedMocksRoute = AuthenticatedMocksRouteImport.update({
   id: '/mocks',
   path: '/mocks',
@@ -167,8 +154,6 @@ export interface FileRoutesByFullPath {
   '/institution': typeof AuthenticatedInstitutionRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/mocks': typeof AuthenticatedMocksRoute
-  '/news': typeof AuthenticatedNewsRoute
-  '/news-analyser': typeof AuthenticatedNewsAnalyserRoute
   '/news-archive': typeof AuthenticatedNewsArchiveRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -191,8 +176,6 @@ export interface FileRoutesByTo {
   '/institution': typeof AuthenticatedInstitutionRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/mocks': typeof AuthenticatedMocksRoute
-  '/news': typeof AuthenticatedNewsRoute
-  '/news-analyser': typeof AuthenticatedNewsAnalyserRoute
   '/news-archive': typeof AuthenticatedNewsArchiveRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -217,8 +200,6 @@ export interface FileRoutesById {
   '/_authenticated/institution': typeof AuthenticatedInstitutionRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
   '/_authenticated/mocks': typeof AuthenticatedMocksRoute
-  '/_authenticated/news': typeof AuthenticatedNewsRoute
-  '/_authenticated/news-analyser': typeof AuthenticatedNewsAnalyserRoute
   '/_authenticated/news-archive': typeof AuthenticatedNewsArchiveRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -243,8 +224,6 @@ export interface FileRouteTypes {
     | '/institution'
     | '/mentor'
     | '/mocks'
-    | '/news'
-    | '/news-analyser'
     | '/news-archive'
     | '/profile'
     | '/settings'
@@ -267,8 +246,6 @@ export interface FileRouteTypes {
     | '/institution'
     | '/mentor'
     | '/mocks'
-    | '/news'
-    | '/news-analyser'
     | '/news-archive'
     | '/profile'
     | '/settings'
@@ -292,8 +269,6 @@ export interface FileRouteTypes {
     | '/_authenticated/institution'
     | '/_authenticated/mentor'
     | '/_authenticated/mocks'
-    | '/_authenticated/news'
-    | '/_authenticated/news-analyser'
     | '/_authenticated/news-archive'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
@@ -378,20 +353,6 @@ declare module '@tanstack/react-router' {
       path: '/news-archive'
       fullPath: '/news-archive'
       preLoaderRoute: typeof AuthenticatedNewsArchiveRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/news-analyser': {
-      id: '/_authenticated/news-analyser'
-      path: '/news-analyser'
-      fullPath: '/news-analyser'
-      preLoaderRoute: typeof AuthenticatedNewsAnalyserRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/news': {
-      id: '/_authenticated/news'
-      path: '/news'
-      fullPath: '/news'
-      preLoaderRoute: typeof AuthenticatedNewsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/mocks': {
@@ -491,8 +452,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInstitutionRoute: typeof AuthenticatedInstitutionRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
   AuthenticatedMocksRoute: typeof AuthenticatedMocksRoute
-  AuthenticatedNewsRoute: typeof AuthenticatedNewsRoute
-  AuthenticatedNewsAnalyserRoute: typeof AuthenticatedNewsAnalyserRoute
   AuthenticatedNewsArchiveRoute: typeof AuthenticatedNewsArchiveRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -508,8 +467,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInstitutionRoute: AuthenticatedInstitutionRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
   AuthenticatedMocksRoute: AuthenticatedMocksRoute,
-  AuthenticatedNewsRoute: AuthenticatedNewsRoute,
-  AuthenticatedNewsAnalyserRoute: AuthenticatedNewsAnalyserRoute,
   AuthenticatedNewsArchiveRoute: AuthenticatedNewsArchiveRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
