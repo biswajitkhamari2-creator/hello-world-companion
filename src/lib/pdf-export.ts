@@ -1085,13 +1085,12 @@ export async function downloadGeneratedPdf(outputType: OutputType, content: any,
   const blob = new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer], {
     type: "application/pdf",
   });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${safeFileName(documentTitle)}-${outputType}.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  const filename = `${safeFileName(documentTitle)}-${outputType}.pdf`;
+  const { saveAndDownload } = await import("@/lib/downloads-store");
+  await saveAndDownload(blob, filename, {
+    kind: "pdf",
+    source: "pdf-export",
+    meta: { documentTitle, outputType },
+  });
 }
 

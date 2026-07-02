@@ -119,10 +119,9 @@ function SettingsPage() {
       settings: prefs,
       bookmarks: JSON.parse(localStorage.getItem("upsc_bookmarks_v1") || "[]"),
     }, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "upsc-genius-data.json"; a.click();
-    URL.revokeObjectURL(url);
+    void import("@/lib/downloads-store").then(({ saveAndDownload }) =>
+      saveAndDownload(blob, "upsc-genius-data.json", { kind: "data", source: "settings-export" }),
+    );
     toast.success("Data exported");
   }
 
