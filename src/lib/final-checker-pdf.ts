@@ -187,13 +187,12 @@ export async function downloadFinalCheckerPdf(report: FinalCheckerReport) {
     description: `Logo ✓ applied to all ${pageCount} page${pageCount === 1 ? "" : "s"} (Final Checker report).`,
   });
   const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `final-checker-${report.document_title.replace(/[^a-z0-9-_]+/gi, "-").slice(0, 60)}.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  const filename = `final-checker-${report.document_title.replace(/[^a-z0-9-_]+/gi, "-").slice(0, 60)}.pdf`;
+  const { saveAndDownload } = await import("@/lib/downloads-store");
+  await saveAndDownload(blob, filename, {
+    kind: "report",
+    source: "final-checker",
+    meta: { documentTitle: report.document_title },
+  });
 }
 
