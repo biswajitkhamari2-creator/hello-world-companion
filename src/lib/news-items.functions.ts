@@ -305,8 +305,20 @@ Return at most 20 items. Prefer quality over quantity. Give special attention to
     throw new Error("Gemini did not return valid JSON");
   }
   const items = Array.isArray(parsed?.items) ? parsed.items : [];
+  const JUNK_RE = /(missed call|scan qr|to subscribe|subscribe.*call|\d{10}|in brief\s*$|»\s*page|contd\.?\s*on\s*page|cu-cuecm|crossword|sudoku|horoscope)/i;
   return items
     .filter((it: any) => it && typeof it.title === "string" && it.title.trim().length)
+    .filter((it: any) => {
+      const t = String(it.title).trim();
+      if (t.length < 20) return false;
+      if (JUNK_RE.test(t)) return false;
+      if (JUNK_RE.test(String(it.summary || ""))) return false;
+      // Reject titles that are mostly UPPERCASE tokens with no lowercase words (masthead-style noise).
+      const words = t.split(/\s+/).filter(Boolean);
+      const upper = words.filter((w: string) => w.length > 2 && w === w.toUpperCase()).length;
+      if (words.length >= 4 && upper / words.length > 0.7) return false;
+      return true;
+    })
     .map((it: any) => ({
       gs_paper: (["GS1", "GS2", "GS3", "GS4", "General"].includes(it.gs_paper) ? it.gs_paper : "General") as GsPaper,
       subject: it.subject ? String(it.subject).slice(0, 80) : null,
