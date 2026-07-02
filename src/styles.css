@@ -232,3 +232,32 @@
   body { background: white !important; }
   .no-print { display: none !important; }
 }
+
+/* Force light-theme design tokens inside any preview container that will be
+   exported to PDF, so bg-card / bg-background / text-foreground children do
+   not render as dark ink on dark surfaces when the app is in dark mode. */
+.pdf-light-scope {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --paper: #ffffff;
+  --ink: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #064e3b;
+  --primary-foreground: #ffffff;
+  --secondary: #e2e8f0;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+  --accent: #c9a84c;
+  --accent-foreground: #0f172a;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #c9a84c;
+  color: #0f172a;
+  background-color: #ffffff;
+}
