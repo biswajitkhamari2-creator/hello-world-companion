@@ -15,8 +15,18 @@
  *      window with html2canvas, stamp the watermark, append to jsPDF.
  *   6. Self-test (blank-page detection + text coverage) before saving.
  */
-import html2canvas from "html2canvas-pro";
-import { jsPDF } from "jspdf";
+// Heavy libs (~500KB combined) are dynamically imported so they only enter
+// the bundle when the user actually triggers a PDF export.
+import type Html2CanvasPro from "html2canvas-pro";
+import type { jsPDF as JsPDFType } from "jspdf";
+
+let _html2canvas: typeof Html2CanvasPro | null = null;
+let _jsPDFCtor: typeof JsPDFType | null = null;
+async function loadPdfLibs() {
+  if (!_html2canvas) _html2canvas = (await import("html2canvas-pro")).default;
+  if (!_jsPDFCtor) _jsPDFCtor = (await import("jspdf")).jsPDF;
+  return { html2canvas: _html2canvas!, jsPDF: _jsPDFCtor! };
+}
 import logoUrl from "@/assets/sidheswar-logo.png";
 import {
   blurPxFor,
@@ -338,6 +348,7 @@ async function captureStagePage(stage: HTMLElement, mover: HTMLElement, offsetY:
   mover.style.transform = `translateY(-${offsetY}px)`;
   stage.style.height = `${visibleHeight}px`;
   await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+  const { html2canvas } = await loadPdfLibs();
   const canvas = await html2canvas(stage, {
     scale: CAPTURE_SCALE,
     useCORS: true,
@@ -380,7 +391,7 @@ function getPreviewText(node: HTMLElement): string {
 }
 
 interface CapturedRun {
-  pdf: jsPDF;
+  pdf: InstanceType<typeof JsPDFType>;
   report: VerifyReport;
 }
 
@@ -412,6 +423,7 @@ async function runCapture(node: HTMLElement): Promise<CapturedRun> {
   await waitForAssets(node);
 
   const previewText = getPreviewText(node);
+  const { jsPDF } = await loadPdfLibs();
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
   const { stage, mover, clone } = buildPagedCaptureStage(node);
   await waitForAssets(stage);
