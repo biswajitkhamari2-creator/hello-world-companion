@@ -62,14 +62,16 @@ function createSupabaseAdminClient() {
     FALLBACK_SUPABASE_URL;
   const SUPABASE_SERVICE_ROLE_KEY =
     cleanEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY) ||
-    cleanEnvValue(process.env.APP_SUPABASE_SERVICE_ROLE_KEY);
+    cleanEnvValue(process.env.APP_SUPABASE_SERVICE_ROLE_KEY) ||
+    cleanEnvValue(process.env.SUPABASE_SECRET_KEY) ||
+    cleanEnvValue(process.env.APP_SUPABASE_SECRET_KEY);
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     const missing = [
       ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
       ...(!SUPABASE_SERVICE_ROLE_KEY ? ['SUPABASE_SERVICE_ROLE_KEY'] : []),
     ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Add the personal Supabase service-role key as SUPABASE_SERVICE_ROLE_KEY or APP_SUPABASE_SERVICE_ROLE_KEY.`;
+    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Add the personal Supabase secret key (sb_secret_...) as SUPABASE_SECRET_KEY (or legacy SUPABASE_SERVICE_ROLE_KEY).`;
     console.error(`[Supabase] ${message}`);
     throw new Error(message);
   }
