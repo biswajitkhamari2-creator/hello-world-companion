@@ -249,8 +249,15 @@ HARD REJECT — never emit an item whose title or summary is or contains any of:
  - Masthead / edition strip / date line / weather box / crossword / sudoku / horoscope / cartoons.
  - Crime blotter, local city notices, sports scores, advertisements, obituaries, movie reviews, film / celebrity gossip, share-market ticker, classifieds, tender notices.
  - Garbled OCR fragments, single-word titles, ALL-CAPS scream headers with no sentence, or titles that look like a mash-up of unrelated snippets from different columns.
+ - MID-COLUMN CONTINUATIONS: text that starts lower-case, starts with "and/but/or/the/a/an/is/was/has/had/have", ends with an incomplete word or comma, or contains hyphen-space word breaks like "man- aged", "Wo- men's", "Is- lands" (these are line-wrap artifacts from the previous column, NOT headlines).
+ - Sports match reports, tournament recaps (T20 / ODI / Test / IPL / World Cup / Olympics scores), celebrity/film pieces — REJECT even if they look like real articles; they are not UPSC-relevant.
 
-If you are not confident the text is one coherent article headline, DROP it. Better to return fewer items than junk.
+If you are not confident the text is ONE coherent, standalone article HEADLINE (not a body-text sentence), DROP it. Better to return 3 great items than 15 broken ones.
+
+Before returning, RE-READ every title you produced and delete any that:
+ (a) starts with a lowercase letter, or
+ (b) reads like the middle of a sentence rather than a headline, or
+ (c) contains "- " inside a word (line-wrap artifact).
 
 For every relevant article return:
  - gs_paper: one of GS1 (History, Geography, Society, Art & Culture), GS2 (Polity, Governance, IR, Social Justice), GS3 (Economy, Environment, S&T, Security, Disaster), GS4 (Ethics), General (only if truly cross-cutting).
