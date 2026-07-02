@@ -248,7 +248,7 @@ SKIP crime blotter, local city notices, sports scores, horoscope, advertisements
 For every relevant article return:
  - gs_paper: one of GS1 (History, Geography, Society, Art & Culture), GS2 (Polity, Governance, IR, Social Justice), GS3 (Economy, Environment, S&T, Security, Disaster), GS4 (Ethics), General (only if truly cross-cutting).
  - subject: fine-grained tag (e.g. "Indian Polity", "Environment", "International Relations", "Economy").
- - title: crisp English headline in your own words, max 110 chars, no clickbait. Translate Odia/Hindi headlines to English.
+ - title: full, complete English headline in your own words — do NOT truncate or cut mid-sentence. Keep it self-contained and specific (aim 60-160 chars, hard cap 220). Translate Odia/Hindi headlines fully to English.
  - summary: 2 to 4 sentence crisp brief in ENGLISH with WHAT / WHY it matters for UPSC — no fluff, no "according to article". Always translate source content to English regardless of original language.
  - importance: 1..5 where 5 = must-read for prelims/mains, 4 = high, 3 = useful, 2 = optional, 1 = skip.
 
@@ -303,7 +303,7 @@ Return at most 20 items. Prefer quality over quantity. Give special attention to
     .map((it: any) => ({
       gs_paper: (["GS1", "GS2", "GS3", "GS4", "General"].includes(it.gs_paper) ? it.gs_paper : "General") as GsPaper,
       subject: it.subject ? String(it.subject).slice(0, 80) : null,
-      title: String(it.title).slice(0, 200),
+      title: String(it.title).trim().slice(0, 240),
       summary: String(it.summary || "").slice(0, 900),
       importance: Math.max(1, Math.min(5, Number(it.importance) || 3)),
     }));
