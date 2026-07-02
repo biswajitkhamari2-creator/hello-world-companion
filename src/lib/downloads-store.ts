@@ -22,7 +22,8 @@ export interface StoredDownloadRecord {
 }
 
 export interface StoredDownload extends StoredDownloadRecord {
-  blob: Blob;
+  blob?: Blob;
+  data?: ArrayBuffer;
 }
 
 const DB_NAME = "upsc_downloads_v1";
@@ -92,6 +93,27 @@ export interface SaveDownloadOptions {
   kind?: DownloadKind;
   source?: string;
   meta?: Record<string, unknown>;
+  saveToDrive?: boolean;
+}
+
+function stripPayload(row: StoredDownload): StoredDownloadRecord {
+  const { blob: _blob, data: _data, ...meta } = row;
+  return meta;
+}
+
+async function persistStoredDownload(record: StoredDownload, safeBlob: Blob) {
+  try {
+    await runTx("readwrite", (s) => s.put(record));
+  } catch (e) {
+    // Some browser/IDB combinations still reject Blob structured cloning.
+    // Retry with raw bytes so the Downloads page can always restore the file.
+    const fallback: StoredDownload = {
+      ...record,
+      blob: undefined,
+      data: await safeBlob.arrayBuffer(),
+    };
+    await runTx("readwrite", (s) => s.put(fallback));
+  }
 }
 
 /** Persist a Blob to the local downloads store. */
@@ -114,10 +136,9 @@ export async function saveDownload(blob: Blob, filename: string, opts: SaveDownl
     created_at: Date.now(),
     blob: safeBlob,
   };
-  await runTx("readwrite", (s) => s.put(record));
+  await persistStoredDownload(record, safeBlob);
   notify();
-  const { blob: _b, ...meta } = record;
-  return meta;
+  return stripPayload(record);
 }
 
 export async function listDownloads(): Promise<StoredDownloadRecord[]> {
@@ -130,7 +151,7 @@ export async function listDownloads(): Promise<StoredDownloadRecord[]> {
       const rows = (req.result as StoredDownload[]) || [];
       resolve(
         rows
-          .map(({ blob: _b, ...m }) => m)
+          .map(stripPayload)
           .sort((a, b) => b.created_at - a.created_at),
       );
     };
@@ -143,9 +164,31 @@ export async function getDownloadBlob(id: string): Promise<Blob | null> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const req = db.transaction(STORE, "readonly").objectStore(STORE).get(id);
-    req.onsuccess = () => resolve(((req.result as StoredDownload | undefined)?.blob) ?? null);
+    req.onsuccess = () => {
+      const row = req.result as StoredDownload | undefined;
+      if (!row) return resolve(null);
+      if (row.blob instanceof Blob) return resolve(row.blob);
+      if (row.data instanceof ArrayBuffer) {
+        return resolve(new Blob([row.data], { type: row.mime || "application/octet-stream" }));
+      }
+      resolve(null);
+    };
     req.onerror = () => reject(req.error);
   });
+}
+
+export async function updateDownloadMeta(id: string, metaPatch: Record<string, unknown>): Promise<void> {
+  if (!isBrowser()) return;
+  const db = await openDB();
+  const row = await new Promise<StoredDownload | undefined>((resolve, reject) => {
+    const req = db.transaction(STORE, "readonly").objectStore(STORE).get(id);
+    req.onsuccess = () => resolve(req.result as StoredDownload | undefined);
+    req.onerror = () => reject(req.error);
+  });
+  if (!row) return;
+  row.meta = { ...(row.meta ?? {}), ...metaPatch };
+  await runTx("readwrite", (s) => s.put(row));
+  notify();
 }
 
 export async function deleteDownload(id: string): Promise<void> {
@@ -179,7 +222,35 @@ export async function saveAndDownload(blob: Blob, filename: string, opts: SaveDo
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
+  if (opts.saveToDrive !== false) {
+    void saveDownloadToDrive(blob, filename, opts, record?.id).catch((e) => {
+      console.warn("[downloads-store] drive save failed", e);
+    });
+  }
   return record;
+}
+
+async function saveDownloadToDrive(blob: Blob, filename: string, opts: SaveDownloadOptions, localId?: string) {
+  if (!isBrowser()) return;
+  const fd = new FormData();
+  const safeName = filename || "download";
+  const safeBlob =
+    blob instanceof Blob && blob.constructor === Blob
+      ? blob
+      : new Blob([await blob.arrayBuffer()], { type: blob.type || "application/octet-stream" });
+  fd.set("file", safeBlob, safeName);
+  fd.set("source", opts.source || "download");
+  fd.set("kind", opts.kind || inferKind(safeBlob.type || "", safeName));
+  const { saveGeneratedDownloadToDrive } = await import("@/lib/downloads.functions");
+  const saved = await saveGeneratedDownloadToDrive({ data: fd } as any);
+  if (localId) {
+    await updateDownloadMeta(localId, {
+      driveDocumentId: saved.documentId,
+      driveFileId: saved.driveFileId,
+      driveViewLink: saved.driveViewLink,
+      driveSavedAt: Date.now(),
+    });
+  }
 }
 
 /** Re-download a stored item by id. */

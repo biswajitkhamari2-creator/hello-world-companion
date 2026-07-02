@@ -260,6 +260,7 @@ export const listDocuments = createServerFn({ method: "GET" })
       .from("documents")
       .select("id,title,source_type,subject,priority,summary,status,error_message,size_bytes,created_at,mime,drive_file_id,drive_view_link,storage_provider")
       .eq("user_id", userId)
+      .neq("source_type", "download")
       .order("created_at", { ascending: false });
     if (error) throw error;
     return data;
