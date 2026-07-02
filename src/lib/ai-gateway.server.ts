@@ -4,7 +4,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 // No Lovable AI Gateway dependency.
 const RUN_ID_HEADER = "X-AI-Run-ID";
 
-export type AiProviderName = "nvidia" | "groq" | "gemini";
+export type AiProviderName = "openrouter" | "nvidia" | "groq" | "gemini";
 
 function cleanSecretValue(value: string | undefined): string | undefined {
   if (!value) return undefined;
@@ -15,12 +15,14 @@ function cleanSecretValue(value: string | undefined): string | undefined {
 }
 
 function getAiApiKey(provider: AiProviderName): string | undefined {
+  if (provider === "openrouter") return cleanSecretValue(process.env.OPENROUTER_API_KEY);
   if (provider === "nvidia") return cleanSecretValue(process.env.NVIDIA_API_KEY);
   if (provider === "groq") return cleanSecretValue(process.env.GROQ_API_KEY);
   return cleanSecretValue(process.env.GEMINI_API_KEY);
 }
 
 function providerBaseUrl(provider: AiProviderName) {
+  if (provider === "openrouter") return "https://openrouter.ai/api/v1";
   if (provider === "nvidia") return "https://integrate.api.nvidia.com/v1";
   if (provider === "groq") return "https://api.groq.com/openai/v1";
   return "https://generativelanguage.googleapis.com/v1beta/openai";
@@ -28,6 +30,7 @@ function providerBaseUrl(provider: AiProviderName) {
 
 export function getConfiguredAiProviders(): AiProviderName[] {
   const providers: AiProviderName[] = [];
+  if (getAiApiKey("openrouter")) providers.push("openrouter");
   if (getAiApiKey("gemini")) providers.push("gemini");
   if (getAiApiKey("nvidia")) providers.push("nvidia");
   if (getAiApiKey("groq")) providers.push("groq");
@@ -36,7 +39,15 @@ export function getConfiguredAiProviders(): AiProviderName[] {
 
 export function getDefaultModel(provider?: AiProviderName) {
   const resolved =
-    provider ?? (getAiApiKey("gemini") ? "gemini" : getAiApiKey("nvidia") ? "nvidia" : "groq");
+    provider ??
+    (getAiApiKey("openrouter")
+      ? "openrouter"
+      : getAiApiKey("gemini")
+      ? "gemini"
+      : getAiApiKey("nvidia")
+      ? "nvidia"
+      : "groq");
+  if (resolved === "openrouter") return "google/gemini-2.5-flash";
   if (resolved === "nvidia") return "meta/llama-3.3-70b-instruct";
   if (resolved === "groq") return "llama-3.1-8b-instant";
   return "gemini-2.5-flash";
@@ -67,7 +78,7 @@ export async function resolveAvailableAiProvider(preferredProvider?: AiProviderN
 
   const order: AiProviderName[] = preferredProvider
     ? [preferredProvider, ...configured.filter((provider) => provider !== preferredProvider)]
-    : (["gemini", "nvidia", "groq"] as AiProviderName[]).filter((provider) => configured.includes(provider));
+    : (["openrouter", "gemini", "nvidia", "groq"] as AiProviderName[]).filter((provider) => configured.includes(provider));
 
   const rejected: AiProviderName[] = [];
   for (const provider of order) {
@@ -110,6 +121,12 @@ export function createGateway(initialRunId?: string, preferredProvider?: AiProvi
     baseURL: providerBaseUrl(providerName),
     headers: {
       Authorization: `Bearer ${apiKey}`,
+      ...(providerName === "openrouter"
+        ? {
+            "HTTP-Referer": process.env.OPENROUTER_SITE_URL ?? "https://open-hello-bloom.lovable.app",
+            "X-Title": "UPSC Genius AI",
+          }
+        : {}),
     },
   });
 
