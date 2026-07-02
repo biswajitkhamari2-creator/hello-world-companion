@@ -90,34 +90,18 @@ async function isProviderAuthorized(provider: AiProviderName, apiKey: string): P
 }
 
 export async function resolveAvailableAiProvider(preferredProvider?: AiProviderName): Promise<AiProviderName> {
-  const configured = getConfiguredAiProviders();
-  if (!configured.length) {
-    throw new Error("No AI key configured. Set GROQ_API_KEY (preferred) or GEMINI_API_KEY in project secrets.");
-  }
-
-  const order: AiProviderName[] = preferredProvider
-    ? [preferredProvider, ...configured.filter((provider) => provider !== preferredProvider)]
-    : (["openrouter", "gemini", "nvidia", "groq"] as AiProviderName[]).filter((provider) => configured.includes(provider));
-
-  const rejected: AiProviderName[] = [];
-  for (const provider of order) {
-    const apiKey = getAiApiKey(provider);
-    if (!apiKey) continue;
-    if (await isProviderAuthorized(provider, apiKey)) return provider;
-    rejected.push(provider);
-  }
-
-  throw new Error(`AI provider key rejected: ${rejected.join(", ") || "configured provider"}`);
+  void preferredProvider;
+  const apiKey = getAiApiKey("gemini");
+  if (!apiKey) throw new Error("No AI key configured. Set GEMINI_API_KEY in project secrets.");
+  if (!(await isProviderAuthorized("gemini", apiKey))) throw new Error("GEMINI_API_KEY was rejected by Google.");
+  return "gemini";
 }
 
 export function createGateway(initialRunId?: string, preferredProvider?: AiProviderName) {
-  const configured = getConfiguredAiProviders();
-  if (!configured.length) {
-    throw new Error("No AI key configured. Set NVIDIA_API_KEY, GROQ_API_KEY, or GEMINI_API_KEY in project secrets.");
-  }
-  const providerName: AiProviderName =
-    preferredProvider && configured.includes(preferredProvider) ? preferredProvider : configured[0];
-  const apiKey = getAiApiKey(providerName)!;
+  void preferredProvider;
+  const apiKey = getAiApiKey("gemini");
+  if (!apiKey) throw new Error("No AI key configured. Set GEMINI_API_KEY in project secrets.");
+  const providerName: AiProviderName = "gemini";
 
   let runId = initialRunId?.trim() || undefined;
   let resolveRunId: (value: string | undefined) => void = () => {};
@@ -140,12 +124,6 @@ export function createGateway(initialRunId?: string, preferredProvider?: AiProvi
     baseURL: providerBaseUrl(providerName),
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      ...(providerName === "openrouter"
-        ? {
-            "HTTP-Referer": process.env.OPENROUTER_SITE_URL ?? "https://open-hello-bloom.lovable.app",
-            "X-Title": "UPSC Genius AI",
-          }
-        : {}),
     },
     fetch: async (input, init) => {
       const started = Date.now();
