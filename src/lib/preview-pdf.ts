@@ -208,7 +208,38 @@ function buildPagedCaptureStage(node: HTMLElement): CaptureStage {
     pointerEvents: "none",
     zIndex: "2147483647",
     contain: "layout paint style",
+    color: "#0f172a",
   } satisfies Partial<CSSStyleDeclaration>);
+
+  // Force light-theme design tokens on the capture stage regardless of the
+  // app's current theme. Without this, exporting while the app is in dark
+  // mode produced pages that were almost entirely black because bg-card /
+  // bg-background / text-foreground inherited the dark oklch values from
+  // the <html class="dark"> root.
+  const lightVars: Record<string, string> = {
+    "--background": "#ffffff",
+    "--foreground": "#0f172a",
+    "--paper": "#ffffff",
+    "--ink": "#0f172a",
+    "--card": "#ffffff",
+    "--card-foreground": "#0f172a",
+    "--popover": "#ffffff",
+    "--popover-foreground": "#0f172a",
+    "--primary": "#064e3b",
+    "--primary-foreground": "#ffffff",
+    "--secondary": "#e2e8f0",
+    "--secondary-foreground": "#0f172a",
+    "--muted": "#f1f5f9",
+    "--muted-foreground": "#475569",
+    "--accent": "#c9a84c",
+    "--accent-foreground": "#0f172a",
+    "--destructive": "#dc2626",
+    "--destructive-foreground": "#ffffff",
+    "--border": "#e2e8f0",
+    "--input": "#e2e8f0",
+    "--ring": "#c9a84c",
+  };
+  for (const [k, v] of Object.entries(lightVars)) stage.style.setProperty(k, v);
 
   Object.assign(mover.style, {
     width: `${A4_CSS_WIDTH}px`,
@@ -220,6 +251,13 @@ function buildPagedCaptureStage(node: HTMLElement): CaptureStage {
   clone.style.width = `${A4_CSS_WIDTH}px`;
   clone.style.maxWidth = `${A4_CSS_WIDTH}px`;
   clone.style.margin = "0";
+  clone.style.background = "#ffffff";
+  clone.style.color = "#0f172a";
+  // Strip any inherited `.dark` class from the cloned subtree so utility
+  // classes gated on the dark variant (dark:bg-*, dark:text-*) do not
+  // apply in the export.
+  clone.classList.remove("dark");
+  clone.querySelectorAll<HTMLElement>(".dark").forEach((el) => el.classList.remove("dark"));
 
   mover.appendChild(clone);
   stage.appendChild(mover);
