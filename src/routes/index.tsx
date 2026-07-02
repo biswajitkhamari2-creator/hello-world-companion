@@ -30,7 +30,6 @@ import {
   AuroraBackdrop,
   AiMentorArt,
   HeroStatChips,
-  PremiumFooter,
   useRotatingPlaceholder,
 } from "@/components/landing-premium";
 
@@ -163,7 +162,6 @@ function Landing() {
           <PcsDigestPreview />
           <UpscNews />
         </main>
-        <PremiumFooter />
       </div>
     </AppShell>
   );
