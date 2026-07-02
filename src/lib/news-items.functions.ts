@@ -231,7 +231,9 @@ export const extractPendingInboxNews = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
     const supabase = getAdmin();
-    // Pick the newest un-analysed PDF.
+    // Pick a batch of newest un-analysed PDFs; skip ones whose Drive file
+    // is no longer accessible (uploaded under an older credential) so a
+    // single dead file can't block the whole news feed.
     const { data: rows, error } = await supabase
       .from("telegram_inbox")
       .select("id, drive_file_id, posted_at")
@@ -240,49 +242,75 @@ export const extractPendingInboxNews = createServerFn({ method: "POST" })
       .is("analysed_at", null)
       .not("drive_file_id", "is", null)
       .order("posted_at", { ascending: false })
-      .limit(1);
+      .limit(8);
     if (error) throw new Error(error.message);
-    const inbox = rows?.[0];
-    if (!inbox) return { processed: 0, remaining: 0 };
+    const candidates = rows ?? [];
+    if (candidates.length === 0) return { processed: 0, remaining: 0 };
 
-    try {
-      const { downloadDriveFile } = await import("./gdrive.server");
-      const { buffer } = await downloadDriveFile(inbox.drive_file_id as string);
-      const items = await geminiExtractStructured(buffer);
-      if (items.length) {
-        const rowsToInsert = items.map((it) => ({
-          inbox_id: inbox.id,
-          gs_paper: it.gs_paper,
-          subject: it.subject,
-          title: it.title,
-          summary: it.summary,
-          importance: it.importance,
-          posted_at: inbox.posted_at,
-        }));
-        const { error: insErr } = await supabase.from("telegram_news_items").insert(rowsToInsert);
-        if (insErr) throw new Error(insErr.message);
+    const { downloadDriveFile } = await import("./gdrive.server");
+    let skipped = 0;
+
+    for (const inbox of candidates) {
+      try {
+        const { buffer } = await downloadDriveFile(inbox.drive_file_id as string);
+        const items = await geminiExtractStructured(buffer);
+        if (items.length) {
+          const rowsToInsert = items.map((it) => ({
+            inbox_id: inbox.id,
+            gs_paper: it.gs_paper,
+            subject: it.subject,
+            title: it.title,
+            summary: it.summary,
+            importance: it.importance,
+            posted_at: inbox.posted_at,
+          }));
+          const { error: insErr } = await supabase.from("telegram_news_items").insert(rowsToInsert);
+          if (insErr) throw new Error(insErr.message);
+        }
+        await supabase
+          .from("telegram_inbox")
+          .update({ analysed_at: new Date().toISOString() })
+          .eq("id", inbox.id);
+
+        const { count } = await supabase
+          .from("telegram_inbox")
+          .select("id", { count: "exact", head: true })
+          .eq("kind", "pdf")
+          .eq("status", "ready")
+          .is("analysed_at", null);
+        return { processed: 1, extracted: items.length, remaining: count ?? 0, skipped };
+      } catch (e) {
+        const msg = (e as Error).message ?? "";
+        const inaccessible =
+          msg.includes("no longer accessible") ||
+          msg.includes("drive.file") ||
+          msg.includes("File not found") ||
+          msg.includes("404");
+        // Mark analysed so we skip it forever, but never surface the error
+        // for inaccessible files — just move on to the next candidate.
+        await supabase
+          .from("telegram_inbox")
+          .update({
+            analysed_at: new Date().toISOString(),
+            error_message: msg.slice(0, 300) || "extract failed",
+          })
+          .eq("id", inbox.id);
+        if (inaccessible) {
+          skipped++;
+          continue;
+        }
+        // Non-inaccessible error (Gemini quota, network, etc.) — bubble up.
+        throw e;
       }
-      await supabase
-        .from("telegram_inbox")
-        .update({ analysed_at: new Date().toISOString() })
-        .eq("id", inbox.id);
-
-      const { count } = await supabase
-        .from("telegram_inbox")
-        .select("id", { count: "exact", head: true })
-        .eq("kind", "pdf")
-        .eq("status", "ready")
-        .is("analysed_at", null);
-      return { processed: 1, extracted: items.length, remaining: count ?? 0 };
-    } catch (e) {
-      // Mark it analysed anyway so we don't loop forever on a bad file.
-      await supabase
-        .from("telegram_inbox")
-        .update({
-          analysed_at: new Date().toISOString(),
-          error_message: (e as Error).message?.slice(0, 300) ?? "extract failed",
-        })
-        .eq("id", inbox.id);
-      throw e;
     }
+
+    // Every candidate we tried was inaccessible; report remaining count
+    // silently so the UI stops looping.
+    const { count } = await supabase
+      .from("telegram_inbox")
+      .select("id", { count: "exact", head: true })
+      .eq("kind", "pdf")
+      .eq("status", "ready")
+      .is("analysed_at", null);
+    return { processed: 0, extracted: 0, remaining: count ?? 0, skipped };
   });
