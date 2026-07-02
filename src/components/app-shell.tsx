@@ -122,8 +122,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { title: "AI Revision Hub", url: "/revision-hub", icon: Sparkles, badge: "New" },
       { title: "Editorial Analyser", url: "/editorial", icon: FileEdit },
-      { title: "Daily Revision", url: "/dashboard?tab=revision", icon: Repeat },
-      { title: "Study Planner", url: "/dashboard?tab=planner", icon: CalendarRange },
+      { title: "Daily Revision", url: "/revision-hub?tab=planner", icon: Repeat },
+      { title: "Flashcards", url: "/revision-hub?tab=flashcards", icon: CalendarRange },
       { title: "Mock Tests", url: "/mocks", icon: ClipboardCheck },
     ],
   },
