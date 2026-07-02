@@ -50,10 +50,10 @@ function cleanSecretValue(value: string | undefined): string | undefined {
 }
 
 function getAiApiKey(provider: AiProviderName): string | undefined {
-  if (provider === "openrouter") return cleanSecretValue(process.env.OPENROUTER_API_KEY);
-  if (provider === "nvidia") return cleanSecretValue(process.env.NVIDIA_API_KEY);
-  if (provider === "groq") return cleanSecretValue(process.env.GROQ_API_KEY);
-  return cleanSecretValue(process.env.GEMINI_API_KEY);
+  // Gemini-only: OpenRouter / NVIDIA / Groq are disabled by request. Even if
+  // their env vars are set, we ignore them so all traffic routes to Gemini.
+  if (provider === "gemini") return cleanSecretValue(process.env.GEMINI_API_KEY);
+  return undefined;
 }
 
 function providerBaseUrl(provider: AiProviderName) {
@@ -64,27 +64,11 @@ function providerBaseUrl(provider: AiProviderName) {
 }
 
 export function getConfiguredAiProviders(): AiProviderName[] {
-  const providers: AiProviderName[] = [];
-  if (getAiApiKey("openrouter")) providers.push("openrouter");
-  if (getAiApiKey("gemini")) providers.push("gemini");
-  if (getAiApiKey("nvidia")) providers.push("nvidia");
-  if (getAiApiKey("groq")) providers.push("groq");
-  return providers;
+  return getAiApiKey("gemini") ? ["gemini"] : [];
 }
 
 export function getDefaultModel(provider?: AiProviderName) {
-  const resolved =
-    provider ??
-    (getAiApiKey("openrouter")
-      ? "openrouter"
-      : getAiApiKey("gemini")
-      ? "gemini"
-      : getAiApiKey("nvidia")
-      ? "nvidia"
-      : "groq");
-  if (resolved === "openrouter") return "google/gemini-2.5-flash";
-  if (resolved === "nvidia") return "meta/llama-3.3-70b-instruct";
-  if (resolved === "groq") return "llama-3.1-8b-instant";
+  void provider;
   return "gemini-2.5-flash";
 }
 
