@@ -69,6 +69,74 @@ export const countPendingInbox = createServerFn({ method: "GET" }).handler(async
   return { pending: count ?? 0 };
 });
 
+// Diagnostic summary so the UI can explain WHY nothing is showing up
+// instead of leaving the user staring at an empty page.
+export const diagnoseInbox = createServerFn({ method: "GET" }).handler(async () => {
+  const supabase = getAdmin();
+  const { data: rows, error } = await supabase
+    .from("telegram_inbox")
+    .select("kind,status,analysed_at,error_message,drive_file_id")
+    .order("posted_at", { ascending: false })
+    .limit(500);
+  if (error) throw new Error(error.message);
+  let pending = 0, deadDrive = 0, duplicates = 0, failed = 0, links = 0, done = 0;
+  const sampleErr: string[] = [];
+  for (const r of (rows ?? []) as Array<{ kind: string; status: string; analysed_at: string | null; error_message: string | null; drive_file_id: string | null }>) {
+    if (r.kind === "link") links++;
+    if (r.status === "duplicate") { duplicates++; continue; }
+    if (r.status === "failed") { failed++; if (r.error_message && sampleErr.length < 3) sampleErr.push(r.error_message); continue; }
+    if (r.status === "ready" && !r.analysed_at && r.kind === "pdf") pending++;
+    if (r.analysed_at && r.error_message) {
+      const m = r.error_message.toLowerCase();
+      if (m.includes("no longer accessible") || m.includes("drive.file") || m.includes("not found") || m.includes("404")) {
+        deadDrive++;
+        if (sampleErr.length < 3) sampleErr.push(r.error_message);
+      } else {
+        failed++;
+        if (sampleErr.length < 3) sampleErr.push(r.error_message);
+      }
+    }
+    if (r.analysed_at && !r.error_message) done++;
+  }
+  const { count: newsCount } = await supabase
+    .from("telegram_news_items")
+    .select("id", { count: "exact", head: true });
+  return {
+    total: (rows ?? []).length,
+    pending, deadDrive, duplicates, failed, links, done,
+    newsCount: newsCount ?? 0,
+    sampleErr,
+  };
+});
+
+// Reset transient (non-Drive) failures so Refresh can retry them.
+export const resetFailedInbox = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const supabase = getAdmin();
+    const { data: rows, error } = await supabase
+      .from("telegram_inbox")
+      .select("id,error_message,drive_file_id,status")
+      .not("error_message", "is", null)
+      .limit(500);
+    if (error) throw new Error(error.message);
+    const retryIds: string[] = [];
+    for (const r of (rows ?? []) as Array<{ id: string; error_message: string | null; drive_file_id: string | null; status: string }>) {
+      const m = (r.error_message ?? "").toLowerCase();
+      const dead = m.includes("no longer accessible") || m.includes("drive.file") || m.includes("not found") || m.includes("404");
+      if (dead) continue; // truly gone — retry won't help
+      if (r.status !== "ready" || !r.drive_file_id) continue;
+      retryIds.push(r.id);
+    }
+    if (retryIds.length) {
+      await supabase
+        .from("telegram_inbox")
+        .update({ analysed_at: null, error_message: null })
+        .in("id", retryIds);
+    }
+    return { reset: retryIds.length };
+  });
+
 // ---------- Archive: search by date range + keyword ----------
 export const searchNewsArchive = createServerFn({ method: "GET" })
   .inputValidator(
