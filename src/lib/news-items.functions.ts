@@ -348,31 +348,26 @@ Return at most 20 items. Prefer quality over quantity. Give special attention to
     throw new Error("Gemini did not return valid JSON");
   }
   const items = Array.isArray(parsed?.items) ? parsed.items : [];
+  console.log(`[news-extract] gemini returned ${items.length} raw items`);
   const JUNK_RE = /(missed call|scan qr|to subscribe|subscribe.*call|\d{10}|in brief\s*$|»\s*page|contd\.?\s*on\s*page|cu-cuecm|crossword|sudoku|horoscope|classifieds?|advertisement|weather|edition|epaper|e-paper)/i;
   // Hyphen-space word breaks are line-wrap artifacts from newspaper columns (e.g. "man- aged", "Wo- men's", "Is- lands").
   const WRAP_RE = /[A-Za-z]-\s+[a-z]/;
   // Sports/entertainment we always drop for a UPSC feed.
   const OFFTOPIC_RE = /\b(t20|odi|test match|ipl|world cup|olympics?|fifa|box office|bollywood|tollywood|celebrity)\b/i;
-  return items
+  const dropped: string[] = [];
+  const kept = items
     .filter((it: any) => it && typeof it.title === "string" && it.title.trim().length)
     .filter((it: any) => {
       const t = String(it.title).trim();
-      if (t.length < 24) return false;
-      if (t.length > 240) return false;
-      if (JUNK_RE.test(t)) return false;
-      if (JUNK_RE.test(String(it.summary || ""))) return false;
-      if (WRAP_RE.test(t)) return false;
-      if (OFFTOPIC_RE.test(t)) return false;
-      if (/[|]{2,}|\s{3,}/.test(t)) return false;
-      if (/[,;:]\s*$/.test(t)) return false;
-      // Reject titles that don't start with a capital letter / digit / quote — likely a mid-sentence fragment.
-      if (!/^["'“(A-Z0-9]/.test(t)) return false;
+      if (t.length < 12) { dropped.push(`too-short:${t}`); return false; }
+      if (t.length > 260) { dropped.push(`too-long:${t.slice(0,40)}`); return false; }
+      if (JUNK_RE.test(t)) { dropped.push(`junk:${t}`); return false; }
+      if (JUNK_RE.test(String(it.summary || ""))) { dropped.push(`junk-summary:${t}`); return false; }
+      if (WRAP_RE.test(t)) { dropped.push(`wrap:${t}`); return false; }
+      if (OFFTOPIC_RE.test(t)) { dropped.push(`offtopic:${t}`); return false; }
+      if (/[,;:]\s*$/.test(t)) { dropped.push(`trailing-punct:${t}`); return false; }
       // Reject titles that start with connector words typical of continuations.
-      if (/^(and|but|or|the|a|an|is|are|was|were|has|had|have|been|which|that|who|whom|whose|it|its|this|these|those|to)\b/i.test(t)) return false;
-      // Reject titles that are mostly UPPERCASE tokens with no lowercase words (masthead-style noise).
-      const words = t.split(/\s+/).filter(Boolean);
-      const upper = words.filter((w: string) => w.length > 2 && w === w.toUpperCase()).length;
-      if (words.length >= 4 && upper / words.length > 0.7) return false;
+      if (/^(and|but|or|is|are|was|were|has|had|have|been|which|that|whom|whose)\b/i.test(t)) { dropped.push(`connector:${t}`); return false; }
       return true;
     })
     .map((it: any) => ({
@@ -382,6 +377,9 @@ Return at most 20 items. Prefer quality over quantity. Give special attention to
       summary: String(it.summary || "").slice(0, 900),
       importance: Math.max(1, Math.min(5, Number(it.importance) || 3)),
     }));
+  if (dropped.length) console.log(`[news-extract] dropped ${dropped.length} items:`, dropped.slice(0, 10));
+  console.log(`[news-extract] kept ${kept.length} items`);
+  return kept;
 }
 
 export const extractPendingInboxNews = createServerFn({ method: "POST" })
