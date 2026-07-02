@@ -313,6 +313,10 @@ Return at most 20 items. Prefer quality over quantity. Give special attention to
   }
   const items = Array.isArray(parsed?.items) ? parsed.items : [];
   const JUNK_RE = /(missed call|scan qr|to subscribe|subscribe.*call|\d{10}|in brief\s*$|»\s*page|contd\.?\s*on\s*page|cu-cuecm|crossword|sudoku|horoscope)/i;
+  // Hyphen-space word breaks are line-wrap artifacts from newspaper columns (e.g. "man- aged", "Wo- men's", "Is- lands").
+  const WRAP_RE = /[A-Za-z]-\s+[a-z]/;
+  // Sports/entertainment we always drop for a UPSC feed.
+  const OFFTOPIC_RE = /\b(t20|odi|test match|ipl|world cup|olympics?|fifa|box office|bollywood|tollywood|celebrity)\b/i;
   return items
     .filter((it: any) => it && typeof it.title === "string" && it.title.trim().length)
     .filter((it: any) => {
@@ -320,6 +324,12 @@ Return at most 20 items. Prefer quality over quantity. Give special attention to
       if (t.length < 20) return false;
       if (JUNK_RE.test(t)) return false;
       if (JUNK_RE.test(String(it.summary || ""))) return false;
+      if (WRAP_RE.test(t)) return false;
+      if (OFFTOPIC_RE.test(t)) return false;
+      // Reject titles that don't start with a capital letter / digit / quote — likely a mid-sentence fragment.
+      if (!/^["'“(A-Z0-9]/.test(t)) return false;
+      // Reject titles that start with connector words typical of continuations.
+      if (/^(and|but|or|the|a|an|is|are|was|were|has|had|have|been|which|that|who|whom|whose|it|its|this|these|those|to)\b/i.test(t)) return false;
       // Reject titles that are mostly UPPERCASE tokens with no lowercase words (masthead-style noise).
       const words = t.split(/\s+/).filter(Boolean);
       const upper = words.filter((w: string) => w.length > 2 && w === w.toUpperCase()).length;
