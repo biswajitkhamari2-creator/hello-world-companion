@@ -693,19 +693,44 @@ export const analyseEditorialFromInbox = createServerFn({ method: "POST" })
       ? analysis.editionDate
       : String(source.postedAt).slice(0, 10);
 
-    const { data: inserted, error: insErr } = await supabase
+    // Guard against FK violation: only keep inbox_id if the row still exists
+    // in telegram_inbox (it may have been deleted, or the id may point to a
+    // documents row that isn't in telegram_inbox).
+    let safeInboxId: string | null = source.inboxId;
+    if (safeInboxId) {
+      const { data: existsRow } = await supabase
+        .from("telegram_inbox")
+        .select("id")
+        .eq("id", safeInboxId)
+        .maybeSingle();
+      if (!existsRow) safeInboxId = null;
+    }
+
+    const insertPayload = {
+      user_id: context.userId,
+      inbox_id: safeInboxId,
+      source_label: sourceLabel,
+      newspaper: analysis.detectedNewspaper || "Unknown",
+      edition_date: editionDate,
+      analysis,
+      model: GEMINI_MODEL,
+    };
+    let { data: inserted, error: insErr } = await supabase
       .from("editorials")
-      .insert({
-        user_id: context.userId,
-        inbox_id: source.inboxId,
-        source_label: sourceLabel,
-        newspaper: analysis.detectedNewspaper || "Unknown",
-        edition_date: editionDate,
-        analysis,
-        model: GEMINI_MODEL,
-      })
+      .insert(insertPayload)
       .select("id")
       .single();
+    if (insErr && /foreign key|editorials_inbox_id_fkey/i.test(insErr.message)) {
+      // Retry once without the inbox link.
+      const retry = await supabase
+        .from("editorials")
+        .insert({ ...insertPayload, inbox_id: null })
+        .select("id")
+        .single();
+      inserted = retry.data;
+      insErr = retry.error;
+    }
     if (insErr) throw new Error(insErr.message);
+    if (!inserted) throw new Error("Failed to save editorial analysis.");
     return { id: inserted.id as string, editorialCount: analysis.editorials.length };
   });
