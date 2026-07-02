@@ -249,8 +249,15 @@ HARD REJECT — never emit an item whose title or summary is or contains any of:
  - Masthead / edition strip / date line / weather box / crossword / sudoku / horoscope / cartoons.
  - Crime blotter, local city notices, sports scores, advertisements, obituaries, movie reviews, film / celebrity gossip, share-market ticker, classifieds, tender notices.
  - Garbled OCR fragments, single-word titles, ALL-CAPS scream headers with no sentence, or titles that look like a mash-up of unrelated snippets from different columns.
+ - MID-COLUMN CONTINUATIONS: text that starts lower-case, starts with "and/but/or/the/a/an/is/was/has/had/have", ends with an incomplete word or comma, or contains hyphen-space word breaks like "man- aged", "Wo- men's", "Is- lands" (these are line-wrap artifacts from the previous column, NOT headlines).
+ - Sports match reports, tournament recaps (T20 / ODI / Test / IPL / World Cup / Olympics scores), celebrity/film pieces — REJECT even if they look like real articles; they are not UPSC-relevant.
 
-If you are not confident the text is one coherent article headline, DROP it. Better to return fewer items than junk.
+If you are not confident the text is ONE coherent, standalone article HEADLINE (not a body-text sentence), DROP it. Better to return 3 great items than 15 broken ones.
+
+Before returning, RE-READ every title you produced and delete any that:
+ (a) starts with a lowercase letter, or
+ (b) reads like the middle of a sentence rather than a headline, or
+ (c) contains "- " inside a word (line-wrap artifact).
 
 For every relevant article return:
  - gs_paper: one of GS1 (History, Geography, Society, Art & Culture), GS2 (Polity, Governance, IR, Social Justice), GS3 (Economy, Environment, S&T, Security, Disaster), GS4 (Ethics), General (only if truly cross-cutting).
@@ -306,6 +313,10 @@ Return at most 20 items. Prefer quality over quantity. Give special attention to
   }
   const items = Array.isArray(parsed?.items) ? parsed.items : [];
   const JUNK_RE = /(missed call|scan qr|to subscribe|subscribe.*call|\d{10}|in brief\s*$|»\s*page|contd\.?\s*on\s*page|cu-cuecm|crossword|sudoku|horoscope)/i;
+  // Hyphen-space word breaks are line-wrap artifacts from newspaper columns (e.g. "man- aged", "Wo- men's", "Is- lands").
+  const WRAP_RE = /[A-Za-z]-\s+[a-z]/;
+  // Sports/entertainment we always drop for a UPSC feed.
+  const OFFTOPIC_RE = /\b(t20|odi|test match|ipl|world cup|olympics?|fifa|box office|bollywood|tollywood|celebrity)\b/i;
   return items
     .filter((it: any) => it && typeof it.title === "string" && it.title.trim().length)
     .filter((it: any) => {
@@ -313,6 +324,12 @@ Return at most 20 items. Prefer quality over quantity. Give special attention to
       if (t.length < 20) return false;
       if (JUNK_RE.test(t)) return false;
       if (JUNK_RE.test(String(it.summary || ""))) return false;
+      if (WRAP_RE.test(t)) return false;
+      if (OFFTOPIC_RE.test(t)) return false;
+      // Reject titles that don't start with a capital letter / digit / quote — likely a mid-sentence fragment.
+      if (!/^["'“(A-Z0-9]/.test(t)) return false;
+      // Reject titles that start with connector words typical of continuations.
+      if (/^(and|but|or|the|a|an|is|are|was|were|has|had|have|been|which|that|who|whom|whose|it|its|this|these|those|to)\b/i.test(t)) return false;
       // Reject titles that are mostly UPPERCASE tokens with no lowercase words (masthead-style noise).
       const words = t.split(/\s+/).filter(Boolean);
       const upper = words.filter((w: string) => w.length > 2 && w === w.toUpperCase()).length;
