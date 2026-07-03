@@ -149,6 +149,7 @@ export function createGateway(initialRunId?: string, preferredProvider?: AiProvi
   const provider = createOpenAICompatible({
     name: resolvedProvider,
     baseURL: providerBaseUrl(resolvedProvider),
+    apiKey,
     headers: {
       Authorization: `Bearer ${apiKey}`,
       ...(resolvedProvider === "openrouter"
