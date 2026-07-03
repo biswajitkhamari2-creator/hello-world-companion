@@ -162,7 +162,7 @@ export function createGateway(initialRunId?: string, preferredProvider?: AiProvi
     fetch: async (input, init) => {
       const started = Date.now();
       const hdrs = new Headers(init?.headers);
-      console.log("[ai-fetch]", resolvedProvider, "authLen:", hdrs.get("authorization")?.length, "keyLen:", apiKey?.length);
+      console.log("[ai-fetch]", resolvedProvider, "keyLen:", apiKey?.length, "keyStart:", apiKey?.slice(0,10), "keyEnd:", apiKey?.slice(-4), "hasNewline:", /[\r\n\s]/.test(apiKey ?? ""));
       let modelHint: string | undefined;
       try {
         if (init?.body && typeof init.body === "string") {
