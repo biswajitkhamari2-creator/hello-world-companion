@@ -84,7 +84,13 @@ async function isProviderAuthorized(provider: AiProviderName, apiKey: string): P
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5_000);
   try {
-    const response = await fetch(`${providerBaseUrl(provider)}/models`, {
+    // OpenRouter's /models endpoint is public and returns 200 even for invalid
+    // keys. Use /auth/key which requires a valid key. Other providers gate /models.
+    const url =
+      provider === "openrouter"
+        ? "https://openrouter.ai/api/v1/auth/key"
+        : `${providerBaseUrl(provider)}/models`;
+    const response = await fetch(url, {
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: controller.signal,
     });
@@ -149,6 +155,7 @@ export function createGateway(initialRunId?: string, preferredProvider?: AiProvi
   const provider = createOpenAICompatible({
     name: resolvedProvider,
     baseURL: providerBaseUrl(resolvedProvider),
+    apiKey,
     headers: {
       Authorization: `Bearer ${apiKey}`,
       ...(resolvedProvider === "openrouter"
