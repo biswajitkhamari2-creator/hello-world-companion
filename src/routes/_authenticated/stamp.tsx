@@ -1,0 +1,224 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useRef, useState } from "react";
+import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
+import { Loader2, Upload, Download, Stamp, FileCheck2 } from "lucide-react";
+import { toast } from "sonner";
+import { AppShell } from "@/components/app-shell";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+export const Route = createFileRoute("/_authenticated/stamp")({
+  head: () => ({
+    meta: [
+      { title: "PDF Stamp — Sidheswar Publication" },
+      { name: "description", content: "Upload any PDF and instantly stamp 'Sidheswar Publication' on every page, then download." },
+    ],
+  }),
+  component: StampPage,
+});
+
+type Status = "idle" | "working" | "done" | "error";
+
+function StampPage() {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [status, setStatus] = useState<Status>("idle");
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [pageCount, setPageCount] = useState<number>(0);
+  const [tookMs, setTookMs] = useState<number>(0);
+  const [stampText, setStampText] = useState<string>("SIDHESWAR PUBLICATION");
+
+  const handleFile = useCallback(
+    async (file: File) => {
+      if (!file) return;
+      if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
+        toast.error("Please upload a PDF file.");
+        return;
+      }
+      setStatus("working");
+      setFileName(file.name);
+      const t0 = performance.now();
+      try {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
+        const font = await pdf.embedFont(StandardFonts.HelveticaBold);
+        const text = (stampText || "SIDHESWAR PUBLICATION").trim().toUpperCase();
+
+        const pages = pdf.getPages();
+        for (const page of pages) {
+          const { width: pw, height: ph } = page.getSize();
+          const diag = Math.sqrt(pw * pw + ph * ph);
+          // Diagonal watermark size ~ 8% of diagonal
+          const size = Math.max(28, diag * 0.055);
+          const textWidth = font.widthOfTextAtSize(text, size);
+          // center-anchor rotated text
+          const cx = pw / 2;
+          const cy = ph / 2;
+          const angle = Math.atan2(ph, pw); // rotate along the diagonal
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+          const x = cx - (textWidth / 2) * cos + (size / 2) * sin;
+          const y = cy - (textWidth / 2) * sin - (size / 2) * cos;
+          page.drawText(text, {
+            x,
+            y,
+            size,
+            font,
+            color: rgb(0.85, 0.15, 0.15),
+            opacity: 0.18,
+            rotate: degrees((angle * 180) / Math.PI),
+          });
+          // Footer stamp
+          const footerSize = Math.max(9, Math.min(14, pw * 0.014));
+          const footerText = `© ${text}`;
+          const fw = font.widthOfTextAtSize(footerText, footerSize);
+          page.drawText(footerText, {
+            x: (pw - fw) / 2,
+            y: 14,
+            size: footerSize,
+            font,
+            color: rgb(0.1, 0.1, 0.1),
+            opacity: 0.55,
+          });
+        }
+
+        const out = await pdf.save({ useObjectStreams: true });
+        const blob = new Blob([out], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const base = file.name.replace(/\.pdf$/i, "");
+        a.href = url;
+        a.download = `${base}-stamped.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+
+        setPageCount(pages.length);
+        setTookMs(Math.round(performance.now() - t0));
+        setStatus("done");
+        toast.success(`Stamped ${pages.length} page${pages.length === 1 ? "" : "s"} — download started`);
+      } catch (err) {
+        console.error("[stamp] failed", err);
+        setStatus("error");
+        toast.error(err instanceof Error ? err.message : "Failed to stamp PDF");
+      }
+    },
+    [stampText],
+  );
+
+  return (
+    <AppShell>
+      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-12">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 text-white shadow-lg">
+            <Stamp className="h-7 w-7" />
+          </div>
+          <h1 className="font-serif-display text-3xl sm:text-4xl font-bold text-foreground">
+            PDF Stamping
+          </h1>
+          <p className="mt-2 text-sm sm:text-base text-muted-foreground">
+            Upload any PDF — every page instantly stamped with your publication mark, then downloaded.
+          </p>
+        </div>
+
+        <div className="rounded-3xl border border-border/60 bg-card/60 p-5 sm:p-8 backdrop-blur-md shadow-sm">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Stamp text
+          </label>
+          <Input
+            value={stampText}
+            onChange={(e) => setStampText(e.target.value)}
+            placeholder="SIDHESWAR PUBLICATION"
+            className="mb-6"
+            maxLength={64}
+          />
+
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const f = e.dataTransfer.files?.[0];
+              if (f) handleFile(f);
+            }}
+            className="relative rounded-2xl border-2 border-dashed border-border/70 bg-background/40 p-8 sm:p-12 text-center transition-colors hover:border-primary/60 hover:bg-primary/5"
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="sr-only"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
+                e.target.value = "";
+              }}
+            />
+            {status === "working" ? (
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm font-medium">Stamping {fileName}…</p>
+              </div>
+            ) : (
+              <>
+                <Upload className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+                <p className="mb-1 text-base font-semibold text-foreground">
+                  Drop your PDF here
+                </p>
+                <p className="mb-5 text-xs text-muted-foreground">
+                  Fully processed on your device — nothing uploaded to a server.
+                </p>
+                <Button
+                  type="button"
+                  size="lg"
+                  onClick={() => inputRef.current?.click()}
+                  className="gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Choose PDF
+                </Button>
+              </>
+            )}
+          </div>
+
+          {status === "done" && (
+            <div className="mt-6 flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+              <FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+              <div className="flex-1 text-sm">
+                <p className="font-semibold text-foreground">Done — download started</p>
+                <p className="mt-0.5 text-muted-foreground">
+                  Stamped <b>{pageCount}</b> page{pageCount === 1 ? "" : "s"} of <b>{fileName}</b> in{" "}
+                  <b>{tookMs} ms</b>.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 gap-2"
+                  onClick={() => inputRef.current?.click()}
+                >
+                  <Download className="h-4 w-4" />
+                  Stamp another PDF
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {status === "error" && (
+            <div className="mt-6 rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-600">
+              Something went wrong. The PDF may be encrypted or corrupt — try another file.
+            </div>
+          )}
+        </div>
+
+        <ul className="mt-6 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+          <li className="rounded-lg border border-border/50 bg-card/40 p-3">⚡ Instant — runs in your browser</li>
+          <li className="rounded-lg border border-border/50 bg-card/40 p-3">🔒 Private — file never leaves your device</li>
+          <li className="rounded-lg border border-border/50 bg-card/40 p-3">📄 Every page stamped diagonally + footer</li>
+        </ul>
+      </div>
+    </AppShell>
+  );
+}
