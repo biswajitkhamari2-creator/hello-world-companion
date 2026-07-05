@@ -1,11 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
-import { Loader2, Upload, Download, Stamp, FileCheck2 } from "lucide-react";
+import { Loader2, Upload, Download, Stamp, FileCheck2, Trash2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  saveDownload,
+  listDownloads,
+  deleteDownload,
+  getDownloadBlob,
+  onDownloadsUpdated,
+  formatSize,
+  type StoredDownloadRecord,
+} from "@/lib/downloads-store";
+
+const STAMP_SOURCE = "pdf-stamp";
 
 export const Route = createFileRoute("/_authenticated/stamp")({
   head: () => ({
@@ -83,15 +94,15 @@ function StampPage() {
 
         const out = await pdf.save({ useObjectStreams: true });
         const blob = new Blob([out.buffer as ArrayBuffer], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
         const base = file.name.replace(/\.pdf$/i, "");
-        a.href = url;
-        a.download = `${base}-stamped.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        const stampedName = `${base}-stamped.pdf`;
+        // Persist to IndexedDB so it survives reloads until user deletes it
+        await saveDownload(blob, stampedName, {
+          kind: "pdf",
+          source: STAMP_SOURCE,
+          meta: { pages: pages.length, stampText: text, original: file.name },
+        });
+        triggerBrowserDownload(blob, stampedName);
 
         setPageCount(pages.length);
         setTookMs(Math.round(performance.now() - t0));
@@ -218,7 +229,107 @@ function StampPage() {
           <li className="rounded-lg border border-border/50 bg-card/40 p-3">🔒 Private — file never leaves your device</li>
           <li className="rounded-lg border border-border/50 bg-card/40 p-3">📄 Every page stamped diagonally + footer</li>
         </ul>
+
+        <StampedHistory />
       </div>
     </AppShell>
+  );
+}
+
+function triggerBrowserDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+function StampedHistory() {
+  const [rows, setRows] = useState<StoredDownloadRecord[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      listDownloads().then((all) => {
+        if (!alive) return;
+        setRows(all.filter((r) => r.source === STAMP_SOURCE));
+      });
+    load();
+    const off = onDownloadsUpdated(load);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+
+  const redownload = useCallback(async (row: StoredDownloadRecord) => {
+    const blob = await getDownloadBlob(row.id);
+    if (!blob) {
+      toast.error("File data missing — please stamp again.");
+      return;
+    }
+    triggerBrowserDownload(blob, row.name);
+  }, []);
+
+  const remove = useCallback(async (row: StoredDownloadRecord) => {
+    await deleteDownload(row.id);
+    toast.success(`Removed ${row.name}`);
+  }, []);
+
+  if (!rows || rows.length === 0) return null;
+
+  return (
+    <div className="mt-8 rounded-3xl border border-border/60 bg-card/60 p-5 sm:p-6 backdrop-blur-md shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="font-serif-display text-lg font-semibold text-foreground">
+          Stamped files ({rows.length})
+        </h2>
+        <span className="text-xs text-muted-foreground">Kept until you remove them</span>
+      </div>
+      <ul className="space-y-2">
+        {rows.map((row) => (
+          <li
+            key={row.id}
+            className="flex items-center gap-3 rounded-xl border border-border/50 bg-background/40 p-3"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 text-rose-600">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-foreground">{row.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatSize(row.size)}
+                {typeof row.meta?.pages === "number" ? ` · ${row.meta.pages} pages` : ""}
+                {" · "}
+                {new Date(row.created_at).toLocaleString()}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => redownload(row)}
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Download</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-red-600"
+              onClick={() => remove(row)}
+              aria-label={`Remove ${row.name}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
