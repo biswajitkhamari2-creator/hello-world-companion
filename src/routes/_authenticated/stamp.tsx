@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
-import { Loader2, Upload, Download, Stamp, FileCheck2, Trash2, FileText } from "lucide-react";
+import { Loader2, Upload, Download, Stamp, FileCheck2, Trash2, FileText, Image as ImageIcon, X } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import {
   saveDownload,
   listDownloads,
@@ -17,6 +18,9 @@ import {
 } from "@/lib/downloads-store";
 
 const STAMP_SOURCE = "pdf-stamp";
+const BRAND_IMAGE_KEY = "stamp:brand-image";
+const BRAND_OPACITY_KEY = "stamp:brand-opacity";
+const BRAND_SIZE_KEY = "stamp:brand-size";
 
 export const Route = createFileRoute("/_authenticated/stamp")({
   head: () => ({
@@ -32,11 +36,66 @@ type Status = "idle" | "working" | "done" | "error";
 
 function StampPage() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const brandInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [fileName, setFileName] = useState<string | null>(null);
   const [pageCount, setPageCount] = useState<number>(0);
   const [tookMs, setTookMs] = useState<number>(0);
   const [stampText, setStampText] = useState<string>("SIDHESWAR PUBLICATION");
+  const [brandImage, setBrandImage] = useState<string | null>(null);
+  const [brandOpacity, setBrandOpacity] = useState<number>(20); // 0-100
+  const [brandSize, setBrandSize] = useState<number>(55); // % of page diagonal
+
+  // Load persisted brand image on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setBrandImage(window.localStorage.getItem(BRAND_IMAGE_KEY));
+    const op = window.localStorage.getItem(BRAND_OPACITY_KEY);
+    const sz = window.localStorage.getItem(BRAND_SIZE_KEY);
+    if (op) setBrandOpacity(Number(op));
+    if (sz) setBrandSize(Number(sz));
+  }, []);
+
+  const handleBrandImage = useCallback(async (file: File) => {
+    if (!/^image\//.test(file.type)) {
+      toast.error("Please choose a PNG or JPG image.");
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Brand image too large (max 4 MB). Please resize it.");
+      return;
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(file);
+    });
+    try {
+      window.localStorage.setItem(BRAND_IMAGE_KEY, dataUrl);
+    } catch {
+      toast.error("Image is too large to save locally. Try a smaller file.");
+      return;
+    }
+    setBrandImage(dataUrl);
+    toast.success("Brand image saved");
+  }, []);
+
+  const clearBrandImage = useCallback(() => {
+    window.localStorage.removeItem(BRAND_IMAGE_KEY);
+    setBrandImage(null);
+    toast.success("Brand image removed");
+  }, []);
+
+  const updateBrandOpacity = useCallback((v: number) => {
+    setBrandOpacity(v);
+    window.localStorage.setItem(BRAND_OPACITY_KEY, String(v));
+  }, []);
+
+  const updateBrandSize = useCallback((v: number) => {
+    setBrandSize(v);
+    window.localStorage.setItem(BRAND_SIZE_KEY, String(v));
+  }, []);
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -54,12 +113,53 @@ function StampPage() {
         const font = await pdf.embedFont(StandardFonts.HelveticaBold);
         const text = (stampText || "SIDHESWAR PUBLICATION").trim().toUpperCase();
 
+        // Embed brand image once, reuse across pages
+        let brandImg: Awaited<ReturnType<PDFDocument["embedPng"]>> | null = null;
+        if (brandImage) {
+          try {
+            const [, mime, b64] = brandImage.match(/^data:(image\/[^;]+);base64,(.+)$/) ?? [];
+            if (mime && b64) {
+              const raw = atob(b64);
+              const buf = new Uint8Array(raw.length);
+              for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+              brandImg = mime === "image/jpeg" ? await pdf.embedJpg(buf) : await pdf.embedPng(buf);
+            }
+          } catch (e) {
+            console.warn("[stamp] brand image embed failed", e);
+          }
+        }
+
         const pages = pdf.getPages();
         for (const page of pages) {
           const { width: pw, height: ph } = page.getSize();
           const diag = Math.sqrt(pw * pw + ph * ph);
+
+          // Draw brand image (if any) centered, rotated along diagonal, semi-transparent
+          if (brandImg) {
+            const maxDim = diag * (brandSize / 100);
+            const scale = Math.min(maxDim / brandImg.width, maxDim / brandImg.height);
+            const iw = brandImg.width * scale;
+            const ih = brandImg.height * scale;
+            const angle = Math.atan2(ph, pw);
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+            // rotate around center: shift origin
+            const cx = pw / 2;
+            const cy = ph / 2;
+            const x = cx - (iw / 2) * cos + (ih / 2) * sin;
+            const y = cy - (iw / 2) * sin - (ih / 2) * cos;
+            page.drawImage(brandImg, {
+              x,
+              y,
+              width: iw,
+              height: ih,
+              rotate: degrees((angle * 180) / Math.PI),
+              opacity: Math.max(0.05, Math.min(1, brandOpacity / 100)),
+            });
+          }
+
           // Diagonal watermark size ~ 8% of diagonal
-          const size = Math.max(28, diag * 0.055);
+          const size = Math.max(24, diag * 0.045);
           const textWidth = font.widthOfTextAtSize(text, size);
           // center-anchor rotated text
           const cx = pw / 2;
@@ -69,27 +169,31 @@ function StampPage() {
           const sin = Math.sin(angle);
           const x = cx - (textWidth / 2) * cos + (size / 2) * sin;
           const y = cy - (textWidth / 2) * sin - (size / 2) * cos;
-          page.drawText(text, {
-            x,
-            y,
-            size,
-            font,
-            color: rgb(0.85, 0.15, 0.15),
-            opacity: 0.18,
-            rotate: degrees((angle * 180) / Math.PI),
-          });
+          if (text) {
+            page.drawText(text, {
+              x,
+              y,
+              size,
+              font,
+              color: rgb(0.85, 0.15, 0.15),
+              opacity: brandImg ? 0.12 : 0.18,
+              rotate: degrees((angle * 180) / Math.PI),
+            });
+          }
           // Footer stamp
-          const footerSize = Math.max(9, Math.min(14, pw * 0.014));
-          const footerText = `© ${text}`;
-          const fw = font.widthOfTextAtSize(footerText, footerSize);
-          page.drawText(footerText, {
-            x: (pw - fw) / 2,
-            y: 14,
-            size: footerSize,
-            font,
-            color: rgb(0.1, 0.1, 0.1),
-            opacity: 0.55,
-          });
+          if (text) {
+            const footerSize = Math.max(9, Math.min(14, pw * 0.014));
+            const footerText = `© ${text}`;
+            const fw = font.widthOfTextAtSize(footerText, footerSize);
+            page.drawText(footerText, {
+              x: (pw - fw) / 2,
+              y: 14,
+              size: footerSize,
+              font,
+              color: rgb(0.1, 0.1, 0.1),
+              opacity: 0.55,
+            });
+          }
         }
 
         const out = await pdf.save({ useObjectStreams: true });
@@ -114,7 +218,7 @@ function StampPage() {
         toast.error(err instanceof Error ? err.message : "Failed to stamp PDF");
       }
     },
-    [stampText],
+    [stampText, brandImage, brandOpacity, brandSize],
   );
 
   return (
@@ -133,6 +237,79 @@ function StampPage() {
         </div>
 
         <div className="rounded-3xl border border-border/60 bg-card/60 p-5 sm:p-8 backdrop-blur-md shadow-sm">
+          {/* Brand image */}
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Brand image (logo) — optional
+          </label>
+          <div className="mb-6 rounded-2xl border border-dashed border-border/70 bg-background/40 p-4">
+            <input
+              ref={brandInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="sr-only"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleBrandImage(f);
+                e.target.value = "";
+              }}
+            />
+            {brandImage ? (
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/50 bg-white p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={brandImage} alt="Brand logo preview" className="h-full w-full object-contain" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Opacity</span>
+                      <span className="tabular-nums">{brandOpacity}%</span>
+                    </div>
+                    <Slider
+                      value={[brandOpacity]}
+                      onValueChange={(v) => updateBrandOpacity(v[0] ?? 20)}
+                      min={5}
+                      max={100}
+                      step={5}
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Size</span>
+                      <span className="tabular-nums">{brandSize}%</span>
+                    </div>
+                    <Slider
+                      value={[brandSize]}
+                      onValueChange={(v) => updateBrandSize(v[0] ?? 55)}
+                      min={20}
+                      max={100}
+                      step={5}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => brandInputRef.current?.click()} className="gap-1.5">
+                      <Upload className="h-3.5 w-3.5" /> Replace
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={clearBrandImage} className="gap-1.5 text-red-600 hover:text-red-700">
+                      <X className="h-3.5 w-3.5" /> Remove
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3 py-4 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <ImageIcon className="h-6 w-6" />
+                </div>
+                <p className="text-sm font-medium text-foreground">Upload your brand logo</p>
+                <p className="text-xs text-muted-foreground">PNG, JPG or WebP · saved on this device</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => brandInputRef.current?.click()} className="gap-1.5">
+                  <Upload className="h-4 w-4" /> Choose image
+                </Button>
+              </div>
+            )}
+          </div>
+
           <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Stamp text
           </label>
