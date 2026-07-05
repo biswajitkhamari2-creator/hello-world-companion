@@ -21,6 +21,7 @@ const STAMP_SOURCE = "pdf-stamp";
 const BRAND_IMAGE_KEY = "stamp:brand-image";
 const BRAND_OPACITY_KEY = "stamp:brand-opacity";
 const BRAND_SIZE_KEY = "stamp:brand-size";
+const STAMP_TEXT_KEY = "stamp:text";
 
 export const Route = createFileRoute("/_authenticated/stamp")({
   head: () => ({
@@ -52,9 +53,17 @@ function StampPage() {
     setBrandImage(window.localStorage.getItem(BRAND_IMAGE_KEY));
     const op = window.localStorage.getItem(BRAND_OPACITY_KEY);
     const sz = window.localStorage.getItem(BRAND_SIZE_KEY);
+    const txt = window.localStorage.getItem(STAMP_TEXT_KEY);
     if (op) setBrandOpacity(Number(op));
     if (sz) setBrandSize(Number(sz));
+    if (txt !== null) setStampText(txt);
   }, []);
+
+  // Persist stamp text whenever it changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(STAMP_TEXT_KEY, stampText);
+  }, [stampText]);
 
   const handleBrandImage = useCallback(async (file: File) => {
     if (!/^image\//.test(file.type)) {
