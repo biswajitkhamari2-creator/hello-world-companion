@@ -26,6 +26,7 @@ import {
   CalendarRange,
   ClipboardCheck,
   Download,
+  Stamp,
   Bookmark,
   User,
   Settings,
@@ -131,6 +132,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Account",
     items: [
       { title: "Downloads", url: "/downloads", icon: Download },
+      { title: "PDF Stamp", url: "/stamp", icon: Stamp, badge: "New" },
       { title: "Bookmarks", url: "/bookmarks", icon: Bookmark },
       { title: "Profile", url: "/profile", icon: User },
       { title: "Settings", url: "/settings", icon: Settings },
