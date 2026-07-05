@@ -82,7 +82,7 @@ function StampPage() {
         }
 
         const out = await pdf.save({ useObjectStreams: true });
-        const blob = new Blob([out], { type: "application/pdf" });
+        const blob = new Blob([out.buffer as ArrayBuffer], { type: "application/pdf" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         const base = file.name.replace(/\.pdf$/i, "");

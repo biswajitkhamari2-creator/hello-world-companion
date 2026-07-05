@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiMentorRouteImport } from './routes/api/mentor'
+import { Route as AuthenticatedStampRouteImport } from './routes/_authenticated/stamp'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedRevisionHubRouteImport } from './routes/_authenticated/revision-hub'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
@@ -61,6 +62,11 @@ const ApiMentorRoute = ApiMentorRouteImport.update({
   id: '/api/mentor',
   path: '/api/mentor',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedStampRoute = AuthenticatedStampRouteImport.update({
+  id: '/stamp',
+  path: '/stamp',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
@@ -172,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/revision-hub': typeof AuthenticatedRevisionHubRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/stamp': typeof AuthenticatedStampRoute
   '/api/mentor': typeof ApiMentorRoute
   '/admin/ai-analytics': typeof AuthenticatedAdminAiAnalyticsRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
@@ -196,6 +203,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/revision-hub': typeof AuthenticatedRevisionHubRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/stamp': typeof AuthenticatedStampRoute
   '/api/mentor': typeof ApiMentorRoute
   '/admin/ai-analytics': typeof AuthenticatedAdminAiAnalyticsRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/revision-hub': typeof AuthenticatedRevisionHubRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/stamp': typeof AuthenticatedStampRoute
   '/api/mentor': typeof ApiMentorRoute
   '/_authenticated/admin/ai-analytics': typeof AuthenticatedAdminAiAnalyticsRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/revision-hub'
     | '/settings'
+    | '/stamp'
     | '/api/mentor'
     | '/admin/ai-analytics'
     | '/api/oauth/google/callback'
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/revision-hub'
     | '/settings'
+    | '/stamp'
     | '/api/mentor'
     | '/admin/ai-analytics'
     | '/api/oauth/google/callback'
@@ -297,6 +308,7 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/revision-hub'
     | '/_authenticated/settings'
+    | '/_authenticated/stamp'
     | '/api/mentor'
     | '/_authenticated/admin/ai-analytics'
     | '/api/oauth/google/callback'
@@ -359,6 +371,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/mentor'
       preLoaderRoute: typeof ApiMentorRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/stamp': {
+      id: '/_authenticated/stamp'
+      path: '/stamp'
+      fullPath: '/stamp'
+      preLoaderRoute: typeof AuthenticatedStampRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
@@ -496,6 +515,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedRevisionHubRoute: typeof AuthenticatedRevisionHubRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedStampRoute: typeof AuthenticatedStampRoute
   AuthenticatedAdminAiAnalyticsRoute: typeof AuthenticatedAdminAiAnalyticsRoute
 }
 
@@ -513,6 +533,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedRevisionHubRoute: AuthenticatedRevisionHubRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedStampRoute: AuthenticatedStampRoute,
   AuthenticatedAdminAiAnalyticsRoute: AuthenticatedAdminAiAnalyticsRoute,
 }
 
@@ -533,13 +554,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
