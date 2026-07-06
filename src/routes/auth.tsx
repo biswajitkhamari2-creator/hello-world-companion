@@ -72,8 +72,15 @@ function AuthPage() {
           options: { emailRedirectTo: window.location.origin + "/auth" },
         });
         if (error) throw error;
-        toast.success("Account created — check your email to confirm, then sign in.");
-        setMode("signin");
+        // Try immediate sign-in (works when email confirmation is disabled)
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          toast.success("Account created. Please sign in.");
+          setMode("signin");
+        } else {
+          toast.success("Account created");
+          navigate({ to: safeRedirect(search.redirect), replace: true });
+        }
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");
