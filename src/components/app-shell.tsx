@@ -114,16 +114,11 @@ const NAV_GROUPS: NavGroup[] = [
       { title: "AI Mentor", url: "/mentor", icon: Sparkles },
       { title: "News Archive", url: "/news-archive", icon: CalendarClock },
       { title: "Institution Engine", url: "/institution", icon: GraduationCap, badge: "New" },
-      { title: "Editorial Lab", url: "/editorial-lab", icon: FileEdit, badge: "Pro" },
     ],
   },
   {
     label: "Daily Practice",
     items: [
-      { title: "AI Revision Hub", url: "/revision-hub", icon: Sparkles, badge: "New" },
-      { title: "Editorial Analyser", url: "/editorial", icon: FileEdit },
-      { title: "Daily Revision", url: "/revision-hub?tab=planner", icon: Repeat },
-      { title: "Flashcards", url: "/revision-hub?tab=flashcards", icon: CalendarRange },
       { title: "Mock Tests", url: "/mocks", icon: ClipboardCheck },
     ],
   },
