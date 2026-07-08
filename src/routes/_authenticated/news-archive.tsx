@@ -251,6 +251,7 @@ function ArchivePage() {
       // Kick off live sync alongside archive
       void refreshLive();
       void refreshGkToday();
+      void refreshPib();
       // Auto-sync in the background so kal ka newspaper appear ho jaaye
       // agar Telegram inbox mein pending pada hai.
       const p = await refreshPendingCount();
