@@ -36,11 +36,11 @@ async function fileToDataUrl(file: File): Promise<string> {
 
 // Rasterize each page of a PDF to a JPEG data URL (client-side, via pdfjs).
 async function pdfToImageDataUrls(file: File): Promise<string[]> {
-  const pdfjs = await import("pdfjs-dist");
-  const workerSrc = (await import(
+  const pdfjs: any = await import("pdfjs-dist");
+  const workerMod: any = await import(
     /* @vite-ignore */ "pdfjs-dist/build/pdf.worker.min.mjs?url"
-  )).default as string;
-  (pdfjs as any).GlobalWorkerOptions.workerSrc = workerSrc;
+  );
+  pdfjs.GlobalWorkerOptions.workerSrc = workerMod.default;
 
   const buf = await file.arrayBuffer();
   const pdf = await (pdfjs as any).getDocument({ data: buf }).promise;
