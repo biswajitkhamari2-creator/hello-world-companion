@@ -469,7 +469,73 @@ function ArchivePage() {
           </div>
         )}
 
-        {tab === "gktoday" ? (
+        {tab === "pib" ? (
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Latest Government of India press releases from pib.gov.in (last 3 days, all ministries).
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={refreshPib}
+                disabled={pibLoading}
+              >
+                {pibLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+                Refresh
+              </Button>
+            </div>
+            {pibLoading && pibItems.length === 0 ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading PIB…
+              </div>
+            ) : pibItems.length === 0 ? (
+              <div className="rounded-xl border border-border bg-background/60 p-6 text-center text-sm text-muted-foreground">
+                No PIB releases right now. Try Refresh in a minute.
+              </div>
+            ) : (
+              <ol className="space-y-2">
+                {pibItems.map((it, idx) => (
+                  <li
+                    key={it.prid}
+                    className="group rounded-xl border border-border bg-background/60 p-3 transition hover:border-sky-400/50"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 w-6 shrink-0 text-right text-xs font-semibold text-muted-foreground">
+                        {idx + 1}.
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[10px] font-medium">
+                          <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-sky-300">
+                            {it.category}
+                          </span>
+                          <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
+                            {it.ministry}
+                          </span>
+                          {it.pubDate && (
+                            <span className="text-muted-foreground">
+                              {format(new Date(it.pubDate), "d MMM")}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-semibold leading-snug">{it.title}</h3>
+                      </div>
+                      <a
+                        href={it.link}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background/70 px-2.5 py-1 text-[10px] font-medium text-foreground/80 hover:text-foreground"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Open
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        ) : tab === "gktoday" ? (
           <div>
             <div className="mb-3 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
