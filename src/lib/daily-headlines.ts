@@ -15,6 +15,44 @@ export type DailyHeadlinesState = {
   items: StoredHeadline[];
 };
 
+export function normalizePaperDate(value?: string | null): string {
+  const text = String(value ?? "")
+    .replace(/\s+/g, " ")
+    .replace(/^(date|dated|publication date|published on)\s*[:|-]\s*/i, "")
+    .trim();
+  if (!text) return "";
+
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  const numeric = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+  if (numeric) {
+    const [, day, month, year] = numeric;
+    const fullYear = year.length === 2 ? `20${year}` : year;
+    return `${day.padStart(2, "0")}-${month.padStart(2, "0")}-${fullYear}`;
+  }
+
+  return text.slice(0, 40);
+}
+
+export function formatPaperDate(value?: string | null): string {
+  const text = normalizePaperDate(value);
+  if (!text) return "";
+
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const dmy = text.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  const date = iso
+    ? new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
+    : dmy
+      ? new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+      : null;
+
+  if (date && !Number.isNaN(date.getTime())) {
+    return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  }
+  return text;
+}
+
 function safeRead(): DailyHeadlinesState {
   if (typeof window === "undefined") return { updatedAt: 0, items: [] };
   try {
@@ -44,7 +82,7 @@ export function saveExtractedHeadlines(
     ...h,
     id: `${now}-${Math.random().toString(36).slice(2, 8)}-${h.headline.slice(0, 24)}`,
     source: source || "Newspaper",
-    paperDate: paperDate || new Date().toISOString().slice(0, 10),
+    paperDate: normalizePaperDate(paperDate),
     addedAt: now,
   }));
   const dedupe = new Map<string, StoredHeadline>();
