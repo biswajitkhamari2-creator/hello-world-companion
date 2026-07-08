@@ -74,7 +74,7 @@ export function BrandMark({
             title
           )}
         >
-          <span className="brand-flip inline-block">UPSC</span>{" "}
+          <span className="animate-upsc-flip">UPSC</span>{" "}
           <span className="text-accent">Genius AI</span>
         </span>
         <span
