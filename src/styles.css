@@ -261,3 +261,7 @@
   color: #0f172a;
   background-color: #ffffff;
 }
+
+#lovable-badge {
+  display: none !important;
+}

@@ -1,9 +1,9 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.upscgenius.ai',
+  appId: 'com.biswajit.geniusai',
   appName: 'UPSC Genius AI',
-  webDir: 'dist',
+  webDir: 'www',
   server: {
     // Point installed app to the published web app so it always serves the latest build.
     url: 'https://open-hello-bloom.lovable.app',
