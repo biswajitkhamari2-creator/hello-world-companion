@@ -9,38 +9,40 @@ export interface GkTodayNewsItem {
   category: string;
 }
 
-const FEEDS: { url: string; label: string }[] = [
-  { url: "https://www.gktoday.in/feed/", label: "GKToday" },
-  { url: "https://www.gktoday.in/category/current-affairs/feed/", label: "GKToday Current Affairs" },
-  { url: "https://www.gktoday.in/category/current-affairs/current-affairs-national/feed/", label: "GKToday National" },
-  { url: "https://www.gktoday.in/category/current-affairs/current-affairs-international/feed/", label: "GKToday International" },
+// GKToday RSS is disabled by the publisher, so we scrape the public HTML pages.
+const PAGES: { url: string; label: string }[] = [
+  { url: "https://www.gktoday.in/current-affairs/", label: "GKToday Current Affairs" },
+  { url: "https://www.gktoday.in/current-affairs/page/2/", label: "GKToday Current Affairs" },
+  { url: "https://www.gktoday.in/", label: "GKToday" },
 ];
-
-function pick(xml: string, tag: string): string {
-  const m = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
-  if (!m) return "";
-  return m[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim();
-}
 
 function stripHtml(s: string): string {
   return s
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
+    .replace(/&#8217;/g, "'")
+    .replace(/&#8216;/g, "'")
+    .replace(/&#8220;/g, '"')
+    .replace(/&#8221;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&quot;/g, '"')
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function unwrapGoogleLink(descRaw: string, fallback: string): string {
-  const hrefMatch = descRaw.match(/<a[^>]+href=["']([^"']+)["']/i);
-  if (hrefMatch && /gktoday\.in/i.test(hrefMatch[1])) return hrefMatch[1];
-  return fallback;
-}
-
-function cleanTitle(t: string): string {
-  return t.replace(/\s*-\s*GK\s*Today\s*$/i, "").trim();
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&#8217;/g, "'")
+    .replace(/&#8216;/g, "'")
+    .replace(/&#8220;/g, '"')
+    .replace(/&#8221;/g, '"')
+    .replace(/&#038;/g, "&")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .trim();
 }
 
 function classify(text: string): string {
@@ -56,19 +58,22 @@ function classify(text: string): string {
   return "General Studies";
 }
 
-function parseRss(xml: string, source: string): GkTodayNewsItem[] {
+function parseHtml(html: string, source: string): GkTodayNewsItem[] {
   const items: GkTodayNewsItem[] = [];
-  const matches = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
-  for (const raw of matches) {
-    const titleRaw = pick(raw, "title");
-    const linkRaw = pick(raw, "link");
-    const pubDate = pick(raw, "pubDate") || pick(raw, "dc:date");
-    const descRaw = pick(raw, "description");
-    const link = unwrapGoogleLink(descRaw, linkRaw);
-    if (!titleRaw || !link) continue;
-    if (!/gktoday\.in/i.test(link)) continue;
-    const title = cleanTitle(titleRaw);
-    const desc = stripHtml(descRaw).slice(0, 400);
+  // Each post: <h3><a href="...">Title</a></h3> then excerpt text and a
+  // <p class="home-post-data-meta"> block containing the date.
+  const re = /<h3>\s*<a[^>]+href="(https:\/\/www\.gktoday\.in\/[a-z0-9-]+\/)"[^>]*>([\s\S]*?)<\/a>\s*<\/h3>([\s\S]{0,1400}?)<p[^>]*class="home-post-data-meta"[^>]*>([\s\S]{0,400}?)<\/p>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const link = m[1];
+    if (/\/(current-affairs|category|gk-questions|ebooks|hindi|about-us|privacy-policy|my-account|cart|index-of-topics)\/?$/i.test(link)) continue;
+    const title = decodeEntities(stripHtml(m[2]));
+    if (!title || title.length < 5) continue;
+    const desc = stripHtml(m[3]).slice(0, 320);
+    const metaText = stripHtml(m[4]);
+    // e.g. "July 8, 2026    Awards, Honours..."
+    const dateMatch = metaText.match(/([A-Z][a-z]+ \d{1,2},\s*\d{4})/);
+    const pubDate = dateMatch ? new Date(dateMatch[1]).toISOString() : "";
     items.push({
       title,
       link,
@@ -83,17 +88,17 @@ function parseRss(xml: string, source: string): GkTodayNewsItem[] {
 
 export const getGkTodayNews = createServerFn({ method: "GET" }).handler(async () => {
   const results = await Promise.allSettled(
-    FEEDS.map(async (f) => {
+    PAGES.map(async (f) => {
       const res = await fetch(f.url, {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-          Accept: "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(12_000),
       });
       if (!res.ok) return [];
-      return parseRss(await res.text(), f.label);
+      return parseHtml(await res.text(), f.label);
     }),
   );
   const all: GkTodayNewsItem[] = [];
