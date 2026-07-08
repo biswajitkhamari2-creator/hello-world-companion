@@ -28,12 +28,27 @@ const MAX_FILES = 6;
 const MAX_MB = 50;
 
 async function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result as string);
-    r.onerror = () => rej(r.error);
-    r.readAsDataURL(file);
-  });
+  // Downscale large images to keep the server-function payload small.
+  const MAX_EDGE = 1800;
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result as string);
+      r.onerror = () => rej(r.error);
+      r.readAsDataURL(file);
+    });
+  }
+  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  return canvas.toDataURL("image/jpeg", 0.75);
 }
 
 // Rasterize each page of a PDF to a JPEG data URL (client-side, via pdfjs).
@@ -45,16 +60,21 @@ async function pdfToImageDataUrls(file: File): Promise<string[]> {
   const pdf = await pdfRuntime.getDocument({ data: buf }).promise;
   const out: string[] = [];
   const maxPages = Math.min(pdf.numPages, MAX_FILES);
+  // Cap the longest edge so multi-page PDFs stay well under the server payload
+  // limit. ~1600px on the long edge is plenty for OCR/vision models.
+  const MAX_EDGE = 1600;
   for (let i = 1; i <= maxPages; i++) {
     const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 2 });
+    const base = page.getViewport({ scale: 1 });
+    const scale = Math.min(2, MAX_EDGE / Math.max(base.width, base.height));
+    const viewport = page.getViewport({ scale });
     const canvas = document.createElement("canvas");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d");
     if (!ctx) continue;
     await page.render({ canvasContext: ctx, viewport, canvas }).promise;
-    out.push(canvas.toDataURL("image/jpeg", 0.85));
+    out.push(canvas.toDataURL("image/jpeg", 0.72));
   }
   return out;
 }
