@@ -57,11 +57,11 @@ import { cn } from "@/lib/utils";
 function DashboardBackdrop() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-[#0b1024] to-slate-950 opacity-0 dark:opacity-100 transition-opacity" />
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 opacity-100 dark:opacity-0 transition-opacity" />
-      <div className="absolute -top-40 -left-40 h-[520px] w-[520px] rounded-full bg-gradient-to-br from-indigo-500/40 via-fuchsia-500/30 to-transparent blur-3xl animate-float-slow" />
-      <div className="absolute top-1/3 -right-40 h-[520px] w-[520px] rounded-full bg-gradient-to-br from-cyan-400/35 via-blue-500/30 to-transparent blur-3xl animate-float-slow" style={{ animationDelay: "1.5s" }} />
-      <div className="absolute -bottom-40 left-1/4 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-fuchsia-500/30 via-purple-500/25 to-transparent blur-3xl animate-float-slow" style={{ animationDelay: "3s" }} />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#031f18] via-[#052e22] to-[#03170f] opacity-0 dark:opacity-100 transition-opacity" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#f5f0e0] via-[#fbf7ea] to-[#eef5ee] opacity-100 dark:opacity-0 transition-opacity" />
+      <div className="absolute -top-40 -left-40 h-[520px] w-[520px] rounded-full bg-gradient-to-br from-emerald-700/40 via-emerald-500/25 to-transparent blur-3xl animate-float-slow" />
+      <div className="absolute top-1/3 -right-40 h-[520px] w-[520px] rounded-full bg-gradient-to-br from-amber-300/40 via-amber-500/25 to-transparent blur-3xl animate-float-slow" style={{ animationDelay: "1.5s" }} />
+      <div className="absolute -bottom-40 left-1/4 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-emerald-500/30 via-teal-500/20 to-transparent blur-3xl animate-float-slow" style={{ animationDelay: "3s" }} />
       <div className="absolute inset-0 opacity-[0.05] dark:opacity-[0.08]" style={{
         backgroundImage:
           "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
@@ -158,10 +158,10 @@ function SidebarNavLink({ item, active, index = 0 }: { item: NavItem; active: bo
         tooltip={item.title}
         className={cn(
           "group/nav relative my-1 h-auto rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2 backdrop-blur-md transition-all duration-300",
-          "shadow-[0_4px_14px_-6px_rgba(15,23,42,0.25)] hover:-translate-y-0.5 hover:translate-x-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-[0_10px_28px_-10px_rgba(99,102,241,0.55)]",
-          "before:pointer-events-none before:absolute before:inset-0 before:rounded-2xl before:bg-gradient-to-r before:from-indigo-500/0 before:via-fuchsia-500/0 before:to-amber-400/0 before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100 hover:before:from-indigo-500/10 hover:before:via-fuchsia-500/10 hover:before:to-amber-400/10",
+          "shadow-[0_4px_14px_-6px_rgba(6,78,59,0.25)] hover:-translate-y-0.5 hover:translate-x-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-[0_10px_28px_-10px_rgba(6,78,59,0.55)]",
+          "before:pointer-events-none before:absolute before:inset-0 before:rounded-2xl before:bg-gradient-to-r before:from-emerald-700/0 before:via-emerald-500/0 before:to-amber-400/0 before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100 hover:before:from-emerald-700/10 hover:before:via-emerald-500/10 hover:before:to-amber-400/15",
           active &&
-            "border-transparent bg-gradient-to-r from-indigo-500/25 via-fuchsia-500/20 to-amber-400/20 text-foreground shadow-[0_10px_30px_-10px_rgba(217,70,239,0.55)]",
+            "border-transparent bg-gradient-to-r from-emerald-700/30 via-emerald-500/20 to-amber-400/25 text-foreground shadow-[0_10px_30px_-10px_rgba(201,168,76,0.55)]",
         )}
       >
         <Link
@@ -174,8 +174,8 @@ function SidebarNavLink({ item, active, index = 0 }: { item: NavItem; active: bo
             className={cn(
               "grid h-8 w-8 shrink-0 place-items-center rounded-xl transition-all duration-300 group-hover/nav:scale-110 group-hover/nav:-rotate-6",
               active
-                ? "bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 text-white shadow-[0_6px_18px_-4px_rgba(217,70,239,0.7)] ring-1 ring-white/30"
-                : "bg-gradient-to-br from-white/10 to-white/5 text-foreground/70 ring-1 ring-white/10 group-hover/nav:text-foreground group-hover/nav:from-indigo-500/30 group-hover/nav:to-fuchsia-500/20",
+                ? "bg-gradient-to-br from-emerald-700 via-emerald-500 to-amber-400 text-white shadow-[0_6px_18px_-4px_rgba(201,168,76,0.7)] ring-1 ring-white/30"
+                : "bg-gradient-to-br from-white/10 to-white/5 text-foreground/70 ring-1 ring-white/10 group-hover/nav:text-foreground group-hover/nav:from-emerald-700/30 group-hover/nav:to-amber-400/20",
             )}
           >
             <item.icon className={cn("h-4 w-4 transition-transform", active && "animate-pulse")} />
@@ -267,12 +267,12 @@ function HamburgerTrigger() {
         className="absolute -inset-[2px] rounded-[18px] opacity-90 blur-[6px] transition-opacity duration-500 group-hover:opacity-100"
         style={{
           background:
-            "conic-gradient(from 0deg, #6366f1, #d946ef, #f59e0b, #22d3ee, #6366f1)",
+            "conic-gradient(from 0deg, #064e3b, #0d7a5f, #c9a84c, #f0d78c, #064e3b)",
           animation: "spin 6s linear infinite",
         }}
       />
       {/* solid gradient face */}
-      <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-400 shadow-[0_10px_28px_-8px_rgba(217,70,239,0.65)]" />
+      <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-800 via-emerald-600 to-amber-400 shadow-[0_10px_28px_-8px_rgba(6,78,59,0.6)]" />
       {/* glass inner */}
       <span className="absolute inset-[1.5px] rounded-[14px] bg-background/20 backdrop-blur-xl ring-1 ring-white/20" />
       {/* sparkle */}
