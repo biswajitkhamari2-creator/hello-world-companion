@@ -112,8 +112,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "AI Mentor", url: "/mentor", icon: Sparkles },
-      { title: "Telegram Inbox", url: "/inbox", icon: Inbox },
-      { title: "Newspaper Analyser", url: "/newspaper", icon: Newspaper, badge: "New" },
       { title: "News Archive", url: "/news-archive", icon: CalendarClock },
       { title: "Institution Engine", url: "/institution", icon: GraduationCap, badge: "New" },
       { title: "Editorial Lab", url: "/editorial-lab", icon: FileEdit, badge: "Pro" },
