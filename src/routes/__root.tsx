@@ -30,6 +30,12 @@ import "@fontsource/playfair-display/700.css";
 import "@fontsource/playfair-display/700-italic.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/500.css";
+import "@fontsource/instrument-serif/400.css";
+import "@fontsource/instrument-serif/400-italic.css";
+import "@fontsource/work-sans/400.css";
+import "@fontsource/work-sans/500.css";
+import "@fontsource/work-sans/600.css";
+import "@fontsource/work-sans/700.css";
 
 
 import { reportLovableError } from "../lib/lovable-error-reporting";
