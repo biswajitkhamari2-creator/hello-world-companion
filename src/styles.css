@@ -30,8 +30,8 @@
 /* === UPSC — Scholarly Indigo design system === */
 
 @theme inline {
-  --font-serif: "Libre Baskerville", "Fraunces", ui-serif, Georgia, serif;
-  --font-sans: "IBM Plex Sans Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", "Libre Baskerville", ui-serif, Georgia, serif;
+  --font-sans: "Work Sans", "IBM Plex Sans Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-hand: "Caveat", "Comic Sans MS", cursive;
 
   --radius-sm: calc(var(--radius) - 4px);
