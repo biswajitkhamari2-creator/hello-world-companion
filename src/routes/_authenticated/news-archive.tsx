@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CalendarIcon, ExternalLink, Flame, Loader2, MapPin, Newspaper, RefreshCcw, RotateCcw, Sparkles } from "lucide-react";
+import { CalendarIcon, ExternalLink, Flame, Loader2, MapPin, Newspaper, RadioTower, RefreshCcw, RotateCcw, Sparkles } from "lucide-react";
 import { addDays, format } from "date-fns";
 import {
   searchNewsArchive,
@@ -10,6 +10,9 @@ import {
   hardResetNewsAnalysis,
   type NewsItem,
 } from "@/lib/news-items.functions";
+import { getUpscNews } from "@/lib/news.functions";
+import { getOdishaNews } from "@/lib/odisha-news.functions";
+import { getInstitutionNews } from "@/lib/institution-news.functions";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -37,6 +40,21 @@ function isOdishaItem(it: NewsItem): boolean {
 
 type Tab = "national" | "odisha";
 
+type DisplayItem = NewsItem & { live?: boolean; sourceLabel?: string };
+
+function mkLiveId(prefix: string, link: string, i: number) {
+  return `${prefix}-${i}-${link.slice(-30)}`;
+}
+
+function classifyGsFromText(text: string): NewsItem["gs_paper"] {
+  const t = text.toLowerCase();
+  if (/ethic|integrity|moral|corrupt|probity/.test(t)) return "GS4";
+  if (/econom|budget|gdp|inflation|climate|environment|science|technolog|isro|drdo|defence|cyber|disaster|energy|agricultur|infrastructur/.test(t)) return "GS3";
+  if (/polit|constitution|parliament|court|governance|scheme|policy|bilateral|foreign|treaty|election|bill|amendment|judiciary/.test(t)) return "GS2";
+  if (/history|heritage|culture|geograph|society|women|caste|tribal|urbanis|festival/.test(t)) return "GS1";
+  return "General";
+}
+
 function ArchivePage() {
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [tab, setTab] = useState<Tab>("national");
@@ -47,6 +65,83 @@ function ArchivePage() {
   const [syncing, setSyncing] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [pending, setPending] = useState(0);
+  const [live, setLive] = useState<DisplayItem[]>([]);
+  const [liveLoading, setLiveLoading] = useState(false);
+
+  async function refreshLive() {
+    setLiveLoading(true);
+    try {
+      const [upsc, odisha, inst] = await Promise.allSettled([
+        getUpscNews(),
+        getOdishaNews(),
+        getInstitutionNews(),
+      ]);
+      const merged: DisplayItem[] = [];
+      if (upsc.status === "fulfilled") {
+        upsc.value.items.forEach((it, i) => {
+          merged.push({
+            id: mkLiveId("u", it.link, i),
+            inbox_id: "live",
+            gs_paper: (it.gs as NewsItem["gs_paper"]) ?? "General",
+            subject: it.source,
+            title: it.title,
+            summary: null,
+            importance: 3,
+            posted_at: it.pubDate || new Date().toISOString(),
+            link: it.link,
+            live: true,
+            sourceLabel: it.source,
+          });
+        });
+      }
+      if (odisha.status === "fulfilled") {
+        odisha.value.items.forEach((it, i) => {
+          merged.push({
+            id: mkLiveId("o", it.link, i),
+            inbox_id: "live",
+            gs_paper: classifyGsFromText(it.title + " " + (it.description ?? "")),
+            subject: it.category,
+            title: it.title,
+            summary: it.description ?? null,
+            importance: 3,
+            posted_at: it.pubDate || new Date().toISOString(),
+            link: it.link,
+            live: true,
+            sourceLabel: it.source,
+          });
+        });
+      }
+      if (inst.status === "fulfilled") {
+        const instItems = [...(inst.value.daily ?? []), ...(inst.value.weekly ?? [])];
+        instItems.forEach((it, i) => {
+          merged.push({
+            id: mkLiveId("i", it.link, i),
+            inbox_id: "live",
+            gs_paper: classifyGsFromText(it.title + " " + it.category),
+            subject: it.category,
+            title: it.title,
+            summary: null,
+            importance: 4,
+            posted_at: it.date ? `${it.date}T00:00:00` : new Date().toISOString(),
+            link: it.link,
+            live: true,
+            sourceLabel: it.source,
+          });
+        });
+      }
+      // Dedupe by title
+      const seen = new Set<string>();
+      const unique = merged.filter((it) => {
+        const k = it.title.toLowerCase().slice(0, 90);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      setLive(unique);
+    } finally {
+      setLiveLoading(false);
+    }
+  }
 
   async function refreshDates() {
     try {
@@ -119,7 +214,11 @@ function ArchivePage() {
       if (!date && d.length) {
         const latest = [...d].sort().pop();
         if (latest) setDate(new Date(`${latest}T00:00:00`));
+      } else if (!date) {
+        setDate(new Date());
       }
+      // Kick off live sync alongside archive
+      void refreshLive();
       // Auto-sync in the background so kal ka newspaper appear ho jaaye
       // agar Telegram inbox mein pending pada hai.
       const p = await refreshPendingCount();
@@ -172,11 +271,32 @@ function ArchivePage() {
   }, [date]);
 
   const { odisha, national } = useMemo(() => {
-    const o: NewsItem[] = [];
-    const n: NewsItem[] = [];
-    for (const it of items ?? []) (isOdishaItem(it) ? o : n).push(it);
+    const combined: DisplayItem[] = [...(items ?? [])];
+    // Add live items that match the currently selected date; if archive is empty
+    // for this date, we still want live headlines to appear (so no "no results").
+    const ymd = date ? format(date, "yyyy-MM-dd") : null;
+    const liveForDate = ymd
+      ? live.filter((it) => {
+          const d = new Date(it.posted_at);
+          return format(d, "yyyy-MM-dd") === ymd;
+        })
+      : [];
+    // Merge, dedupe by title
+    const seen = new Set(combined.map((c) => c.title.toLowerCase().slice(0, 90)));
+    for (const l of liveForDate) {
+      const k = l.title.toLowerCase().slice(0, 90);
+      if (!seen.has(k)) { combined.push(l); seen.add(k); }
+    }
+    // If STILL nothing on this date, fall back to ALL live headlines
+    // (Google + institutes + UPSC sites) so screen never says "no results".
+    if (combined.length === 0 && live.length > 0) {
+      combined.push(...live);
+    }
+    const o: DisplayItem[] = [];
+    const n: DisplayItem[] = [];
+    for (const it of combined) (isOdishaItem(it) ? o : n).push(it);
     return { odisha: o, national: n };
-  }, [items]);
+  }, [items, live, date]);
 
   const list = tab === "odisha" ? odisha : national;
   const dateLabel = date ? format(date, "d MMM yyyy") : "Pick a date";
@@ -251,6 +371,7 @@ function ArchivePage() {
             variant="outline"
             className="ml-auto gap-1.5"
             onClick={async () => {
+              void refreshLive();
               const added = await runSync(false);
               if (added && date) {
                 // Re-run the current date's query to pick up new items.
@@ -285,37 +406,9 @@ function ArchivePage() {
           </div>
         )}
 
-        {!date && !loading && (
-          <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-            Date select karo — us din ke sabhi headlines yahan aa jayenge.
-          </div>
-        )}
-
-        {loading && (
+        {(loading || liveLoading) && list.length === 0 && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading {dateLabel}…
-          </div>
-        )}
-
-        {!loading && items && list.length === 0 && (
-          <div className="space-y-3 rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            <p>
-              {dateLabel} ke liye {tab === "odisha" ? "Odisha" : "National"} headlines nahi mile.
-            </p>
-            {pending > 0 ? (
-              <p className="text-xs">
-                <span className="text-amber-400">{pending}</span> newspaper Telegram inbox mein
-                pending hai — <b>Sync</b> dabao, us din ka bhi analyse ho jayega.
-              </p>
-            ) : items.length === 0 ? (
-              <p className="text-xs">
-                Is date ka newspaper Telegram bot pe forward nahi hua. Bhejo, phir <b>Sync</b> click karo.
-              </p>
-            ) : null}
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={syncing} onClick={() => runSync(false)}>
-              {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
-              Sync now
-            </Button>
           </div>
         )}
 
@@ -326,6 +419,8 @@ function ArchivePage() {
               .sort((a, b) => b.importance - a.importance)
               .map((it, idx) => {
                 const hot = it.importance >= 4;
+                const isLive = (it as DisplayItem).live === true;
+                const liveLabel = (it as DisplayItem).sourceLabel;
                 return (
                   <li
                     key={it.id}
@@ -348,6 +443,11 @@ function ArchivePage() {
                           {it.subject && (
                             <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
                               {it.subject}
+                            </span>
+                          )}
+                          {isLive && (
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-300">
+                              <RadioTower className="h-3 w-3" /> Live · {liveLabel ?? "web"}
                             </span>
                           )}
                           {hot && (
