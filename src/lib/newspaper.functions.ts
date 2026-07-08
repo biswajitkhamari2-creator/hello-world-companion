@@ -105,7 +105,7 @@ Rules:
         response_mime_type: "application/json",
         response_schema: schema,
         temperature: 0.1,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 16384,
       },
     };
 
@@ -136,15 +136,43 @@ Rules:
       }
     }
 
-    const text = json?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text ?? "").join("") ?? "";
-    const cleaned = text.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "");
-    let parsed: NewspaperAnalysis;
-    try {
-      parsed = JSON.parse(cleaned) as NewspaperAnalysis;
-    } catch {
-      const m = cleaned.match(/\{[\s\S]*\}/);
-      if (!m) throw new Error("AI returned non-JSON response");
-      parsed = JSON.parse(m[0]) as NewspaperAnalysis;
+    const candidate = json?.candidates?.[0];
+    const finishReason = candidate?.finishReason ?? "";
+    const blockReason = json?.promptFeedback?.blockReason ?? "";
+    if (blockReason) {
+      throw new Error(`Gemini blocked the image (${blockReason}). Try a clearer/cropped scan.`);
+    }
+    const text = candidate?.content?.parts?.map((p: any) => p?.text ?? "").join("") ?? "";
+    if (!text.trim()) {
+      throw new Error(`AI returned empty response${finishReason ? ` (${finishReason})` : ""}. Try fewer/smaller images.`);
+    }
+    let cleaned = text.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+    // If response was truncated mid-JSON, try to salvage a complete object.
+    const tryParse = (s: string): NewspaperAnalysis | null => {
+      try { return JSON.parse(s) as NewspaperAnalysis; } catch { return null; }
+    };
+    let parsed = tryParse(cleaned);
+    if (!parsed) {
+      const start = cleaned.indexOf("{");
+      if (start !== -1) {
+        const slice = cleaned.slice(start);
+        parsed = tryParse(slice);
+        if (!parsed) {
+          // Attempt to close truncated JSON: cut at last complete headline entry.
+          const lastBrace = slice.lastIndexOf("}");
+          if (lastBrace !== -1) {
+            const trimmed = slice.slice(0, lastBrace + 1);
+            // Close arrays/objects heuristically.
+            for (const closer of ["", "]}", "]}", "}"]) {
+              parsed = tryParse(trimmed + closer);
+              if (parsed) break;
+            }
+          }
+        }
+      }
+    }
+    if (!parsed) {
+      throw new Error(`AI returned invalid JSON${finishReason === "MAX_TOKENS" ? " (response too long — try fewer images)" : ""}.`);
     }
 
     const validGs = new Set(["GS-I", "GS-II", "GS-III", "GS-IV", "Prelims", "Essay"]);
