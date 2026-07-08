@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, CalendarIcon, ExternalLink, Flame, Loader2, MapPin, Newspaper, RadioTower, RefreshCcw, RotateCcw, Sparkles } from "lucide-react";
+import { BookOpen, Building2, CalendarIcon, ExternalLink, Flame, Loader2, MapPin, Newspaper, RadioTower, RefreshCcw, RotateCcw, Sparkles } from "lucide-react";
 import { addDays, format } from "date-fns";
 import {
   searchNewsArchive,
@@ -14,6 +14,7 @@ import { getUpscNews } from "@/lib/news.functions";
 import { getOdishaNews } from "@/lib/odisha-news.functions";
 import { getInstitutionNews } from "@/lib/institution-news.functions";
 import { getGkTodayNews, type GkTodayNewsItem } from "@/lib/gktoday-news.functions";
+import { getPibNews, type PibNewsItem } from "@/lib/pib-news.functions";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ function isOdishaItem(it: NewsItem): boolean {
   return ODISHA_REGEX.test(hay);
 }
 
-type Tab = "national" | "odisha" | "gktoday";
+type Tab = "national" | "odisha" | "gktoday" | "pib";
 
 type DisplayItem = NewsItem & { live?: boolean; sourceLabel?: string };
 
@@ -70,6 +71,8 @@ function ArchivePage() {
   const [liveLoading, setLiveLoading] = useState(false);
   const [gkItems, setGkItems] = useState<GkTodayNewsItem[]>([]);
   const [gkLoading, setGkLoading] = useState(false);
+  const [pibItems, setPibItems] = useState<PibNewsItem[]>([]);
+  const [pibLoading, setPibLoading] = useState(false);
 
   async function refreshGkToday() {
     setGkLoading(true);
@@ -81,6 +84,18 @@ function ArchivePage() {
       console.warn("gktoday fetch failed", e);
     } finally {
       setGkLoading(false);
+    }
+  }
+
+  async function refreshPib() {
+    setPibLoading(true);
+    try {
+      const res = await getPibNews();
+      setPibItems(res.items);
+    } catch (e) {
+      console.warn("pib fetch failed", e);
+    } finally {
+      setPibLoading(false);
     }
   }
 
@@ -236,6 +251,7 @@ function ArchivePage() {
       // Kick off live sync alongside archive
       void refreshLive();
       void refreshGkToday();
+      void refreshPib();
       // Auto-sync in the background so kal ka newspaper appear ho jaaye
       // agar Telegram inbox mein pending pada hai.
       const p = await refreshPendingCount();
@@ -393,6 +409,18 @@ function ArchivePage() {
               <BookOpen className="h-3 w-3" /> GK Today 24
               <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">{gkItems.length}</span>
             </button>
+            <button
+              onClick={() => setTab("pib")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition",
+                tab === "pib"
+                  ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Building2 className="h-3 w-3" /> PIB
+              <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">{pibItems.length}</span>
+            </button>
           </div>
 
           <Button
@@ -441,7 +469,73 @@ function ArchivePage() {
           </div>
         )}
 
-        {tab === "gktoday" ? (
+        {tab === "pib" ? (
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Latest Government of India press releases from pib.gov.in (last 3 days, all ministries).
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={refreshPib}
+                disabled={pibLoading}
+              >
+                {pibLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+                Refresh
+              </Button>
+            </div>
+            {pibLoading && pibItems.length === 0 ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading PIB…
+              </div>
+            ) : pibItems.length === 0 ? (
+              <div className="rounded-xl border border-border bg-background/60 p-6 text-center text-sm text-muted-foreground">
+                No PIB releases right now. Try Refresh in a minute.
+              </div>
+            ) : (
+              <ol className="space-y-2">
+                {pibItems.map((it, idx) => (
+                  <li
+                    key={it.prid}
+                    className="group rounded-xl border border-border bg-background/60 p-3 transition hover:border-sky-400/50"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 w-6 shrink-0 text-right text-xs font-semibold text-muted-foreground">
+                        {idx + 1}.
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[10px] font-medium">
+                          <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-sky-300">
+                            {it.category}
+                          </span>
+                          <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
+                            {it.ministry}
+                          </span>
+                          {it.pubDate && (
+                            <span className="text-muted-foreground">
+                              {format(new Date(it.pubDate), "d MMM")}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-semibold leading-snug">{it.title}</h3>
+                      </div>
+                      <a
+                        href={it.link}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background/70 px-2.5 py-1 text-[10px] font-medium text-foreground/80 hover:text-foreground"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Open
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        ) : tab === "gktoday" ? (
           <div>
             <div className="mb-3 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
