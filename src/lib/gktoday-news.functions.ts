@@ -10,14 +10,10 @@ export interface GkTodayNewsItem {
 }
 
 const FEEDS: { url: string; label: string }[] = [
-  {
-    url: "https://news.google.com/rss/search?q=site:gktoday.in+when:14d&hl=en-IN&gl=IN&ceid=IN:en",
-    label: "GKToday (recent)",
-  },
-  {
-    url: "https://news.google.com/rss/search?q=site:gktoday.in+%22Current+Affairs%22+when:14d&hl=en-IN&gl=IN&ceid=IN:en",
-    label: "GKToday CA",
-  },
+  { url: "https://www.gktoday.in/feed/", label: "GKToday" },
+  { url: "https://www.gktoday.in/category/current-affairs/feed/", label: "GKToday Current Affairs" },
+  { url: "https://www.gktoday.in/category/current-affairs/current-affairs-national/feed/", label: "GKToday National" },
+  { url: "https://www.gktoday.in/category/current-affairs/current-affairs-international/feed/", label: "GKToday International" },
 ];
 
 function pick(xml: string, tag: string): string {
@@ -89,8 +85,12 @@ export const getGkTodayNews = createServerFn({ method: "GET" }).handler(async ()
   const results = await Promise.allSettled(
     FEEDS.map(async (f) => {
       const res = await fetch(f.url, {
-        headers: { "User-Agent": "Mozilla/5.0 UPSC-News-Bot" },
-        signal: AbortSignal.timeout(9000),
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+          Accept: "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+        },
+        signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) return [];
       return parseRss(await res.text(), f.label);
