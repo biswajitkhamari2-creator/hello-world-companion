@@ -24,12 +24,13 @@ export const Route = createFileRoute("/_authenticated/newspaper")({
   component: NewspaperPage,
 });
 
-const MAX_FILES = 6;
-const MAX_MB = 50;
+const MAX_FILES = 4;
+const MAX_MB = 25;
+const MAX_IMAGE_CHARS = 720_000;
 
 async function fileToDataUrl(file: File): Promise<string> {
   // Downscale large images to keep the server-function payload small.
-  const MAX_EDGE = 1800;
+  const MAX_EDGE = 1500;
   const bitmap = await createImageBitmap(file).catch(() => null);
   if (!bitmap) {
     return new Promise((res, rej) => {
@@ -48,7 +49,29 @@ async function fileToDataUrl(file: File): Promise<string> {
   const ctx = canvas.getContext("2d");
   if (!ctx) return "";
   ctx.drawImage(bitmap, 0, 0, w, h);
-  return canvas.toDataURL("image/jpeg", 0.75);
+  return canvasToCompactJpeg(canvas, MAX_IMAGE_CHARS);
+}
+
+function canvasToCompactJpeg(source: HTMLCanvasElement, targetChars: number): string {
+  let canvas = source;
+  let quality = 0.68;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const dataUrl = canvas.toDataURL("image/jpeg", quality);
+    if (dataUrl.length <= targetChars || (quality <= 0.44 && Math.max(canvas.width, canvas.height) <= 900)) return dataUrl;
+    if (quality > 0.48) {
+      quality -= 0.08;
+      continue;
+    }
+    const next = document.createElement("canvas");
+    next.width = Math.max(760, Math.round(canvas.width * 0.82));
+    next.height = Math.max(760, Math.round(canvas.height * 0.82));
+    const nextCtx = next.getContext("2d");
+    if (!nextCtx) return dataUrl;
+    nextCtx.drawImage(canvas, 0, 0, next.width, next.height);
+    canvas = next;
+    quality = 0.58;
+  }
+  return canvas.toDataURL("image/jpeg", 0.46);
 }
 
 // Rasterize each page of a PDF to a JPEG data URL (client-side, via pdfjs).
@@ -62,7 +85,7 @@ async function pdfToImageDataUrls(file: File): Promise<string[]> {
   const maxPages = Math.min(pdf.numPages, MAX_FILES);
   // Cap the longest edge so multi-page PDFs stay well under the server payload
   // limit. ~1600px on the long edge is plenty for OCR/vision models.
-  const MAX_EDGE = 1600;
+  const MAX_EDGE = 1200;
   for (let i = 1; i <= maxPages; i++) {
     const page = await pdf.getPage(i);
     const base = page.getViewport({ scale: 1 });
@@ -74,7 +97,7 @@ async function pdfToImageDataUrls(file: File): Promise<string[]> {
     const ctx = canvas.getContext("2d");
     if (!ctx) continue;
     await page.render({ canvasContext: ctx, viewport, canvas }).promise;
-    out.push(canvas.toDataURL("image/jpeg", 0.72));
+    out.push(canvasToCompactJpeg(canvas, MAX_IMAGE_CHARS));
   }
   return out;
 }
@@ -104,7 +127,8 @@ function NewspaperPage() {
           return [await fileToDataUrl(f.file)];
         }),
       );
-      const images = perFile.flat().slice(0, 8);
+      const images = perFile.flat().slice(0, MAX_FILES).filter(Boolean);
+      if (!images.length) throw new Error("Could not read the uploaded file. Try a sharper JPG/PNG.");
       return analyse({ data: { images } });
     },
     onSuccess: (r) => {
@@ -116,7 +140,12 @@ function NewspaperPage() {
         toast.success(`Found ${r.headlines.length} UPSC-relevant items — added to Home headlines`);
       }
     },
-    onError: (e: Error) => toast.error(e.message ?? "Analysis failed"),
+    onError: (e: Error) => {
+      const message = e.message ?? "Analysis failed";
+      toast.error(/failed to fetch|networkerror|load failed/i.test(message)
+        ? "Upload request was too heavy or timed out. Try 1–2 sharper pages; images are now compressed before analysis."
+        : message);
+    },
   });
 
   function addFiles(list: FileList | File[]) {

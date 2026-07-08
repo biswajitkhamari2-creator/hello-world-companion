@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const InputSchema = z.object({
-  images: z.array(z.string().min(20)).min(1).max(8),
+  images: z.array(z.string().min(20).max(1_200_000)).min(1).max(4),
 });
 
 export type NewsHeadline = {
@@ -26,18 +26,9 @@ export const analyseNewspaper = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => InputSchema.parse(data))
   .handler(async ({ data }): Promise<NewspaperAnalysis> => {
-    const { createGateway, getAiTaskProfile, UPSC_SYSTEM_PROMPT } = await import("./ai-gateway.server");
-    const { generateText } = await import("ai");
-
-    const profile = getAiTaskProfile("newspaper");
-    // Prefer Gemini (vision-capable). Fall back to whatever the profile picks.
-    let gw: ReturnType<typeof createGateway>;
-    let modelId = profile.model;
-    try {
-      gw = createGateway(undefined, "gemini");
-      modelId = "gemini-2.5-flash";
-    } catch {
-      gw = createGateway(undefined, profile.provider);
+    const geminiKey = process.env.GEMINI_API_KEY?.trim().replace(/^['"]|['"]$/g, "");
+    if (!geminiKey) {
+      throw new Error("Gemini key missing. Newspaper image analysis needs GEMINI_API_KEY.");
     }
 
     const prompt = `You are shown one or more photos/scans of a printed newspaper page. Extract every distinct news item that is RELEVANT to India's UPSC Civil Services Examination.
@@ -67,43 +58,110 @@ Rules:
 - Order headlines by relevance (highest first).
 - If nothing UPSC-relevant is visible, return "headlines": [].`;
 
-    const runOnce = async (currentGw: ReturnType<typeof createGateway>, currentModel: string) =>
-      generateText({
-        model: currentGw(currentModel),
-      system: UPSC_SYSTEM_PROMPT,
-      messages: [
+    const schema = {
+      type: "object",
+      properties: {
+        source: { type: "string" },
+        date: { type: "string" },
+        headlines: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              headline: { type: "string" },
+              summary: { type: "string" },
+              gsPaper: { type: "string", enum: ["GS-I", "GS-II", "GS-III", "GS-IV", "Prelims", "Essay"] },
+              topic: { type: "string" },
+              relevance: { type: "string", enum: ["Low", "Medium", "High", "Very High"] },
+              whyItMatters: { type: "string" },
+              keywords: { type: "array", items: { type: "string" } },
+            },
+            required: ["headline", "summary", "gsPaper", "topic", "relevance", "whyItMatters", "keywords"],
+          },
+        },
+      },
+      required: ["source", "date", "headlines"],
+    } as const;
+
+    const toInlinePart = (image: string) => {
+      const match = image.match(/^data:([^;,]+);base64,(.+)$/);
+      if (!match) throw new Error("Invalid image upload. Please upload JPG/PNG/PDF again.");
+      return { inline_data: { mime_type: match[1], data: match[2] } };
+    };
+
+    const requestBody = {
+      contents: [
         {
-          role: "user",
-          content: [
-            ...data.images.map((img) => ({ type: "image" as const, image: img })),
-            { type: "text" as const, text: prompt },
+          role: "user" as const,
+          parts: [
+            {
+              text: `You are UPSC Genius, an expert mentor for India's UPSC Civil Services Examination. Read the newspaper image carefully and return only valid JSON.\n\n${prompt}`,
+            },
+            ...data.images.map(toInlinePart),
           ],
         },
       ],
-        maxRetries: 1,
-        abortSignal: AbortSignal.timeout(90_000),
-      });
+      generationConfig: {
+        response_mime_type: "application/json",
+        response_schema: schema,
+        temperature: 0.1,
+        maxOutputTokens: 4096,
+      },
+    };
 
-    let text: string;
+    const callGemini = async (model: string) => {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(75_000),
+      });
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        const detail = body ? body.slice(0, 240) : response.statusText;
+        throw new Error(`Gemini ${model} failed (${response.status}): ${detail}`);
+      }
+      return response.json();
+    };
+
+    let json: any;
     try {
-      ({ text } = await runOnce(gw, modelId));
-    } catch (primaryError) {
-      // Try Gemini directly as fallback if the first attempt failed.
+      json = await callGemini("gemini-2.5-flash");
+    } catch (firstError) {
       try {
-        const fallbackGw = createGateway(undefined, "gemini");
-        ({ text } = await runOnce(fallbackGw, "gemini-2.5-flash"));
-      } catch {
-        const msg = primaryError instanceof Error ? primaryError.message : String(primaryError);
+        json = await callGemini("gemini-2.0-flash");
+      } catch (secondError) {
+        const msg = secondError instanceof Error ? secondError.message : firstError instanceof Error ? firstError.message : String(firstError);
         throw new Error(`Newspaper analysis failed: ${msg.slice(0, 200)}`);
       }
     }
 
+    const text = json?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text ?? "").join("") ?? "";
     const cleaned = text.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "");
+    let parsed: NewspaperAnalysis;
     try {
-      return JSON.parse(cleaned) as NewspaperAnalysis;
+      parsed = JSON.parse(cleaned) as NewspaperAnalysis;
     } catch {
       const m = cleaned.match(/\{[\s\S]*\}/);
       if (!m) throw new Error("AI returned non-JSON response");
-      return JSON.parse(m[0]) as NewspaperAnalysis;
+      parsed = JSON.parse(m[0]) as NewspaperAnalysis;
     }
+
+    const validGs = new Set(["GS-I", "GS-II", "GS-III", "GS-IV", "Prelims", "Essay"]);
+    const validRelevance = new Set(["Low", "Medium", "High", "Very High"]);
+    return {
+      source: typeof parsed.source === "string" ? parsed.source.slice(0, 80) : "",
+      date: typeof parsed.date === "string" ? parsed.date.slice(0, 40) : "",
+      headlines: Array.isArray(parsed.headlines)
+        ? parsed.headlines.slice(0, 25).map((h: any) => ({
+            headline: String(h?.headline ?? "").trim().slice(0, 220),
+            summary: String(h?.summary ?? "").trim().slice(0, 700),
+            gsPaper: validGs.has(h?.gsPaper) ? h.gsPaper : "Prelims",
+            topic: String(h?.topic ?? "Current Affairs").trim().slice(0, 120),
+            relevance: validRelevance.has(h?.relevance) ? h.relevance : "Medium",
+            whyItMatters: String(h?.whyItMatters ?? "").trim().slice(0, 300),
+            keywords: Array.isArray(h?.keywords) ? h.keywords.map((k: any) => String(k).trim()).filter(Boolean).slice(0, 6) : [],
+          })).filter((h) => h.headline.length > 4)
+        : [],
+    };
   });
