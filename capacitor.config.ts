@@ -6,10 +6,12 @@ const config: CapacitorConfig = {
   webDir: 'www',
   server: {
     // Point installed app to the published web app so it always serves the latest build.
-    url: 'https://open-hello-bloom.lovable.app',
+    url: 'https://www.upscgenius.co.in/',
     androidScheme: 'https',
     cleartext: false,
     allowNavigation: [
+      '*.upscgenius.co.in',
+      'www.upscgenius.co.in',
       '*.lovable.app',
       '*.supabase.co',
       '*.googleapis.com',
