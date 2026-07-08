@@ -18,7 +18,7 @@ import {
 import { AppShell } from "@/components/app-shell";
 import { cn } from "@/lib/utils";
 import { getUpscNews, type NewsItem } from "@/lib/news.functions";
-import { loadDailyHeadlines, clearDailyHeadlines, type StoredHeadline } from "@/lib/daily-headlines";
+import { loadDailyHeadlines, clearDailyHeadlines, formatPaperDate, type StoredHeadline } from "@/lib/daily-headlines";
 import { getOdishaNews, type OdishaNewsItem } from "@/lib/odisha-news.functions";
 import {
   getArticleCrispNotes,
@@ -715,7 +715,7 @@ function MyNewspaperHeadlines() {
                 <h3 className="font-serif text-base leading-snug text-white">{h.headline}</h3>
                 {h.summary ? <p className="mt-1.5 line-clamp-3 text-xs text-white/60">{h.summary}</p> : null}
                 <div className="mt-3 flex items-center justify-between text-[10px] text-white/40">
-                  <span className="truncate">{h.source}{h.paperDate ? ` · ${h.paperDate}` : ""}</span>
+                  <span className="truncate">{h.source}{h.paperDate ? ` · ${formatPaperDate(h.paperDate)}` : ""}</span>
                   <span>{timeAgo(new Date(h.addedAt).toISOString())}</span>
                 </div>
               </article>

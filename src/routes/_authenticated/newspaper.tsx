@@ -11,7 +11,7 @@ import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { analyseNewspaper, type NewspaperAnalysis } from "@/lib/newspaper.functions";
-import { saveExtractedHeadlines } from "@/lib/daily-headlines";
+import { formatPaperDate, saveExtractedHeadlines } from "@/lib/daily-headlines";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/newspaper")({
@@ -114,6 +114,7 @@ function NewspaperPage() {
   const [files, setFiles] = useState<{ file: File; url: string }[]>([]);
   const [result, setResult] = useState<NewspaperAnalysis | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [paperDate, setPaperDate] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const mutation = useMutation({
@@ -136,7 +137,7 @@ function NewspaperPage() {
       if (!r.headlines?.length) {
         toast.info("No UPSC-relevant headlines detected on this page.");
       } else {
-        saveExtractedHeadlines(r.headlines, r.source, r.date);
+        saveExtractedHeadlines(r.headlines, r.source, paperDate || r.date);
         toast.success(`Found ${r.headlines.length} UPSC-relevant items — added to Home headlines`);
       }
     },
@@ -222,6 +223,22 @@ function NewspaperPage() {
             onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = ""; }}
           />
 
+          <div className="mb-5 flex flex-col gap-2 rounded-2xl border border-emerald-700/20 bg-background/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <label htmlFor="paper-date" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Newspaper date
+              </label>
+              <p className="text-xs text-muted-foreground">Set it here if the masthead date is cropped or AI reads it wrong.</p>
+            </div>
+            <input
+              id="paper-date"
+              type="date"
+              value={paperDate}
+              onChange={(e) => setPaperDate(e.target.value)}
+              className="h-10 rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none transition-colors focus:border-amber-400"
+            />
+          </div>
+
           {files.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
               <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-emerald-700 via-emerald-500 to-amber-400 text-white shadow-gold">
@@ -298,7 +315,7 @@ function NewspaperPage() {
             <div className="mb-4 flex flex-wrap items-baseline gap-3">
               <h2 className="font-serif text-2xl">UPSC-Relevant Headlines</h2>
               {result.source && <span className="text-sm text-muted-foreground">· {result.source}</span>}
-              {result.date && <span className="text-sm text-muted-foreground">· {result.date}</span>}
+              {(paperDate || result.date) ? <span className="text-sm text-muted-foreground">· {formatPaperDate(paperDate || result.date)}</span> : <span className="text-sm text-muted-foreground">· Date not detected</span>}
               <Badge variant="secondary" className="ml-auto">{result.headlines.length} items</Badge>
             </div>
 
