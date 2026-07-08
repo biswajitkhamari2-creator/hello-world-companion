@@ -204,8 +204,8 @@ function Hero() {
           </span>
 
           <h1 className="mt-5 font-serif text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-[64px]">
-            UPSC with the{" "}
-            <span className="blast-word">Rajju</span>
+            UPSC with{" "}
+            <span className="blast-word">Susu</span>
             <button
               type="button"
               onClick={toggle}
