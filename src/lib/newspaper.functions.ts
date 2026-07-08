@@ -30,7 +30,15 @@ export const analyseNewspaper = createServerFn({ method: "POST" })
     const { generateText } = await import("ai");
 
     const profile = getAiTaskProfile("newspaper");
-    const gw = createGateway(undefined, profile.provider);
+    // Prefer Gemini (vision-capable). Fall back to whatever the profile picks.
+    let gw: ReturnType<typeof createGateway>;
+    let modelId = profile.model;
+    try {
+      gw = createGateway(undefined, "gemini");
+      modelId = "gemini-2.5-flash";
+    } catch {
+      gw = createGateway(undefined, profile.provider);
+    }
 
     const prompt = `You are shown one or more photos/scans of a printed newspaper page. Extract every distinct news item that is RELEVANT to India's UPSC Civil Services Examination.
 
@@ -59,8 +67,9 @@ Rules:
 - Order headlines by relevance (highest first).
 - If nothing UPSC-relevant is visible, return "headlines": [].`;
 
-    const { text } = await generateText({
-      model: gw(profile.model),
+    const runOnce = async (currentGw: ReturnType<typeof createGateway>, currentModel: string) =>
+      generateText({
+        model: currentGw(currentModel),
       system: UPSC_SYSTEM_PROMPT,
       messages: [
         {
@@ -71,8 +80,23 @@ Rules:
           ],
         },
       ],
-      maxRetries: 1,
-    });
+        maxRetries: 1,
+        abortSignal: AbortSignal.timeout(90_000),
+      });
+
+    let text: string;
+    try {
+      ({ text } = await runOnce(gw, modelId));
+    } catch (primaryError) {
+      // Try Gemini directly as fallback if the first attempt failed.
+      try {
+        const fallbackGw = createGateway(undefined, "gemini");
+        ({ text } = await runOnce(fallbackGw, "gemini-2.5-flash"));
+      } catch {
+        const msg = primaryError instanceof Error ? primaryError.message : String(primaryError);
+        throw new Error(`Newspaper analysis failed: ${msg.slice(0, 200)}`);
+      }
+    }
 
     const cleaned = text.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "");
     try {
