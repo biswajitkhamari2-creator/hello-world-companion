@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CalendarIcon, ExternalLink, Flame, Loader2, MapPin, Newspaper, RadioTower, RefreshCcw, RotateCcw, Sparkles } from "lucide-react";
+import { BookOpen, CalendarIcon, ExternalLink, Flame, Loader2, MapPin, Newspaper, RadioTower, RefreshCcw, RotateCcw, Sparkles } from "lucide-react";
 import { addDays, format } from "date-fns";
 import {
   searchNewsArchive,
@@ -13,6 +13,7 @@ import {
 import { getUpscNews } from "@/lib/news.functions";
 import { getOdishaNews } from "@/lib/odisha-news.functions";
 import { getInstitutionNews } from "@/lib/institution-news.functions";
+import { getGkTodayNews, type GkTodayNewsItem } from "@/lib/gktoday-news.functions";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,7 @@ function isOdishaItem(it: NewsItem): boolean {
   return ODISHA_REGEX.test(hay);
 }
 
-type Tab = "national" | "odisha";
+type Tab = "national" | "odisha" | "gktoday";
 
 type DisplayItem = NewsItem & { live?: boolean; sourceLabel?: string };
 
@@ -67,6 +68,21 @@ function ArchivePage() {
   const [pending, setPending] = useState(0);
   const [live, setLive] = useState<DisplayItem[]>([]);
   const [liveLoading, setLiveLoading] = useState(false);
+  const [gkItems, setGkItems] = useState<GkTodayNewsItem[]>([]);
+  const [gkLoading, setGkLoading] = useState(false);
+
+  async function refreshGkToday() {
+    setGkLoading(true);
+    try {
+      const res = await getGkTodayNews();
+      setGkItems(res.items);
+    } catch (e) {
+      // Don't toast — silently degrade; the tab shows "no items" instead.
+      console.warn("gktoday fetch failed", e);
+    } finally {
+      setGkLoading(false);
+    }
+  }
 
   async function refreshLive() {
     setLiveLoading(true);
@@ -219,6 +235,7 @@ function ArchivePage() {
       }
       // Kick off live sync alongside archive
       void refreshLive();
+      void refreshGkToday();
       // Auto-sync in the background so kal ka newspaper appear ho jaaye
       // agar Telegram inbox mein pending pada hai.
       const p = await refreshPendingCount();
@@ -364,6 +381,18 @@ function ArchivePage() {
               <MapPin className="h-3 w-3" /> Odisha
               <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">{odisha.length}</span>
             </button>
+            <button
+              onClick={() => setTab("gktoday")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition",
+                tab === "gktoday"
+                  ? "bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <BookOpen className="h-3 w-3" /> GK Today 24
+              <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">{gkItems.length}</span>
+            </button>
           </div>
 
           <Button
@@ -412,7 +441,78 @@ function ArchivePage() {
           </div>
         )}
 
-        {!loading && list.length > 0 && (
+        {tab === "gktoday" ? (
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Latest current-affairs items pulled from gktoday.in (last ~14 days).
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={refreshGkToday}
+                disabled={gkLoading}
+              >
+                {gkLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+                Refresh
+              </Button>
+            </div>
+            {gkLoading && gkItems.length === 0 ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading GKToday…
+              </div>
+            ) : gkItems.length === 0 ? (
+              <div className="rounded-xl border border-border bg-background/60 p-6 text-center text-sm text-muted-foreground">
+                No GKToday items right now. Try Refresh in a minute.
+              </div>
+            ) : (
+              <ol className="space-y-2">
+                {gkItems.map((it, idx) => (
+                  <li
+                    key={it.link}
+                    className="group rounded-xl border border-border bg-background/60 p-3 transition hover:border-amber-400/50"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 w-6 shrink-0 text-right text-xs font-semibold text-muted-foreground">
+                        {idx + 1}.
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[10px] font-medium">
+                          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-300">
+                            {it.category}
+                          </span>
+                          <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
+                            GKToday
+                          </span>
+                          {it.pubDate && (
+                            <span className="text-muted-foreground">
+                              {format(new Date(it.pubDate), "d MMM")}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-semibold leading-snug">{it.title}</h3>
+                        {it.description && (
+                          <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
+                            {it.description}
+                          </p>
+                        )}
+                      </div>
+                      <a
+                        href={it.link}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background/70 px-2.5 py-1 text-[10px] font-medium text-foreground/80 hover:text-foreground"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Open
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        ) : !loading && list.length > 0 ? (
           <ol className="space-y-2">
             {list
               .slice()
@@ -482,7 +582,7 @@ function ArchivePage() {
                 );
               })}
           </ol>
-        )}
+        ) : null}
       </main>
     </AppShell>
   );
