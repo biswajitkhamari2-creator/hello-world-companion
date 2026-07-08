@@ -222,7 +222,7 @@ export function FeaturesGrid() {
     <section className="relative mt-24">
       <SectionTitle
         eyebrow="Features"
-        title={<>Everything you need to <span className="blast-word">Blast</span> UPSC</>}
+        title={<>Everything you need to <span className="blast-word">Rajju</span> UPSC</>}
         sub="Premium AI-native tools designed by aspirants, for aspirants."
       />
       <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
