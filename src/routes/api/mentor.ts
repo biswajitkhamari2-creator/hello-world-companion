@@ -82,29 +82,15 @@ export const Route = createFileRoute("/api/mentor")({
 
         try {
           const initialRunId = getLovableAiGatewayRunId(request);
-          if (
-            !process.env.OPENROUTER_API_KEY?.trim() &&
-            !process.env.NVIDIA_API_KEY?.trim() &&
-            !process.env.GROQ_API_KEY?.trim() &&
-            !process.env.GEMINI_API_KEY?.trim()
-          ) {
+          if (!process.env.GEMINI_API_KEY?.trim()) {
             return jsonError(
-              "AI Mentor is not configured: set OPENROUTER_API_KEY (preferred), NVIDIA_API_KEY, GROQ_API_KEY, or GEMINI_API_KEY.",
+              "AI Mentor is not configured: set GEMINI_API_KEY.",
               503,
               "AI_KEY_MISSING",
             );
           }
-          // Prefer OpenRouter (ChatGPT) — cheapest for chat. Fall back to free
-          // providers and Gemini if OpenRouter is unavailable/rejected.
-          const preferred: "openrouter" | "groq" | "nvidia" | "gemini" =
-            process.env.OPENROUTER_API_KEY?.trim()
-              ? "openrouter"
-              : process.env.GROQ_API_KEY?.trim()
-                ? "groq"
-                : process.env.NVIDIA_API_KEY?.trim()
-                  ? "nvidia"
-                  : "gemini";
-          const availableProvider = await resolveAvailableAiProvider(preferred);
+          // User preference: always Gemini 2.5.
+          const availableProvider = await resolveAvailableAiProvider("gemini");
           const gateway = createGateway(initialRunId, availableProvider);
           const model = gateway(getDefaultModel(availableProvider));
           const result = streamText({
