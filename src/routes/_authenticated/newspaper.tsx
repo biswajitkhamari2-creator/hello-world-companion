@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Newspaper, Upload, X, Sparkles, ImagePlus } from "lucide-react";
+import { FileText, Loader2, Newspaper, Upload, X, Sparkles, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -189,9 +189,19 @@ function NewspaperPage() {
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                {files.map((f, i) => (
+                {files.map((f, i) => {
+                  const isPdf = f.file.type === "application/pdf" || f.file.name.toLowerCase().endsWith(".pdf");
+                  return (
                   <div key={f.url} className="group relative aspect-[3/4] overflow-hidden rounded-xl border bg-muted">
-                    <img src={f.url} alt={f.file.name} className="h-full w-full object-cover" />
+                    {isPdf ? (
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-rose-500/10 via-amber-400/10 to-emerald-500/10 p-2 text-center">
+                        <FileText className="h-10 w-10 text-rose-500" />
+                        <span className="line-clamp-2 text-[10px] font-semibold text-foreground">{f.file.name}</span>
+                        <span className="rounded-full bg-rose-500/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">PDF</span>
+                      </div>
+                    ) : (
+                      <img src={f.url} alt={f.file.name} className="h-full w-full object-cover" />
+                    )}
                     <button
                       type="button"
                       onClick={() => removeAt(i)}
@@ -204,7 +214,8 @@ function NewspaperPage() {
                       p{i + 1}
                     </span>
                   </div>
-                ))}
+                  );
+                })}
                 {files.length < MAX_FILES && (
                   <button
                     type="button"
