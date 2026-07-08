@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, CalendarIcon, ExternalLink, Flame, Loader2, MapPin, Newspaper, RadioTower, RefreshCcw, RotateCcw, Sparkles } from "lucide-react";
+import { BookOpen, Building2, CalendarIcon, ExternalLink, Flame, Loader2, MapPin, Newspaper, RadioTower, RefreshCcw, RotateCcw, Sparkles } from "lucide-react";
 import { addDays, format } from "date-fns";
 import {
   searchNewsArchive,
@@ -14,6 +14,7 @@ import { getUpscNews } from "@/lib/news.functions";
 import { getOdishaNews } from "@/lib/odisha-news.functions";
 import { getInstitutionNews } from "@/lib/institution-news.functions";
 import { getGkTodayNews, type GkTodayNewsItem } from "@/lib/gktoday-news.functions";
+import { getPibNews, type PibNewsItem } from "@/lib/pib-news.functions";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ function isOdishaItem(it: NewsItem): boolean {
   return ODISHA_REGEX.test(hay);
 }
 
-type Tab = "national" | "odisha" | "gktoday";
+type Tab = "national" | "odisha" | "gktoday" | "pib";
 
 type DisplayItem = NewsItem & { live?: boolean; sourceLabel?: string };
 
@@ -70,6 +71,8 @@ function ArchivePage() {
   const [liveLoading, setLiveLoading] = useState(false);
   const [gkItems, setGkItems] = useState<GkTodayNewsItem[]>([]);
   const [gkLoading, setGkLoading] = useState(false);
+  const [pibItems, setPibItems] = useState<PibNewsItem[]>([]);
+  const [pibLoading, setPibLoading] = useState(false);
 
   async function refreshGkToday() {
     setGkLoading(true);
@@ -81,6 +84,18 @@ function ArchivePage() {
       console.warn("gktoday fetch failed", e);
     } finally {
       setGkLoading(false);
+    }
+  }
+
+  async function refreshPib() {
+    setPibLoading(true);
+    try {
+      const res = await getPibNews();
+      setPibItems(res.items);
+    } catch (e) {
+      console.warn("pib fetch failed", e);
+    } finally {
+      setPibLoading(false);
     }
   }
 
