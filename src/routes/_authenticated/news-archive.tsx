@@ -582,7 +582,7 @@ function ArchivePage() {
                 );
               })}
           </ol>
-        )}
+        ) : null}
       </main>
     </AppShell>
   );
