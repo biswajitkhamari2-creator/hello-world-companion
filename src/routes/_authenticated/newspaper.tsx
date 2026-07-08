@@ -4,7 +4,6 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { FileText, Loader2, Newspaper, Upload, X, Sparkles, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
-// @ts-expect-error - Vite ?url import
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 import { AppShell } from "@/components/app-shell";
