@@ -62,7 +62,7 @@ function parseHtml(html: string, source: string): GkTodayNewsItem[] {
   const items: GkTodayNewsItem[] = [];
   // Each post: <h3><a href="...">Title</a></h3> then excerpt text and a
   // <p class="home-post-data-meta"> block containing the date.
-  const re = /<h3>\s*<a[^>]+href="(https:\/\/www\.gktoday\.in\/[a-z0-9-]+\/)"[^>]*>([\s\S]*?)<\/a>\s*<\/h3>([\s\S]{0,1400}?)<p[^>]*class="home-post-data-meta"[^>]*>([\s\S]{0,400}?)<\/p>/gi;
+  const re = /<h3[^>]*>\s*<a[^>]+href="(https:\/\/www\.gktoday\.in\/[a-z0-9-]+\/)"[^>]*>([\s\S]{5,300}?)<\/a>\s*<\/h3>([\s\S]{0,2000}?)<p[^>]*class="home-post-data-meta"[^>]*>([\s\S]{0,1500}?)<\/p>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
     const link = m[1];
