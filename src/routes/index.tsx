@@ -601,3 +601,114 @@ function PcsDigestPreview() {
   );
 }
 
+// ---------------- My Newspaper Headlines (from uploads) ----------------
+
+const REL_STYLES: Record<string, string> = {
+  "Very High": "bg-gradient-to-r from-rose-500 to-amber-500 text-white",
+  High: "bg-emerald-500 text-white",
+  Medium: "bg-amber-400 text-emerald-950",
+  Low: "bg-white/10 text-white/70",
+};
+
+function MyNewspaperHeadlines() {
+  const [state, setState] = useState<{ updatedAt: number; items: StoredHeadline[] }>({ updatedAt: 0, items: [] });
+
+  useEffect(() => {
+    const refresh = () => setState(loadDailyHeadlines());
+    refresh();
+    const onStorage = (e: StorageEvent) => { if (!e.key || e.key.startsWith("upsc.daily")) refresh(); };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("daily-headlines:updated", refresh);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("daily-headlines:updated", refresh);
+    };
+  }, []);
+
+  const hasItems = state.items.length > 0;
+
+  return (
+    <section className="relative mt-12">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-200 backdrop-blur">
+            <Newspaper className="h-3 w-3" /> My Newspaper Headlines
+          </span>
+          <h2 className="mt-3 font-serif text-2xl font-bold text-white sm:text-3xl">
+            Today's <span className="blast-word">Blast</span> from your newspaper
+          </h2>
+          <p className="mt-1 text-sm text-white/60">
+            Upload photos of today's paper — AI extracts only the UPSC-relevant news and pins them here as headlines.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {hasItems && (
+            <button
+              type="button"
+              onClick={() => { clearDailyHeadlines(); }}
+              className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 backdrop-blur transition hover:bg-white/10"
+            >
+              Clear
+            </button>
+          )}
+          <Link
+            to="/newspaper"
+            className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-500 px-4 py-2 text-xs font-bold text-white shadow-[0_10px_30px_-10px_rgba(251,191,36,0.5)] transition hover:opacity-90"
+          >
+            <Upload className="h-3.5 w-3.5" /> Upload newspaper
+          </Link>
+        </div>
+      </div>
+
+      {!hasItems ? (
+        <div className="rounded-3xl border border-dashed border-white/15 bg-white/[0.03] p-8 text-center backdrop-blur-xl">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-500 to-amber-400 text-white shadow-[0_10px_30px_-10px_rgba(251,191,36,0.6)]">
+            <Newspaper className="h-7 w-7" />
+          </div>
+          <h3 className="mt-4 font-serif text-xl text-white">No headlines yet</h3>
+          <p className="mx-auto mt-1 max-w-md text-sm text-white/60">
+            Snap or drop a page of today's newspaper. AI keeps only UPSC-worthy items and displays them right here.
+          </p>
+          <Link
+            to="/newspaper"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/15"
+          >
+            <Upload className="h-3.5 w-3.5" /> Upload your first paper
+          </Link>
+        </div>
+      ) : (
+        <>
+          <p className="mb-3 text-[11px] uppercase tracking-[0.16em] text-white/40">
+            Updated {timeAgo(new Date(state.updatedAt).toISOString())} · {state.items.length} item{state.items.length > 1 ? "s" : ""}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {state.items.map((h) => (
+              <article
+                key={h.id}
+                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-amber-400/30"
+              >
+                <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-amber-400/70 to-transparent" />
+                <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider", REL_STYLES[h.relevance] ?? REL_STYLES.Medium)}>
+                    {h.relevance}
+                  </span>
+                  <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
+                    {h.gsPaper}
+                  </span>
+                  {h.topic ? <span className="truncate text-[10px] text-white/50">{h.topic}</span> : null}
+                </div>
+                <h3 className="font-serif text-base leading-snug text-white">{h.headline}</h3>
+                {h.summary ? <p className="mt-1.5 line-clamp-3 text-xs text-white/60">{h.summary}</p> : null}
+                <div className="mt-3 flex items-center justify-between text-[10px] text-white/40">
+                  <span className="truncate">{h.source}{h.paperDate ? ` · ${h.paperDate}` : ""}</span>
+                  <span>{timeAgo(new Date(h.addedAt).toISOString())}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
