@@ -34,6 +34,27 @@ function isBrowser() {
   return typeof window !== "undefined" && typeof indexedDB !== "undefined";
 }
 
+function triggerDownloadHelper(blob: Blob, filename: string) {
+  if (typeof window === "undefined") return;
+  if ((window as any).AndroidInterface) {
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      const base64Data = reader.result as string;
+      (window as any).AndroidInterface.downloadFile(base64Data, filename, blob.type);
+    };
+    reader.readAsDataURL(blob);
+  } else {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+}
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
@@ -213,14 +234,7 @@ export async function saveAndDownload(blob: Blob, filename: string, opts: SaveDo
     console.warn("[downloads-store] persist failed", e);
   }
   if (typeof window !== "undefined") {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    triggerDownloadHelper(blob, filename);
   }
   if (opts.saveToDrive !== false) {
     void saveDownloadToDrive(blob, filename, opts, record?.id).catch((e) => {
@@ -259,14 +273,7 @@ export async function redownload(id: string): Promise<void> {
   if (!blob) throw new Error("File not found");
   const rec = (await listDownloads()).find((r) => r.id === id);
   const name = rec?.name || "download";
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  triggerDownloadHelper(blob, name);
 }
 
 export function formatSize(n: number): string {

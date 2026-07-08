@@ -423,14 +423,23 @@ function StampPage() {
 }
 
 function triggerBrowserDownload(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  if (typeof window !== "undefined" && (window as any).AndroidInterface) {
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      const base64Data = reader.result as string;
+      (window as any).AndroidInterface.downloadFile(base64Data, filename, blob.type);
+    };
+    reader.readAsDataURL(blob);
+  } else {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
 }
 
 function StampedHistory() {
