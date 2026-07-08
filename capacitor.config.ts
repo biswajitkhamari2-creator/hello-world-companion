@@ -7,11 +7,24 @@ const config: CapacitorConfig = {
   server: {
     // Point installed app to the published web app so it always serves the latest build.
     url: 'https://open-hello-bloom.lovable.app',
+    androidScheme: 'https',
     cleartext: false,
+    allowNavigation: [
+      '*.lovable.app',
+      '*.supabase.co',
+      '*.googleapis.com',
+      'accounts.google.com',
+      '*.google.com',
+      '*.gstatic.com',
+      'api.telegram.org',
+      '*.telegram.org',
+    ],
   },
   android: {
     allowMixedContent: false,
-    backgroundColor: '#1a1f3a',
+    captureInput: true,
+    webContentsDebuggingEnabled: false,
+    appendUserAgent: 'UPSCGeniusAI-Android',
   },
   plugins: {
     SplashScreen: {
