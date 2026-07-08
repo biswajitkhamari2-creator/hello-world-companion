@@ -248,7 +248,11 @@ export interface AiTaskProfile {
 }
 
 export function getAiTaskProfile(task?: string): AiTaskProfile {
-  const provider: AiProviderName = getAiApiKey("nvidia") ? "nvidia" : "gemini";
+  // Newspaper analysis needs vision — only Gemini supports images in our setup.
+  const needsVision = task === "newspaper" || task === "handwritten_notes" || task === "infographics";
+  const provider: AiProviderName = needsVision
+    ? (getAiApiKey("gemini") ? "gemini" : (getAiApiKey("nvidia") ? "nvidia" : "gemini"))
+    : (getAiApiKey("nvidia") ? "nvidia" : "gemini");
   const model = getDefaultModel(provider);
   return {
     provider,
