@@ -74,7 +74,8 @@ export function BrandMark({
             title
           )}
         >
-          UPSC <span className="text-accent">Genius AI</span>
+          <span className="brand-flip inline-block">UPSC</span>{" "}
+          <span className="text-accent">Genius AI</span>
         </span>
         <span
           className={cn(
