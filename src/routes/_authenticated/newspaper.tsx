@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/newspaper")({
 });
 
 const MAX_FILES = 6;
-const MAX_MB = 8;
+const MAX_MB = 50;
 
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((res, rej) => {
