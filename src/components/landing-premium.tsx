@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   BookOpen,
   Brain,
@@ -190,7 +190,7 @@ export function AiMentorArt() {
 
 // ---------------- Section title ----------------
 
-function SectionTitle({ eyebrow, title, sub }: { eyebrow: string; title: string; sub?: string }) {
+function SectionTitle({ eyebrow, title, sub }: { eyebrow: string; title: ReactNode; sub?: string }) {
   return (
     <div className="mx-auto max-w-2xl text-center">
       <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-300 backdrop-blur">
@@ -222,7 +222,7 @@ export function FeaturesGrid() {
     <section className="relative mt-24">
       <SectionTitle
         eyebrow="Features"
-        title="Everything you need to blast UPSC"
+        title={<>Everything you need to <span className="blast-word">Blast</span> UPSC</>}
         sub="Premium AI-native tools designed by aspirants, for aspirants."
       />
       <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
