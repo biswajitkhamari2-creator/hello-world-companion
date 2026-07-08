@@ -17,7 +17,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiMentorRouteImport } from './routes/api/mentor'
 import { Route as AuthenticatedStampRouteImport } from './routes/_authenticated/stamp'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
-import { Route as AuthenticatedRevisionHubRouteImport } from './routes/_authenticated/revision-hub'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedNewspaperRouteImport } from './routes/_authenticated/newspaper'
 import { Route as AuthenticatedNewsArchiveRouteImport } from './routes/_authenticated/news-archive'
@@ -25,8 +24,6 @@ import { Route as AuthenticatedMocksRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
 import { Route as AuthenticatedInstitutionRouteImport } from './routes/_authenticated/institution'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
-import { Route as AuthenticatedEditorialLabRouteImport } from './routes/_authenticated/editorial-lab'
-import { Route as AuthenticatedEditorialRouteImport } from './routes/_authenticated/editorial'
 import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBookmarksRouteImport } from './routes/_authenticated/bookmarks'
@@ -74,12 +71,6 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedRevisionHubRoute =
-  AuthenticatedRevisionHubRouteImport.update({
-    id: '/revision-hub',
-    path: '/revision-hub',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -115,17 +106,6 @@ const AuthenticatedInstitutionRoute =
 const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedEditorialLabRoute =
-  AuthenticatedEditorialLabRouteImport.update({
-    id: '/editorial-lab',
-    path: '/editorial-lab',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedEditorialRoute = AuthenticatedEditorialRouteImport.update({
-  id: '/editorial',
-  path: '/editorial',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDownloadsRoute = AuthenticatedDownloadsRouteImport.update({
@@ -174,8 +154,6 @@ export interface FileRoutesByFullPath {
   '/bookmarks': typeof AuthenticatedBookmarksRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/downloads': typeof AuthenticatedDownloadsRoute
-  '/editorial': typeof AuthenticatedEditorialRoute
-  '/editorial-lab': typeof AuthenticatedEditorialLabRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/institution': typeof AuthenticatedInstitutionRoute
   '/mentor': typeof AuthenticatedMentorRoute
@@ -183,7 +161,6 @@ export interface FileRoutesByFullPath {
   '/news-archive': typeof AuthenticatedNewsArchiveRoute
   '/newspaper': typeof AuthenticatedNewspaperRoute
   '/profile': typeof AuthenticatedProfileRoute
-  '/revision-hub': typeof AuthenticatedRevisionHubRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/stamp': typeof AuthenticatedStampRoute
   '/api/mentor': typeof ApiMentorRoute
@@ -200,8 +177,6 @@ export interface FileRoutesByTo {
   '/bookmarks': typeof AuthenticatedBookmarksRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/downloads': typeof AuthenticatedDownloadsRoute
-  '/editorial': typeof AuthenticatedEditorialRoute
-  '/editorial-lab': typeof AuthenticatedEditorialLabRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/institution': typeof AuthenticatedInstitutionRoute
   '/mentor': typeof AuthenticatedMentorRoute
@@ -209,7 +184,6 @@ export interface FileRoutesByTo {
   '/news-archive': typeof AuthenticatedNewsArchiveRoute
   '/newspaper': typeof AuthenticatedNewspaperRoute
   '/profile': typeof AuthenticatedProfileRoute
-  '/revision-hub': typeof AuthenticatedRevisionHubRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/stamp': typeof AuthenticatedStampRoute
   '/api/mentor': typeof ApiMentorRoute
@@ -228,8 +202,6 @@ export interface FileRoutesById {
   '/_authenticated/bookmarks': typeof AuthenticatedBookmarksRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/downloads': typeof AuthenticatedDownloadsRoute
-  '/_authenticated/editorial': typeof AuthenticatedEditorialRoute
-  '/_authenticated/editorial-lab': typeof AuthenticatedEditorialLabRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/institution': typeof AuthenticatedInstitutionRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
@@ -237,7 +209,6 @@ export interface FileRoutesById {
   '/_authenticated/news-archive': typeof AuthenticatedNewsArchiveRoute
   '/_authenticated/newspaper': typeof AuthenticatedNewspaperRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
-  '/_authenticated/revision-hub': typeof AuthenticatedRevisionHubRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/stamp': typeof AuthenticatedStampRoute
   '/api/mentor': typeof ApiMentorRoute
@@ -256,8 +227,6 @@ export interface FileRouteTypes {
     | '/bookmarks'
     | '/dashboard'
     | '/downloads'
-    | '/editorial'
-    | '/editorial-lab'
     | '/inbox'
     | '/institution'
     | '/mentor'
@@ -265,7 +234,6 @@ export interface FileRouteTypes {
     | '/news-archive'
     | '/newspaper'
     | '/profile'
-    | '/revision-hub'
     | '/settings'
     | '/stamp'
     | '/api/mentor'
@@ -282,8 +250,6 @@ export interface FileRouteTypes {
     | '/bookmarks'
     | '/dashboard'
     | '/downloads'
-    | '/editorial'
-    | '/editorial-lab'
     | '/inbox'
     | '/institution'
     | '/mentor'
@@ -291,7 +257,6 @@ export interface FileRouteTypes {
     | '/news-archive'
     | '/newspaper'
     | '/profile'
-    | '/revision-hub'
     | '/settings'
     | '/stamp'
     | '/api/mentor'
@@ -309,8 +274,6 @@ export interface FileRouteTypes {
     | '/_authenticated/bookmarks'
     | '/_authenticated/dashboard'
     | '/_authenticated/downloads'
-    | '/_authenticated/editorial'
-    | '/_authenticated/editorial-lab'
     | '/_authenticated/inbox'
     | '/_authenticated/institution'
     | '/_authenticated/mentor'
@@ -318,7 +281,6 @@ export interface FileRouteTypes {
     | '/_authenticated/news-archive'
     | '/_authenticated/newspaper'
     | '/_authenticated/profile'
-    | '/_authenticated/revision-hub'
     | '/_authenticated/settings'
     | '/_authenticated/stamp'
     | '/api/mentor'
@@ -398,13 +360,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/revision-hub': {
-      id: '/_authenticated/revision-hub'
-      path: '/revision-hub'
-      fullPath: '/revision-hub'
-      preLoaderRoute: typeof AuthenticatedRevisionHubRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/profile': {
       id: '/_authenticated/profile'
       path: '/profile'
@@ -452,20 +407,6 @@ declare module '@tanstack/react-router' {
       path: '/inbox'
       fullPath: '/inbox'
       preLoaderRoute: typeof AuthenticatedInboxRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/editorial-lab': {
-      id: '/_authenticated/editorial-lab'
-      path: '/editorial-lab'
-      fullPath: '/editorial-lab'
-      preLoaderRoute: typeof AuthenticatedEditorialLabRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/editorial': {
-      id: '/_authenticated/editorial'
-      path: '/editorial'
-      fullPath: '/editorial'
-      preLoaderRoute: typeof AuthenticatedEditorialRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/downloads': {
@@ -524,8 +465,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBookmarksRoute: typeof AuthenticatedBookmarksRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDownloadsRoute: typeof AuthenticatedDownloadsRoute
-  AuthenticatedEditorialRoute: typeof AuthenticatedEditorialRoute
-  AuthenticatedEditorialLabRoute: typeof AuthenticatedEditorialLabRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedInstitutionRoute: typeof AuthenticatedInstitutionRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
@@ -533,7 +472,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNewsArchiveRoute: typeof AuthenticatedNewsArchiveRoute
   AuthenticatedNewspaperRoute: typeof AuthenticatedNewspaperRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
-  AuthenticatedRevisionHubRoute: typeof AuthenticatedRevisionHubRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStampRoute: typeof AuthenticatedStampRoute
   AuthenticatedAdminAiAnalyticsRoute: typeof AuthenticatedAdminAiAnalyticsRoute
@@ -543,8 +481,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBookmarksRoute: AuthenticatedBookmarksRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDownloadsRoute: AuthenticatedDownloadsRoute,
-  AuthenticatedEditorialRoute: AuthenticatedEditorialRoute,
-  AuthenticatedEditorialLabRoute: AuthenticatedEditorialLabRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedInstitutionRoute: AuthenticatedInstitutionRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
@@ -552,7 +488,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNewsArchiveRoute: AuthenticatedNewsArchiveRoute,
   AuthenticatedNewspaperRoute: AuthenticatedNewspaperRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
-  AuthenticatedRevisionHubRoute: AuthenticatedRevisionHubRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStampRoute: AuthenticatedStampRoute,
   AuthenticatedAdminAiAnalyticsRoute: AuthenticatedAdminAiAnalyticsRoute,
