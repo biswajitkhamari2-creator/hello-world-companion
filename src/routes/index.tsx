@@ -167,8 +167,25 @@ function Landing() {
           <PcsDigestPreview />
           <UpscNews />
         </main>
+        <FloatingUploadNewspaper />
       </div>
     </AppShell>
+  );
+}
+
+// ---------------- Floating Upload Newspaper FAB ----------------
+
+function FloatingUploadNewspaper() {
+  return (
+    <Link
+      to="/newspaper"
+      aria-label="Upload newspaper"
+      className="group fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-500 px-4 py-3 text-sm font-bold text-white shadow-[0_15px_40px_-10px_rgba(251,191,36,0.6)] ring-1 ring-white/20 backdrop-blur transition-all hover:scale-105 hover:shadow-[0_20px_50px_-10px_rgba(251,191,36,0.8)] sm:bottom-8 sm:right-8"
+    >
+      <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-amber-400/40 opacity-60" />
+      <Upload className="h-4 w-4" />
+      <span className="hidden sm:inline">Upload newspaper</span>
+    </Link>
   );
 }
 
