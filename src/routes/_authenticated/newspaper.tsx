@@ -34,6 +34,31 @@ async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+// Rasterize each page of a PDF to a JPEG data URL (client-side, via pdfjs).
+async function pdfToImageDataUrls(file: File): Promise<string[]> {
+  const pdfjs = await import("pdfjs-dist");
+  // @ts-expect-error - worker entry
+  const workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+  (pdfjs as any).GlobalWorkerOptions.workerSrc = workerSrc;
+
+  const buf = await file.arrayBuffer();
+  const pdf = await (pdfjs as any).getDocument({ data: buf }).promise;
+  const out: string[] = [];
+  const maxPages = Math.min(pdf.numPages, MAX_FILES);
+  for (let i = 1; i <= maxPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) continue;
+    await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+    out.push(canvas.toDataURL("image/jpeg", 0.85));
+  }
+  return out;
+}
+
 const RELEVANCE_STYLES: Record<string, string> = {
   "Very High": "bg-emerald-600 text-white",
   High: "bg-emerald-500/90 text-white",
@@ -51,7 +76,15 @@ function NewspaperPage() {
   const mutation = useMutation({
     mutationFn: async () => {
       if (!files.length) throw new Error("Add at least one newspaper photo.");
-      const images = await Promise.all(files.map((f) => fileToDataUrl(f.file)));
+      const perFile = await Promise.all(
+        files.map(async (f) => {
+          if (f.file.type === "application/pdf" || f.file.name.toLowerCase().endsWith(".pdf")) {
+            return pdfToImageDataUrls(f.file);
+          }
+          return [await fileToDataUrl(f.file)];
+        }),
+      );
+      const images = perFile.flat().slice(0, 8);
       return analyse({ data: { images } });
     },
     onSuccess: (r) => {
@@ -67,9 +100,11 @@ function NewspaperPage() {
   });
 
   function addFiles(list: FileList | File[]) {
-    const arr = Array.from(list).filter((f) => f.type.startsWith("image/"));
+    const arr = Array.from(list).filter(
+      (f) => f.type.startsWith("image/") || f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"),
+    );
     const rejected = Array.from(list).length - arr.length;
-    if (rejected) toast.error("Only image files (JPG/PNG) are supported.");
+    if (rejected) toast.error("Only image (JPG/PNG) or PDF files are supported.");
     const good = arr.filter((f) => {
       if (f.size > MAX_MB * 1024 * 1024) { toast.error(`${f.name}: over ${MAX_MB}MB`); return false; }
       return true;
@@ -132,7 +167,7 @@ function NewspaperPage() {
           <input
             ref={inputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf,.pdf"
             multiple
             capture="environment"
             className="hidden"
@@ -144,10 +179,10 @@ function NewspaperPage() {
               <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-emerald-700 via-emerald-500 to-amber-400 text-white shadow-gold">
                 <Newspaper className="h-8 w-8" />
               </div>
-              <h2 className="font-serif text-xl">Drop a newspaper photo here</h2>
-              <p className="text-sm text-muted-foreground">Auto-analyses as soon as you upload · up to {MAX_FILES} pages · {MAX_MB}MB each</p>
+              <h2 className="font-serif text-xl">Drop a newspaper photo or PDF here</h2>
+              <p className="text-sm text-muted-foreground">JPG · PNG · PDF · Auto-analyses as soon as you upload · up to {MAX_FILES} files · {MAX_MB}MB each</p>
               <Button onClick={() => inputRef.current?.click()} className="mt-2 gap-2">
-                <Upload className="h-4 w-4" /> Choose photos
+                <Upload className="h-4 w-4" /> Choose files
               </Button>
             </div>
           ) : (
