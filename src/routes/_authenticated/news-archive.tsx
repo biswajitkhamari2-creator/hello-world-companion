@@ -112,7 +112,8 @@ function ArchivePage() {
         });
       }
       if (inst.status === "fulfilled") {
-        inst.value.forEach((it, i) => {
+        const instItems = [...(inst.value.daily ?? []), ...(inst.value.weekly ?? [])];
+        instItems.forEach((it, i) => {
           merged.push({
             id: mkLiveId("i", it.link, i),
             inbox_id: "live",
