@@ -74,7 +74,9 @@ export function getConfiguredAiProviders(): AiProviderName[] {
 }
 
 export function getDefaultModel(provider?: AiProviderName) {
-  // User preference: always use Gemini 2.5 Flash regardless of provider hint.
+  if (provider === "nvidia") return "meta/llama-3.3-70b-instruct";
+  if (provider === "groq") return "llama-3.3-70b-versatile";
+  if (provider === "openrouter") return "google/gemini-2.5-flash";
   return "gemini-2.5-flash";
 }
 
@@ -102,10 +104,9 @@ async function isProviderAuthorized(provider: AiProviderName, apiKey: string): P
 }
 
 export async function resolveAvailableAiProvider(preferredProvider?: AiProviderName): Promise<AiProviderName> {
-  // User preference: always Gemini 2.5. Only Gemini is used.
   void preferredProvider;
-  const order: AiProviderName[] = ["gemini"];
-  let lastError = "No AI key configured. Set GEMINI_API_KEY.";
+  const order: AiProviderName[] = ["nvidia", "gemini"];
+  let lastError = "No AI key configured. Set NVIDIA_API_KEY or GEMINI_API_KEY.";
   for (const p of order) {
     const key = getAiApiKey(p);
     if (!key) continue;
@@ -116,9 +117,11 @@ export async function resolveAvailableAiProvider(preferredProvider?: AiProviderN
 }
 
 export function createGateway(initialRunId?: string, preferredProvider?: AiProviderName) {
-  // User preference: always Gemini 2.5.
-  void preferredProvider;
-  const order: AiProviderName[] = ["gemini"];
+  const baseOrder: AiProviderName[] = ["nvidia", "gemini"];
+  const order: AiProviderName[] =
+    preferredProvider && baseOrder.includes(preferredProvider)
+      ? [preferredProvider, ...baseOrder.filter((p) => p !== preferredProvider)]
+      : baseOrder;
   let providerName: AiProviderName | undefined;
   let apiKey: string | undefined;
   for (const p of order) {
@@ -126,7 +129,7 @@ export function createGateway(initialRunId?: string, preferredProvider?: AiProvi
     if (k) { providerName = p; apiKey = k; break; }
   }
   if (!providerName || !apiKey) {
-    throw new Error("No AI key configured. Set GEMINI_API_KEY in project secrets.");
+    throw new Error("No AI key configured. Set NVIDIA_API_KEY or GEMINI_API_KEY in project secrets.");
   }
   const resolvedProvider = providerName;
 
@@ -245,9 +248,8 @@ export interface AiTaskProfile {
 }
 
 export function getAiTaskProfile(task?: string): AiTaskProfile {
-  // User preference: always Gemini 2.5 Flash for every task.
-  const provider: AiProviderName = "gemini";
-  const model = "gemini-2.5-flash";
+  const provider: AiProviderName = getAiApiKey("nvidia") ? "nvidia" : "gemini";
+  const model = getDefaultModel(provider);
   return {
     provider,
     model,

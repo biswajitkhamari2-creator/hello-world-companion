@@ -82,15 +82,14 @@ export const Route = createFileRoute("/api/mentor")({
 
         try {
           const initialRunId = getLovableAiGatewayRunId(request);
-          if (!process.env.GEMINI_API_KEY?.trim()) {
+          if (!process.env.NVIDIA_API_KEY?.trim() && !process.env.GEMINI_API_KEY?.trim()) {
             return jsonError(
-              "AI Mentor is not configured: set GEMINI_API_KEY.",
+              "AI Mentor is not configured: set NVIDIA_API_KEY or GEMINI_API_KEY.",
               503,
               "AI_KEY_MISSING",
             );
           }
-          // User preference: always Gemini 2.5.
-          const availableProvider = await resolveAvailableAiProvider("gemini");
+          const availableProvider = await resolveAvailableAiProvider("nvidia");
           const gateway = createGateway(initialRunId, availableProvider);
           const model = gateway(getDefaultModel(availableProvider));
           const result = streamText({
