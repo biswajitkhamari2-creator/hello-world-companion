@@ -31,17 +31,25 @@ export const analyseNewspaper = createServerFn({ method: "POST" })
       throw new Error("Gemini key missing. Newspaper image analysis needs GEMINI_API_KEY.");
     }
 
-    const prompt = `You are shown one or more photos/scans of a printed newspaper page. Extract every distinct news item that is RELEVANT to India's UPSC Civil Services Examination.
+    const today = new Date();
+    const todayStr = today.toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+    const prompt = `You are shown one or more photos/scans of a printed newspaper page. Today's real date is ${todayStr} (Asia/Kolkata). Extract every distinct news item that is RELEVANT to India's UPSC Civil Services Examination.
 
 SKIP: cricket/sports scores, entertainment/celebrity gossip, advertisements, weather boxes, matrimonial, obituaries, classifieds, local crime blotter (unless it has policy angle), stock tables.
 
 KEEP: policy, governance, judiciary rulings, economy, international relations, science & tech, environment, social issues, schemes, reports/indices, constitutional matters, history/culture angles.
 
+DATE RULE (very important):
+- Read the date ONLY from the newspaper masthead / dateline printed on the page.
+- Copy it VERBATIM in the format printed (e.g. "8 July 2026" or "July 8, 2026").
+- Do NOT guess, do NOT infer from context, do NOT use any date from your training data.
+- If the date is not clearly visible in any image, return "date": "" (empty string). Never invent a date.
+
 Return STRICT JSON ONLY (no markdown, no fences) matching:
 
 {
   "source": string,   // newspaper name if visible, else ""
-  "date": string,     // date if visible, else ""
+  "date": string,     // EXACT date printed on the masthead, else ""
   "headlines": Array<{
     "headline": string,
     "summary": string,           // 2-3 crisp neutral sentences from the article body
