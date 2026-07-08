@@ -37,8 +37,9 @@ async function fileToDataUrl(file: File): Promise<string> {
 // Rasterize each page of a PDF to a JPEG data URL (client-side, via pdfjs).
 async function pdfToImageDataUrls(file: File): Promise<string[]> {
   const pdfjs = await import("pdfjs-dist");
-  // @ts-expect-error - worker entry
-  const workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+  const workerSrc = (await import(
+    /* @vite-ignore */ "pdfjs-dist/build/pdf.worker.min.mjs?url"
+  )).default as string;
   (pdfjs as any).GlobalWorkerOptions.workerSrc = workerSrc;
 
   const buf = await file.arrayBuffer();
