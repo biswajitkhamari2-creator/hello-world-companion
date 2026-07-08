@@ -650,7 +650,7 @@ function MyNewspaperHeadlines() {
             <Newspaper className="h-3 w-3" /> My Newspaper Headlines
           </span>
           <h2 className="mt-3 font-serif text-2xl font-bold text-white sm:text-3xl">
-            Today's <span className="blast-word">Susu</span> from your newspaper
+            Today's <span className="blast-word">Helper</span> from your newspaper
           </h2>
           <p className="mt-1 text-sm text-white/60">
             Upload photos of today's paper — AI extracts only the UPSC-relevant news and pins them here as headlines.
