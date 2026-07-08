@@ -63,8 +63,8 @@ function canvasToCompactJpeg(source: HTMLCanvasElement, targetChars: number): st
       continue;
     }
     const next = document.createElement("canvas");
-    next.width = Math.max(760, Math.round(canvas.width * 0.82));
-    next.height = Math.max(760, Math.round(canvas.height * 0.82));
+    next.width = Math.max(420, Math.round(canvas.width * 0.82));
+    next.height = Math.max(420, Math.round(canvas.height * 0.82));
     const nextCtx = next.getContext("2d");
     if (!nextCtx) return dataUrl;
     nextCtx.drawImage(canvas, 0, 0, next.width, next.height);
