@@ -74,9 +74,7 @@ export function getConfiguredAiProviders(): AiProviderName[] {
 }
 
 export function getDefaultModel(provider?: AiProviderName) {
-  if (provider === "openrouter") return "openai/gpt-4o-mini";
-  if (provider === "groq") return "llama-3.1-8b-instant";
-  if (provider === "nvidia") return "meta/llama-3.1-8b-instruct";
+  // User preference: always use Gemini 2.5 Flash regardless of provider hint.
   return "gemini-2.5-flash";
 }
 
@@ -104,12 +102,10 @@ async function isProviderAuthorized(provider: AiProviderName, apiKey: string): P
 }
 
 export async function resolveAvailableAiProvider(preferredProvider?: AiProviderName): Promise<AiProviderName> {
-  const order: AiProviderName[] = [];
-  if (preferredProvider) order.push(preferredProvider);
-  for (const p of ["openrouter", "gemini", "groq", "nvidia"] as AiProviderName[]) {
-    if (!order.includes(p)) order.push(p);
-  }
-  let lastError = "No AI key configured. Set OPENROUTER_API_KEY or GEMINI_API_KEY.";
+  // User preference: always Gemini 2.5. Only Gemini is used.
+  void preferredProvider;
+  const order: AiProviderName[] = ["gemini"];
+  let lastError = "No AI key configured. Set GEMINI_API_KEY.";
   for (const p of order) {
     const key = getAiApiKey(p);
     if (!key) continue;
@@ -120,11 +116,9 @@ export async function resolveAvailableAiProvider(preferredProvider?: AiProviderN
 }
 
 export function createGateway(initialRunId?: string, preferredProvider?: AiProviderName) {
-  const order: AiProviderName[] = [];
-  if (preferredProvider) order.push(preferredProvider);
-  for (const p of ["openrouter", "gemini", "groq", "nvidia"] as AiProviderName[]) {
-    if (!order.includes(p)) order.push(p);
-  }
+  // User preference: always Gemini 2.5.
+  void preferredProvider;
+  const order: AiProviderName[] = ["gemini"];
   let providerName: AiProviderName | undefined;
   let apiKey: string | undefined;
   for (const p of order) {
@@ -132,7 +126,7 @@ export function createGateway(initialRunId?: string, preferredProvider?: AiProvi
     if (k) { providerName = p; apiKey = k; break; }
   }
   if (!providerName || !apiKey) {
-    throw new Error("No AI key configured. Set OPENROUTER_API_KEY or GEMINI_API_KEY in project secrets.");
+    throw new Error("No AI key configured. Set GEMINI_API_KEY in project secrets.");
   }
   const resolvedProvider = providerName;
 
@@ -239,7 +233,7 @@ export async function withLovableAiGatewayRunIdHeader(
 }
 
 // Backwards-compatible fallback; request handlers should prefer getDefaultModel(provider).
-export const DEFAULT_MODEL = "llama-3.1-8b-instant";
+export const DEFAULT_MODEL = "gemini-2.5-flash";
 
 export interface AiTaskProfile {
   provider: AiProviderName;
@@ -251,16 +245,9 @@ export interface AiTaskProfile {
 }
 
 export function getAiTaskProfile(task?: string): AiTaskProfile {
-  // Prefer OpenRouter (ChatGPT) when available — cheaper than direct Gemini for
-  // chat/analysis. Falls back to Gemini for vision-heavy tasks if no OpenRouter key.
-  const hasOpenRouter = !!getAiApiKey("openrouter");
-  const hasGemini = !!getAiApiKey("gemini");
-
-  // Newspaper / editorial need vision (PDF pages) — Gemini is required for those.
-  const needsVision = task === "newspaper" || task === "editorial" || task === "ocr";
-  const useOpenRouter = hasOpenRouter && !needsVision;
-  const provider: AiProviderName = useOpenRouter ? "openrouter" : (hasGemini ? "gemini" : "openrouter");
-  const model = useOpenRouter ? "openai/gpt-4o-mini" : "gemini-2.5-flash";
+  // User preference: always Gemini 2.5 Flash for every task.
+  const provider: AiProviderName = "gemini";
+  const model = "gemini-2.5-flash";
   return {
     provider,
     model,
