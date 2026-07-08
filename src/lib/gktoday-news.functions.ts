@@ -10,11 +10,32 @@ export interface GkTodayNewsItem {
 }
 
 // GKToday RSS is disabled by the publisher, so we scrape the public HTML pages.
-const PAGES: { url: string; label: string }[] = [
-  { url: "https://www.gktoday.in/current-affairs/", label: "GKToday Current Affairs" },
-  { url: "https://www.gktoday.in/current-affairs/page/2/", label: "GKToday Current Affairs" },
-  { url: "https://www.gktoday.in/", label: "GKToday" },
-];
+// Combine paginated current-affairs feed with date-based archives so we can pull
+// items across the last several days rather than only the latest 10.
+function buildPages(): { url: string; label: string }[] {
+  const pages: { url: string; label: string }[] = [];
+  // Paginated current-affairs feed (10 items each).
+  for (let p = 1; p <= 6; p++) {
+    pages.push({
+      url: p === 1
+        ? "https://www.gktoday.in/current-affairs/"
+        : `https://www.gktoday.in/current-affairs/page/${p}/`,
+      label: "GKToday Current Affairs",
+    });
+  }
+  // Date-based archives for the last 7 days (WordPress /YYYY/MM/DD/).
+  const now = new Date();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now);
+    d.setUTCDate(now.getUTCDate() - i);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    pages.push({ url: `https://www.gktoday.in/${y}/${m}/${day}/`, label: "GKToday" });
+  }
+  return pages;
+}
+const PAGES = buildPages();
 
 function stripHtml(s: string): string {
   return s
