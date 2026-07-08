@@ -187,10 +187,8 @@ function Hero() {
           </span>
 
           <h1 className="mt-5 font-serif text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-[64px]">
-            <span className="blast-word">Rajju</span> UPSC with the{" "}
-            <span className="bg-gradient-to-r from-[#60A5FA] via-[#A78BFA] to-[#FB923C] bg-clip-text text-transparent">
-              Power of AI
-            </span>
+            UPSC with the{" "}
+            <span className="blast-word">Rajju</span>
             <button
               type="button"
               onClick={toggle}
