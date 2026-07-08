@@ -4,7 +4,8 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { FileText, Loader2, Newspaper, Upload, X, Sparkles, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -37,11 +38,11 @@ async function fileToDataUrl(file: File): Promise<string> {
 
 // Rasterize each page of a PDF to a JPEG data URL (client-side, via pdfjs).
 async function pdfToImageDataUrls(file: File): Promise<string[]> {
-  const pdfjs: any = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+  const pdfRuntime = pdfjs as any;
+  pdfRuntime.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
   const buf = await file.arrayBuffer();
-  const pdf = await (pdfjs as any).getDocument({ data: buf }).promise;
+  const pdf = await pdfRuntime.getDocument({ data: buf }).promise;
   const out: string[] = [];
   const maxPages = Math.min(pdf.numPages, MAX_FILES);
   for (let i = 1; i <= maxPages; i++) {
