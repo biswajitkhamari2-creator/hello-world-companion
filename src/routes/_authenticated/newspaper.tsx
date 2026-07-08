@@ -169,7 +169,6 @@ function NewspaperPage() {
             type="file"
             accept="image/*,application/pdf,.pdf"
             multiple
-            capture="environment"
             className="hidden"
             onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = ""; }}
           />
