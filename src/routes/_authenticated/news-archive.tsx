@@ -409,6 +409,18 @@ function ArchivePage() {
               <BookOpen className="h-3 w-3" /> GK Today 24
               <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">{gkItems.length}</span>
             </button>
+            <button
+              onClick={() => setTab("pib")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition",
+                tab === "pib"
+                  ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Building2 className="h-3 w-3" /> PIB
+              <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">{pibItems.length}</span>
+            </button>
           </div>
 
           <Button
