@@ -34,13 +34,13 @@ public class MainActivity extends BridgeActivity {
     };
 
     @Override
-    protected void onStart() {
+    public void onStart() {
         super.onStart();
         handler.post(hideBadgeRunnable);
     }
 
     @Override
-    protected void onStop() {
+    public void onStop() {
         super.onStop();
         handler.removeCallbacks(hideBadgeRunnable);
     }
