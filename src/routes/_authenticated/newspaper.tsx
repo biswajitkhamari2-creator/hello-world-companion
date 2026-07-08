@@ -145,7 +145,7 @@ function NewspaperPage() {
                 <Newspaper className="h-8 w-8" />
               </div>
               <h2 className="font-serif text-xl">Drop a newspaper photo here</h2>
-              <p className="text-sm text-muted-foreground">or tap to pick from your phone/camera · up to {MAX_FILES} pages · {MAX_MB}MB each</p>
+              <p className="text-sm text-muted-foreground">Auto-analyses as soon as you upload · up to {MAX_FILES} pages · {MAX_MB}MB each</p>
               <Button onClick={() => inputRef.current?.click()} className="mt-2 gap-2">
                 <Upload className="h-4 w-4" /> Choose photos
               </Button>
@@ -191,7 +191,7 @@ function NewspaperPage() {
                     className="gap-2 bg-gradient-to-r from-emerald-700 via-emerald-600 to-amber-500 text-white shadow-gold hover:opacity-90"
                   >
                     {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    {mutation.isPending ? "Reading newspaper…" : "Extract UPSC headlines"}
+                    {mutation.isPending ? "Reading newspaper…" : "Re-analyse"}
                   </Button>
                 </div>
               </div>
