@@ -441,7 +441,78 @@ function ArchivePage() {
           </div>
         )}
 
-        {!loading && list.length > 0 && (
+        {tab === "gktoday" ? (
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Latest current-affairs items pulled from gktoday.in (last ~14 days).
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={refreshGkToday}
+                disabled={gkLoading}
+              >
+                {gkLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+                Refresh
+              </Button>
+            </div>
+            {gkLoading && gkItems.length === 0 ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading GKToday…
+              </div>
+            ) : gkItems.length === 0 ? (
+              <div className="rounded-xl border border-border bg-background/60 p-6 text-center text-sm text-muted-foreground">
+                No GKToday items right now. Try Refresh in a minute.
+              </div>
+            ) : (
+              <ol className="space-y-2">
+                {gkItems.map((it, idx) => (
+                  <li
+                    key={it.link}
+                    className="group rounded-xl border border-border bg-background/60 p-3 transition hover:border-amber-400/50"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 w-6 shrink-0 text-right text-xs font-semibold text-muted-foreground">
+                        {idx + 1}.
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[10px] font-medium">
+                          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-300">
+                            {it.category}
+                          </span>
+                          <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
+                            GKToday
+                          </span>
+                          {it.pubDate && (
+                            <span className="text-muted-foreground">
+                              {format(new Date(it.pubDate), "d MMM")}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-semibold leading-snug">{it.title}</h3>
+                        {it.description && (
+                          <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
+                            {it.description}
+                          </p>
+                        )}
+                      </div>
+                      <a
+                        href={it.link}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background/70 px-2.5 py-1 text-[10px] font-medium text-foreground/80 hover:text-foreground"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Open
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        ) : !loading && list.length > 0 ? (
           <ol className="space-y-2">
             {list
               .slice()
