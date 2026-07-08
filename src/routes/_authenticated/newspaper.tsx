@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Newspaper, Upload, X, Sparkles, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -76,6 +76,15 @@ function NewspaperPage() {
     });
     setFiles((prev) => [...prev, ...good.map((file) => ({ file, url: URL.createObjectURL(file) }))].slice(0, MAX_FILES));
   }
+
+  // Auto-run analysis as soon as files are added / changed.
+  useEffect(() => {
+    if (files.length === 0) return;
+    if (mutation.isPending) return;
+    setResult(null);
+    mutation.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files]);
 
   function removeAt(i: number) {
     setFiles((prev) => {
