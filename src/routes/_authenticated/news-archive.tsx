@@ -381,6 +381,18 @@ function ArchivePage() {
               <MapPin className="h-3 w-3" /> Odisha
               <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">{odisha.length}</span>
             </button>
+            <button
+              onClick={() => setTab("gktoday")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition",
+                tab === "gktoday"
+                  ? "bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <BookOpen className="h-3 w-3" /> GK Today 24
+              <span className="ml-1 rounded-full bg-black/20 px-1.5 text-[10px]">{gkItems.length}</span>
+            </button>
           </div>
 
           <Button
