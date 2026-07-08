@@ -45,16 +45,21 @@ async function pdfToImageDataUrls(file: File): Promise<string[]> {
   const pdf = await pdfRuntime.getDocument({ data: buf }).promise;
   const out: string[] = [];
   const maxPages = Math.min(pdf.numPages, MAX_FILES);
+  // Cap the longest edge so multi-page PDFs stay well under the server payload
+  // limit. ~1600px on the long edge is plenty for OCR/vision models.
+  const MAX_EDGE = 1600;
   for (let i = 1; i <= maxPages; i++) {
     const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 2 });
+    const base = page.getViewport({ scale: 1 });
+    const scale = Math.min(2, MAX_EDGE / Math.max(base.width, base.height));
+    const viewport = page.getViewport({ scale });
     const canvas = document.createElement("canvas");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d");
     if (!ctx) continue;
     await page.render({ canvasContext: ctx, viewport, canvas }).promise;
-    out.push(canvas.toDataURL("image/jpeg", 0.85));
+    out.push(canvas.toDataURL("image/jpeg", 0.72));
   }
   return out;
 }
