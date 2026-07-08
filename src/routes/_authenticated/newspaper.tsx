@@ -9,6 +9,7 @@ import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { analyseNewspaper, type NewspaperAnalysis } from "@/lib/newspaper.functions";
+import { saveExtractedHeadlines } from "@/lib/daily-headlines";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/newspaper")({
@@ -55,8 +56,12 @@ function NewspaperPage() {
     },
     onSuccess: (r) => {
       setResult(r);
-      if (!r.headlines?.length) toast.info("No UPSC-relevant headlines detected on this page.");
-      else toast.success(`Found ${r.headlines.length} UPSC-relevant items`);
+      if (!r.headlines?.length) {
+        toast.info("No UPSC-relevant headlines detected on this page.");
+      } else {
+        saveExtractedHeadlines(r.headlines, r.source, r.date);
+        toast.success(`Found ${r.headlines.length} UPSC-relevant items — added to Home headlines`);
+      }
     },
     onError: (e: Error) => toast.error(e.message ?? "Analysis failed"),
   });
