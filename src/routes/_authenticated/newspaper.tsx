@@ -4,6 +4,8 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { FileText, Loader2, Newspaper, Upload, X, Sparkles, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
+// @ts-expect-error - Vite ?url import
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -37,10 +39,7 @@ async function fileToDataUrl(file: File): Promise<string> {
 // Rasterize each page of a PDF to a JPEG data URL (client-side, via pdfjs).
 async function pdfToImageDataUrls(file: File): Promise<string[]> {
   const pdfjs: any = await import("pdfjs-dist");
-  const workerMod: any = await import(
-    /* @vite-ignore */ "pdfjs-dist/build/pdf.worker.min.mjs?url"
-  );
-  pdfjs.GlobalWorkerOptions.workerSrc = workerMod.default;
+  pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
   const buf = await file.arrayBuffer();
   const pdf = await (pdfjs as any).getDocument({ data: buf }).promise;
