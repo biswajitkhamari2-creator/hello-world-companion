@@ -13,6 +13,7 @@ import {
   X,
   ArrowRight,
   Download,
+  Upload,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { cn } from "@/lib/utils";
