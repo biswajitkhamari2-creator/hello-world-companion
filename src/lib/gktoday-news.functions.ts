@@ -133,5 +133,5 @@ export const getGkTodayNews = createServerFn({ method: "GET" }).handler(async ()
     return true;
   });
   unique.sort((a, b) => (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0));
-  return { items: unique.slice(0, 60), fetchedAt: new Date().toISOString() };
+  return { items: unique.slice(0, 120), fetchedAt: new Date().toISOString() };
 });
