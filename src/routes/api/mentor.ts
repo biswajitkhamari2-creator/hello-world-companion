@@ -11,7 +11,7 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 
-type Body = { messages?: unknown; mode?: "simple" | "advanced" };
+type Body = { messages?: unknown; mode?: "simple" | "advanced"; backend?: "auto" | "gemini" | "ollama"; plain?: boolean };
 
 const MODE_NOTES: Record<NonNullable<Body["mode"]>, string> = {
   simple:
@@ -65,7 +65,7 @@ export const Route = createFileRoute("/api/mentor")({
           return jsonError("Invalid request body. Please retry.", 400, "BAD_JSON");
         }
 
-        const { messages, mode } = body;
+        const { messages, mode, backend, plain } = body;
         if (!Array.isArray(messages)) {
           return jsonError("Please send a message before asking the mentor.", 400, "MESSAGES_REQUIRED");
         }
@@ -92,7 +92,9 @@ export const Route = createFileRoute("/api/mentor")({
             }
           }
 
-          const useOllama = await isOllamaUp();
+          const forceGemini = backend === "gemini";
+          const forceOllama = backend === "ollama";
+          const useOllama = forceOllama ? true : forceGemini ? false : await isOllamaUp();
           const gateway = useOllama
             ? createOllamaGateway(initialRunId)
             : createGateway(initialRunId, "gemini");
@@ -147,6 +149,18 @@ export const Route = createFileRoute("/api/mentor")({
               }
             }
           });
+          if (plain) {
+            const textResp = result.toTextStreamResponse({
+              headers: {
+                "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                "pragma": "no-cache",
+                "expires": "0",
+                "X-Request-ID": requestId,
+                "X-Mentor-Backend": useOllama ? "ollama" : "gemini",
+              },
+            });
+            return textResp;
+          }
           const response = result.toUIMessageStreamResponse({
             originalMessages: messages as UIMessage[],
             headers: getLovableAiGatewayResponseHeaders(undefined, {
