@@ -167,14 +167,12 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
     // Guard against a hanging backend (e.g. Ollama/Vercel taking too long).
     // Without this the UI shows an endless spinner and looks like "page didn't load".
     const TIMEOUT_MS = 60_000;
+    let timedOut = false;
     const timeoutId = setTimeout(() => {
+      timedOut = true;
       try { ctrl.abort(); } catch {}
     }, TIMEOUT_MS);
-    let timedOut = false;
     const clearTimeoutSafe = () => clearTimeout(timeoutId);
-    ctrl.signal.addEventListener("abort", () => {
-      // Distinguish user-initiated stop from timeout by checking flag below.
-    });
 
     let language: string | undefined;
     try {
