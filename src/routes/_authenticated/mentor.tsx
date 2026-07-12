@@ -144,24 +144,8 @@ function MentorPage() {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: "/api/mentor",
-        body: () => {
-          let language: string | undefined;
-          try {
-            const raw = localStorage.getItem("upsc_settings_v1");
-            if (raw) language = JSON.parse(raw)?.language;
-          } catch {}
-          return { mode, language };
-        },
-      }),
-    [mode],
-  );
-
-  const { messages, sendMessage, status, stop, error, regenerate } = useChat({
-    transport,
+  const { messages, sendMessage, status, stop, error, regenerate } = useLocalMentorChat({
+    mode,
     onError: (e) => {
       console.error("[mentor]", e);
       toast.error("Mentor error", { description: friendlyMentorError(e.message) });
