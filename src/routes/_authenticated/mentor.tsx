@@ -187,7 +187,7 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
     try {
       const res = await fetch(`${base}/mentor`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: { "Content-Type": "application/json" },
         signal: ctrl.signal,
         body: JSON.stringify({
           mode,
@@ -196,19 +196,39 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
           messages: flatHistory,
         }),
       });
-      const ctype = res.headers.get("content-type") ?? "";
-      const raw = ctype.includes("application/json") ? await res.json() : await res.text();
       if (!res.ok) {
-        const errText = typeof raw === "string" ? raw : extractReply(raw) || `HTTP ${res.status}`;
-        throw new Error(errText);
+        const raw = await res.text();
+        throw new Error(raw || `HTTP ${res.status}`);
       }
-      const reply = extractReply(raw) || "(empty reply)";
-      const assistant: UIMessage = {
-        id: makeId(),
-        role: "assistant",
-        parts: [{ type: "text", text: reply }],
-      } as unknown as UIMessage;
-      setMessages((prev) => [...prev, assistant]);
+      const reader = res.body?.getReader();
+      if (!reader) {
+        throw new Error("Response body is not readable");
+      }
+      const decoder = new TextDecoder();
+      const assistantId = makeId();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantId,
+          role: "assistant",
+          parts: [{ type: "text", text: "" }],
+        } as unknown as UIMessage,
+      ]);
+      setStatus("streaming");
+      let reply = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        reply += chunk;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? ({ ...m, parts: [{ type: "text", text: reply }] } as unknown as UIMessage)
+              : m
+          )
+        );
+      }
       setStatus("ready");
     } catch (e) {
       if ((e as { name?: string }).name === "AbortError") {

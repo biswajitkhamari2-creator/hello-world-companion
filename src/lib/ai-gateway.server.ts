@@ -318,5 +318,5 @@ export function createOllamaGateway(initialRunId?: string) {
   });
 }
 
-export const OLLAMA_MODEL_NAME = process.env.OLLAMA_MODEL?.trim() || "llama3.2:3b";
+export const OLLAMA_MODEL_NAME = (process.env.OLLAMA_MODEL?.trim() || "llama3.2:3b").replace(/^\uFEFF/, "");
 
