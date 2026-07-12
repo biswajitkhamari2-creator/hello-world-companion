@@ -1,0 +1,1 @@
+var e=`/assets/sidheswar-logo-C_VW8U8D.png`;export{e as t};

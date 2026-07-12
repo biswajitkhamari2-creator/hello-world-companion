@@ -1,0 +1,1 @@
+import{a as e}from"./zap-E4jMcbhr.js";import{M as t}from"./index-B0luHlOI.js";var n=e({method:`GET`}).handler(t(`af21a84db81c25cdd63f03c12409cd34e677557546d046036a663dbb20ae1158`)),r=e({method:`POST`}).handler(t(`866d6b0cba3f7eb0bae89ec01e03dec15eb896691edb17a751bea6f05a106c95`));export{n,r as t};

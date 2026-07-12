@@ -1,16 +1,17 @@
 import {
   createGateway,
+  DEFAULT_MODEL,
+  createOllamaGateway,
+  OLLAMA_MODEL_NAME,
   UPSC_SYSTEM_PROMPT,
-  getDefaultModel,
   getLovableAiGatewayResponseHeaders,
   getLovableAiGatewayRunId,
-  resolveAvailableAiProvider,
   withLovableAiGatewayRunIdHeader,
 } from "@/lib/ai-gateway.server";
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 
-type Body = { messages?: unknown; mode?: "simple" | "advanced"; language?: string };
+type Body = { messages?: unknown; mode?: "simple" | "advanced" };
 
 const MODE_NOTES: Record<NonNullable<Body["mode"]>, string> = {
   simple:
@@ -56,6 +57,7 @@ export const Route = createFileRoute("/api/mentor")({
           },
         }),
       POST: async ({ request }) => {
+        const requestId = crypto.randomUUID();
         let body: Body;
         try {
           body = (await request.json()) as Body;
@@ -63,7 +65,7 @@ export const Route = createFileRoute("/api/mentor")({
           return jsonError("Invalid request body. Please retry.", 400, "BAD_JSON");
         }
 
-        const { messages, mode, language } = body;
+        const { messages, mode } = body;
         if (!Array.isArray(messages)) {
           return jsonError("Please send a message before asking the mentor.", 400, "MESSAGES_REQUIRED");
         }
@@ -71,47 +73,72 @@ export const Route = createFileRoute("/api/mentor")({
           return jsonError("Invalid mentor mode.", 400, "INVALID_MODE");
         }
 
-        const languageDirective =
-          language === "or"
-            ? "\n\nLANGUAGE MODE: PURE ODIA (ଓଡ଼ିଆ). You MUST respond ENTIRELY in the Odia script (ଓଡ଼ିଆ ଲିପି). Absolutely NO English words, NO Roman letters, NO Hindi/Devanagari, NO transliteration, NO code-mixing. Translate every technical term (Constitution → ସମ୍ବିଧାନ, Article → ଅନୁଚ୍ଛେଦ, Fundamental Rights → ମୌଳିକ ଅଧିକାର, etc.) into pure Odia. Use standard Odia punctuation (।). Numbers may be written in Odia numerals (୦-୯) or Arabic numerals. If you cannot express something in pure Odia, describe it in Odia rather than inserting English. Every single sentence — headings, bullets, examples, takeaways — must be in Odia script only."
-            : language === "hi"
-              ? "\n\nLanguage: Respond in Hindi (हिन्दी). Use Devanagari script. UPSC terminology may retain standard English/Sanskrit-origin terms when natural."
-              : language === "hinglish"
-                ? "\n\nLanguage: Respond in Hinglish — natural mix of Hindi and English as UPSC aspirants speak."
-                : "";
+        console.log(`[Request ID: ${requestId}] Prompt received from frontend:`, JSON.stringify(messages));
 
         try {
           const initialRunId = getLovableAiGatewayRunId(request);
-          if (!process.env.NVIDIA_API_KEY?.trim() && !process.env.GEMINI_API_KEY?.trim()) {
-            return jsonError(
-              "AI Mentor is not configured: set NVIDIA_API_KEY or GEMINI_API_KEY.",
-              503,
-              "AI_KEY_MISSING",
-            );
+          
+          // Force local Ollama for AI Mentor
+          const gateway = createOllamaGateway(initialRunId);
+          const model = gateway(OLLAMA_MODEL_NAME);
+
+          // Get the last user query to verify via Google search
+          const userMessages = messages.filter((m: any) => m.role === "user");
+          const lastQuery = userMessages[userMessages.length - 1]?.content || "";
+          let searchVerificationContext = "";
+          if (lastQuery) {
+            try {
+              const { searchWeb } = await import("@/lib/search.server");
+              searchVerificationContext = await searchWeb(lastQuery, 2);
+              console.log(`[Request ID: ${requestId}] Web search context for '${lastQuery}':`, searchVerificationContext);
+            } catch (err) {
+              console.error(`[Request ID: ${requestId}] Search verification failed:`, err);
+            }
           }
-          const availableProvider = await resolveAvailableAiProvider("nvidia");
-          const gateway = createGateway(initialRunId, availableProvider);
-          const model = gateway(getDefaultModel(availableProvider));
+
+          const systemPrompt = `${UPSC_SYSTEM_PROMPT}\n\nMentor mode: ${MODE_NOTES[mode ?? "simple"]}\n\nTeach like an experienced UPSC mentor: anchor concepts in the syllabus, link to PYQs and current affairs, and end with a one-line takeaway whenever useful.\n\n${
+            searchVerificationContext 
+              ? `[Google Search Verification Context]\n${searchVerificationContext}\n\nStrict Rule: Use the verified facts/data from the search context above to ensure your answer is fully accurate and up-to-date. Keep the answer concise and highly educational.`
+              : ""
+          }`;
+
+          console.log(`[Request ID: ${requestId}] System prompt sent to Ollama:`, systemPrompt);
+          const formattedMessages = await convertToModelMessages(messages as UIMessage[]);
+          console.log(`[Request ID: ${requestId}] Messages sent to Ollama:`, JSON.stringify(formattedMessages));
+
           const result = streamText({
             model,
             maxRetries: 0,
-            system: `${UPSC_SYSTEM_PROMPT}\n\nMentor mode: ${MODE_NOTES[mode ?? "simple"]}\n\nTeach like an experienced UPSC mentor: anchor concepts in the syllabus, link to PYQs and current affairs, and end with a one-line takeaway whenever useful.${languageDirective}`,
-            messages: await convertToModelMessages(messages as UIMessage[]),
+            system: systemPrompt,
+            messages: formattedMessages,
             onError: ({ error }) => {
-              console.error("[mentor stream]", error);
+              console.error(`[Request ID: ${requestId}] [mentor stream error]`, error);
             },
+            onChunk: (event) => {
+              if (event && event.chunk) {
+                console.log(`[Request ID: ${requestId}] Raw Ollama chunk:`, JSON.stringify(event.chunk));
+              }
+            }
           });
           const response = result.toUIMessageStreamResponse({
             originalMessages: messages as UIMessage[],
             headers: getLovableAiGatewayResponseHeaders(undefined, {
-              "cache-control": "no-store",
+              "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+              "pragma": "no-cache",
+              "expires": "0",
+              "X-Request-ID": requestId,
               ...(initialRunId ? { "X-Lovable-AIG-Run-ID": initialRunId } : {}),
             }),
             onError: mentorErrorMessage,
           });
-          return withLovableAiGatewayRunIdHeader(response, gateway, { "cache-control": "no-store" });
+          return withLovableAiGatewayRunIdHeader(response, gateway, { 
+            "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "pragma": "no-cache",
+            "expires": "0",
+            "X-Request-ID": requestId
+          });
         } catch (error) {
-          console.error("[mentor api]", error);
+          console.error(`[Request ID: ${requestId}] [mentor api error]`, error);
           return jsonError(mentorErrorMessage(error), 500);
         }
       },

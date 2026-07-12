@@ -1,0 +1,1 @@
+import{k as e}from"./index-B0luHlOI.js";var t=e({type:`function`});export{t};

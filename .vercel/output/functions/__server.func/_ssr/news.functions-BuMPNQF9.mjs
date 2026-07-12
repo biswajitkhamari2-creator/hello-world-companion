@@ -1,0 +1,115 @@
+import { c as createServerFn } from "./createServerFn-CIHAFgYl.mjs";
+import { t as createServerRpc } from "./createServerRpc-B90ckaqP.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/news.functions-BuMPNQF9.js
+var FEEDS = [
+	{
+		url: "https://news.google.com/rss/search?q=UPSC+OR+%22civil+services%22+OR+%22current+affairs+India%22&hl=en-IN&gl=IN&ceid=IN:en",
+		source: "Google News"
+	},
+	{
+		url: "https://www.thehindu.com/news/national/feeder/default.rss",
+		source: "The Hindu"
+	},
+	{
+		url: "https://www.thehindu.com/opinion/editorial/feeder/default.rss",
+		source: "The Hindu Editorial"
+	},
+	{
+		url: "https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3",
+		source: "PIB"
+	}
+];
+function pick(xml, tag) {
+	const m = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
+	if (!m) return "";
+	return m[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+}
+function parseRss(xml, source) {
+	const items = [];
+	const matches = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
+	for (const raw of matches) {
+		const title = pick(raw, "title");
+		let link = pick(raw, "link");
+		const pubDate = pick(raw, "pubDate") || pick(raw, "dc:date");
+		if (source === "Google News") {
+			const hrefMatch = pick(raw, "description").match(/<a[^>]+href=["']([^"']+)["']/i);
+			if (hrefMatch && !/news\.google\.com/i.test(hrefMatch[1])) link = hrefMatch[1];
+		}
+		if (title && link) items.push({
+			title,
+			link,
+			source,
+			pubDate
+		});
+	}
+	return items;
+}
+var NOISE_RE = /\b(horoscope|zodiac|astrolog|rashifal|numerolog|tarot|vastu|feng shui|bollywood|hollywood|tollywood|kollywood|celebrity|actor|actress|singer|film|movie|trailer|box office|ott|web series|netflix|prime video|recipe|fashion|lifestyle|beauty|makeup|skincare|weight loss|diet plan|yoga tips|sex|dating|relationship|marriage tips|cricket|ipl|fifa|football|tennis|olympics|match|score|wicket|goal|viral video|trending|meme|photo gallery|photos:|watch:|birthday|wedding|divorce|breakup|gossip|kardashian|kohli|dhoni|shah rukh|salman|deepika|priyanka)\b/i;
+var UPSC_KEYWORDS = /\b(upsc|ias|civil services|prelims|mains|gs[- ]?[i1-4]|parliament|supreme court|constitution|policy|scheme|governance|economy|budget|isro|drdo|defence|geopolitic|g20|brics|climate|biodiversity|environment|ministry|cabinet|niti aayog|rbi|inflation|gdp|census|bill\b|act\b|amendment|treaty|summit|tribunal|commission|committee|report|index|ranking|scheme|yojana|mission|policy|reform|law\b|judgment|verdict|supreme|high court)\b/i;
+var GS_RULES = [
+	{
+		gs: "GS4",
+		re: /\b(ethic|integrity|moral|corrupt|probity|conduct|accountab|transparen|whistleblow|conflict of interest)\b/i
+	},
+	{
+		gs: "GS3",
+		re: /\b(econom|budget|gdp|inflation|rbi|fiscal|tax|gst|agricultur|farmer|msp|environment|climate|biodivers|pollut|forest|wildlife|disaster|flood|earthquake|cyclone|science|technolog|isro|drdo|defence|defense|security|cyber|terror|naxal|infrastructur|energy|renewable|space|semiconductor|ai\b|artificial intelligence)\b/i
+	},
+	{
+		gs: "GS2",
+		re: /\b(polit|constitution|parliament|supreme court|high court|governance|ministry|cabinet|niti aayog|scheme|policy|welfare|education|health|bilateral|diplomacy|foreign|treaty|un\b|united nations|g20|brics|sco|quad|saarc|neighbour|china|pakistan|usa|russia|election|bill\b|act\b|amendment|judiciary|federal|panchayat|rti|cag)\b/i
+	},
+	{
+		gs: "GS1",
+		re: /\b(history|heritage|culture|art\b|monument|archaeolog|geograph|society|women|gender|caste|tribal|population|urbanis|migration|festival|dance|music|architectur|ancient|medieval|freedom struggle)\b/i
+	}
+];
+function classifyGs(title) {
+	for (const r of GS_RULES) if (r.re.test(title)) return r.gs;
+	return null;
+}
+var getUpscNews_createServerFn_handler = createServerRpc({
+	id: "0a2e5ee9c78971b91aa04d603f966113c047e01469f51c5517ae446647c0d84f",
+	name: "getUpscNews",
+	filename: "src/lib/news.functions.ts"
+}, (opts) => getUpscNews.__executeServer(opts));
+var getUpscNews = createServerFn({ method: "GET" }).handler(getUpscNews_createServerFn_handler, async () => {
+	const results = await Promise.allSettled(FEEDS.map(async (f) => {
+		const res = await fetch(f.url, {
+			headers: { "User-Agent": "Mozilla/5.0 UPSC-News-Bot" },
+			signal: AbortSignal.timeout(8e3)
+		});
+		if (!res.ok) return [];
+		return parseRss(await res.text(), f.source);
+	}));
+	const all = [];
+	for (const r of results) if (r.status === "fulfilled") all.push(...r.value);
+	const filtered = [];
+	for (const it of all) {
+		if (NOISE_RE.test(it.title)) continue;
+		if (!UPSC_KEYWORDS.test(it.title)) continue;
+		const gs = classifyGs(it.title);
+		if (!gs) continue;
+		filtered.push({
+			...it,
+			gs
+		});
+	}
+	const seen = /* @__PURE__ */ new Set();
+	const unique = filtered.filter((it) => {
+		const k = it.title.toLowerCase().slice(0, 80);
+		if (seen.has(k)) return false;
+		seen.add(k);
+		return true;
+	});
+	unique.sort((a, b) => {
+		const ta = Date.parse(a.pubDate) || 0;
+		return (Date.parse(b.pubDate) || 0) - ta;
+	});
+	return {
+		items: unique.slice(0, 40),
+		fetchedAt: (/* @__PURE__ */ new Date()).toISOString()
+	};
+});
+//#endregion
+export { getUpscNews_createServerFn_handler };
