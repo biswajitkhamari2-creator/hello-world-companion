@@ -22,10 +22,13 @@ import { Route as AuthenticatedNewspaperRouteImport } from './routes/_authentica
 import { Route as AuthenticatedNewsArchiveRouteImport } from './routes/_authenticated/news-archive'
 import { Route as AuthenticatedMocksRouteImport } from './routes/_authenticated/mocks'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
+import { Route as AuthenticatedMainsRouteImport } from './routes/_authenticated/mains'
+import { Route as AuthenticatedInterviewRouteImport } from './routes/_authenticated/interview'
 import { Route as AuthenticatedInstitutionRouteImport } from './routes/_authenticated/institution'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedDailyBriefRouteImport } from './routes/_authenticated/daily-brief'
 import { Route as AuthenticatedBookmarksRouteImport } from './routes/_authenticated/bookmarks'
 import { Route as AuthenticatedAdminAiAnalyticsRouteImport } from './routes/_authenticated/admin.ai-analytics'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
@@ -97,6 +100,16 @@ const AuthenticatedMentorRoute = AuthenticatedMentorRouteImport.update({
   path: '/mentor',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMainsRoute = AuthenticatedMainsRouteImport.update({
+  id: '/mains',
+  path: '/mains',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedInterviewRoute = AuthenticatedInterviewRouteImport.update({
+  id: '/interview',
+  path: '/interview',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedInstitutionRoute =
   AuthenticatedInstitutionRouteImport.update({
     id: '/institution',
@@ -116,6 +129,11 @@ const AuthenticatedDownloadsRoute = AuthenticatedDownloadsRouteImport.update({
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDailyBriefRoute = AuthenticatedDailyBriefRouteImport.update({
+  id: '/daily-brief',
+  path: '/daily-brief',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedBookmarksRoute = AuthenticatedBookmarksRouteImport.update({
@@ -152,10 +170,13 @@ export interface FileRoutesByFullPath {
   '/pcs-digest': typeof PcsDigestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/bookmarks': typeof AuthenticatedBookmarksRoute
+  '/daily-brief': typeof AuthenticatedDailyBriefRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/downloads': typeof AuthenticatedDownloadsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/institution': typeof AuthenticatedInstitutionRoute
+  '/interview': typeof AuthenticatedInterviewRoute
+  '/mains': typeof AuthenticatedMainsRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/mocks': typeof AuthenticatedMocksRoute
   '/news-archive': typeof AuthenticatedNewsArchiveRoute
@@ -175,10 +196,13 @@ export interface FileRoutesByTo {
   '/pcs-digest': typeof PcsDigestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/bookmarks': typeof AuthenticatedBookmarksRoute
+  '/daily-brief': typeof AuthenticatedDailyBriefRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/downloads': typeof AuthenticatedDownloadsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/institution': typeof AuthenticatedInstitutionRoute
+  '/interview': typeof AuthenticatedInterviewRoute
+  '/mains': typeof AuthenticatedMainsRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/mocks': typeof AuthenticatedMocksRoute
   '/news-archive': typeof AuthenticatedNewsArchiveRoute
@@ -200,10 +224,13 @@ export interface FileRoutesById {
   '/pcs-digest': typeof PcsDigestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/bookmarks': typeof AuthenticatedBookmarksRoute
+  '/_authenticated/daily-brief': typeof AuthenticatedDailyBriefRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/downloads': typeof AuthenticatedDownloadsRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/institution': typeof AuthenticatedInstitutionRoute
+  '/_authenticated/interview': typeof AuthenticatedInterviewRoute
+  '/_authenticated/mains': typeof AuthenticatedMainsRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
   '/_authenticated/mocks': typeof AuthenticatedMocksRoute
   '/_authenticated/news-archive': typeof AuthenticatedNewsArchiveRoute
@@ -225,10 +252,13 @@ export interface FileRouteTypes {
     | '/pcs-digest'
     | '/sitemap.xml'
     | '/bookmarks'
+    | '/daily-brief'
     | '/dashboard'
     | '/downloads'
     | '/inbox'
     | '/institution'
+    | '/interview'
+    | '/mains'
     | '/mentor'
     | '/mocks'
     | '/news-archive'
@@ -248,10 +278,13 @@ export interface FileRouteTypes {
     | '/pcs-digest'
     | '/sitemap.xml'
     | '/bookmarks'
+    | '/daily-brief'
     | '/dashboard'
     | '/downloads'
     | '/inbox'
     | '/institution'
+    | '/interview'
+    | '/mains'
     | '/mentor'
     | '/mocks'
     | '/news-archive'
@@ -272,10 +305,13 @@ export interface FileRouteTypes {
     | '/pcs-digest'
     | '/sitemap.xml'
     | '/_authenticated/bookmarks'
+    | '/_authenticated/daily-brief'
     | '/_authenticated/dashboard'
     | '/_authenticated/downloads'
     | '/_authenticated/inbox'
     | '/_authenticated/institution'
+    | '/_authenticated/interview'
+    | '/_authenticated/mains'
     | '/_authenticated/mentor'
     | '/_authenticated/mocks'
     | '/_authenticated/news-archive'
@@ -395,6 +431,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMentorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/mains': {
+      id: '/_authenticated/mains'
+      path: '/mains'
+      fullPath: '/mains'
+      preLoaderRoute: typeof AuthenticatedMainsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/interview': {
+      id: '/_authenticated/interview'
+      path: '/interview'
+      fullPath: '/interview'
+      preLoaderRoute: typeof AuthenticatedInterviewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/institution': {
       id: '/_authenticated/institution'
       path: '/institution'
@@ -421,6 +471,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/daily-brief': {
+      id: '/_authenticated/daily-brief'
+      path: '/daily-brief'
+      fullPath: '/daily-brief'
+      preLoaderRoute: typeof AuthenticatedDailyBriefRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/bookmarks': {
@@ -463,10 +520,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBookmarksRoute: typeof AuthenticatedBookmarksRoute
+  AuthenticatedDailyBriefRoute: typeof AuthenticatedDailyBriefRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDownloadsRoute: typeof AuthenticatedDownloadsRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedInstitutionRoute: typeof AuthenticatedInstitutionRoute
+  AuthenticatedInterviewRoute: typeof AuthenticatedInterviewRoute
+  AuthenticatedMainsRoute: typeof AuthenticatedMainsRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
   AuthenticatedMocksRoute: typeof AuthenticatedMocksRoute
   AuthenticatedNewsArchiveRoute: typeof AuthenticatedNewsArchiveRoute
@@ -479,10 +539,13 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBookmarksRoute: AuthenticatedBookmarksRoute,
+  AuthenticatedDailyBriefRoute: AuthenticatedDailyBriefRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDownloadsRoute: AuthenticatedDownloadsRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedInstitutionRoute: AuthenticatedInstitutionRoute,
+  AuthenticatedInterviewRoute: AuthenticatedInterviewRoute,
+  AuthenticatedMainsRoute: AuthenticatedMainsRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
   AuthenticatedMocksRoute: AuthenticatedMocksRoute,
   AuthenticatedNewsArchiveRoute: AuthenticatedNewsArchiveRoute,
@@ -510,13 +573,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
