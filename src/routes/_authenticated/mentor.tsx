@@ -3,13 +3,22 @@ import type { UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ArrowLeft, Check, Copy, FileText, ImageIcon, Mic, MicOff, Paperclip, RefreshCw, Send, Sparkles, Square, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, Check, Copy, FileText, ImageIcon, Mic, MicOff, Paperclip, RefreshCw, Send, Server, Sparkles, Square, Volume2, VolumeX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { BrandMark } from "@/components/brand-mark";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { FASTAPI_BASE } from "@/lib/fastapi";
+import { getFastApiBase, setFastApiBase, isMixedContentBlocked } from "@/lib/fastapi";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/_authenticated/mentor")({
   validateSearch: (s: Record<string, unknown>) => ({ seed: typeof s.seed === "string" ? s.seed : undefined }),
