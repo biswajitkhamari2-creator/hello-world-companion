@@ -21,5 +21,10 @@ export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
   },
-  nitro: { preset },
+  nitro: {
+    preset,
+    externals: {
+      inline: ["tslib"]
+    }
+  },
 });
