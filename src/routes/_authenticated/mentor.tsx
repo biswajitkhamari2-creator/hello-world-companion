@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import type { UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -10,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { BrandMark } from "@/components/brand-mark";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { FASTAPI_BASE } from "@/lib/fastapi";
 
 export const Route = createFileRoute("/_authenticated/mentor")({
   validateSearch: (s: Record<string, unknown>) => ({ seed: typeof s.seed === "string" ? s.seed : undefined }),
@@ -58,6 +58,9 @@ function friendlyMentorError(message?: string): string {
   if (!raw) return "AI Mentor could not answer right now. Please retry.";
   const lower = raw.toLowerCase();
 
+  if (lower.includes("failed to fetch") || lower.includes("networkerror") || lower.includes("load failed")) {
+    return `AI Mentor needs your local backend running at ${FASTAPI_BASE}. Start the Python FastAPI server and retry.`;
+  }
   if (lower.includes("<!doctype") || lower.includes("<html") || lower.includes("this page didn't load")) {
     return "AI Mentor service did not load correctly. Please retry.";
   }
