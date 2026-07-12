@@ -1,0 +1,1 @@
+import{i as e}from"./zap-BAWDXFz5.js";import{P as t}from"./index-DhxMVTAk.js";var n=e({method:`GET`}).handler(t(`0a2e5ee9c78971b91aa04d603f966113c047e01469f51c5517ae446647c0d84f`));export{n as t};

@@ -235,6 +235,7 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (ctrl.signal.aborted) break;
         const chunk = decoder.decode(value, { stream: true });
         reply += chunk;
         setMessages((prev) =>
@@ -275,15 +276,31 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
 
   const sendMessage = useCallback(async (payload: SendPayload) => {
     lastUserRef.current = payload;
+    let history = [...messages];
+    if (status === "streaming" || status === "submitted") {
+      if (abortRef.current) {
+        abortRef.current.abort();
+      }
+      history = history.map((m, idx) => {
+        if (idx === history.length - 1 && m.role === "assistant") {
+          const text = partsToText(m.parts as SendPart[]) + " [Stopped]";
+          return {
+            ...m,
+            parts: [{ type: "text", text }]
+          } as unknown as UIMessage;
+        }
+        return m;
+      });
+      setMessages(history);
+    }
     const userMsg: UIMessage = {
       id: makeId(),
       role: "user",
       parts: payload.parts,
     } as unknown as UIMessage;
-    const history = [...messages];
     setMessages((prev) => [...prev, userMsg]);
     await runRequest(userMsg, history);
-  }, [runRequest, messages]);
+  }, [runRequest, messages, status]);
 
   const regenerate = useCallback(async () => {
     const last = lastUserRef.current;

@@ -1,0 +1,1 @@
+import{O as e}from"./index-DhxMVTAk.js";var t=e({type:`function`});export{t};
