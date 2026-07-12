@@ -157,6 +157,9 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
   }, []);
 
   const runRequest = useCallback(async (userMsg: UIMessage, historyForBody: UIMessage[]) => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
     setStatus("submitted");
     setError(null);
     const ctrl = new AbortController();
@@ -240,7 +243,9 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
       setStatus("error");
       onError?.(err);
     } finally {
-      abortRef.current = null;
+      if (abortRef.current === ctrl) {
+        abortRef.current = null;
+      }
     }
   }, [mode, onError]);
 
@@ -251,27 +256,20 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
       role: "user",
       parts: payload.parts,
     } as unknown as UIMessage;
-    let history: UIMessage[] = [];
-    setMessages((prev) => {
-      history = prev;
-      return [...prev, userMsg];
-    });
+    const history = [...messages];
+    setMessages((prev) => [...prev, userMsg]);
     await runRequest(userMsg, history);
-  }, [runRequest]);
+  }, [runRequest, messages]);
 
   const regenerate = useCallback(async () => {
     const last = lastUserRef.current;
     if (!last) return;
     const userMsg: UIMessage = { id: makeId(), role: "user", parts: last.parts } as unknown as UIMessage;
-    // Drop last assistant if present, then rerun
-    let history: UIMessage[] = [];
-    setMessages((prev) => {
-      const trimmed = prev[prev.length - 1]?.role === "assistant" ? prev.slice(0, -1) : prev;
-      history = trimmed.slice(0, -1); // exclude the user we're about to re-add? Actually keep as-is: re-add user
-      return [...trimmed];
-    });
+    const trimmed = messages[messages.length - 1]?.role === "assistant" ? messages.slice(0, -1) : messages;
+    const history = trimmed.slice(0, -1);
+    setMessages([...trimmed, userMsg]);
     await runRequest(userMsg, history);
-  }, [runRequest]);
+  }, [runRequest, messages]);
 
   return { messages, sendMessage, status, stop, error, regenerate };
 }
