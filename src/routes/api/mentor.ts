@@ -103,7 +103,17 @@ export const Route = createFileRoute("/api/mentor")({
           }`;
 
           console.log(`[Request ID: ${requestId}] System prompt sent to Ollama:`, systemPrompt);
-          const formattedMessages = await convertToModelMessages(messages as UIMessage[]);
+          const normalizedMessages = messages.map((m: any) => {
+            if (!m.parts) {
+              return {
+                role: m.role || "user",
+                content: m.content || "",
+                parts: [{ type: "text", text: m.content || "" }]
+              };
+            }
+            return m;
+          });
+          const formattedMessages = await convertToModelMessages(normalizedMessages as UIMessage[]);
           console.log(`[Request ID: ${requestId}] Messages sent to Ollama:`, JSON.stringify(formattedMessages));
 
           const result = streamText({
