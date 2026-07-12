@@ -1,5 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import {
   Sparkles,
@@ -195,6 +194,7 @@ function Hero() {
   const [q, setQ] = useState("");
   const { theme, toggle } = useTheme();
   const placeholder = useRotatingPlaceholder();
+  const navigate = useNavigate();
   return (
     <section className="relative pt-6">
       <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.15fr_1fr]">
@@ -223,7 +223,7 @@ function Hero() {
             onSubmit={(e) => {
               e.preventDefault();
               const t = q.trim();
-              window.location.href = t ? `/mentor?q=${encodeURIComponent(t)}` : "/mentor";
+              navigate({ to: "/mentor", search: t ? ({ q: t } as never) : undefined });
             }}
             className="mt-7 w-full max-w-2xl"
           >
