@@ -3,7 +3,7 @@ import type { UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ArrowLeft, Check, Copy, FileText, ImageIcon, Mic, MicOff, Paperclip, RefreshCw, Send, Server, Sparkles, Square, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, Check, Copy, Cpu, FileText, ImageIcon, Mic, MicOff, Paperclip, RefreshCw, Send, Server, Sparkles, Square, Volume2, VolumeX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { BrandMark } from "@/components/brand-mark";
@@ -40,6 +40,7 @@ export const Route = createFileRoute("/_authenticated/mentor")({
 });
 
 type Mode = "simple" | "advanced";
+type Backend = "gemini" | "ollama";
 
 // Minimal types for Web Speech (avoids dom-lib version variance)
 type SR = {
@@ -147,7 +148,7 @@ function extractReply(payload: unknown): string {
   return "";
 }
 
-function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error) => void }) {
+function useLocalMentorChat({ mode, backend, onError }: { mode: Mode; backend: Backend; onError?: (e: Error) => void }) {
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [status, setStatus] = useState<ChatStatus>("ready");
   const [error, setError] = useState<Error | null>(null);
@@ -214,7 +215,8 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
     ];
 
     const base = getFastApiBase();
-    if (isMixedContentBlocked(base)) {
+    const useGemini = backend === "gemini";
+    if (!useGemini && isMixedContentBlocked(base)) {
       const err = new Error(
         `Browser is on HTTPS but backend URL is ${base} (HTTP). Use an HTTPS tunnel (e.g. ngrok) and set it via the Backend URL button in the header.`,
       );
@@ -225,16 +227,30 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
       return;
     }
     try {
-      const res = await fetch(`${base}/mentor`, {
+      const url = useGemini ? "/api/mentor" : `${base}/mentor`;
+      const geminiBody = {
+        mode,
+        backend: "gemini" as const,
+        plain: true,
+        messages: [
+          ...historyForBody.map((m) => ({
+            role: m.role,
+            content: partsToText((m.parts ?? []) as SendPart[]),
+          })),
+          { role: "user" as const, content: augmentedMessage },
+        ],
+      };
+      const ollamaBody = {
+        mode,
+        language,
+        message: augmentedMessage,
+        messages: flatHistory,
+      };
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: ctrl.signal,
-        body: JSON.stringify({
-          mode,
-          language,
-          message: augmentedMessage,
-          messages: flatHistory,
-        }),
+        body: JSON.stringify(useGemini ? geminiBody : ollamaBody),
       });
       if (!res.ok) {
         const raw = await res.text();
@@ -296,7 +312,7 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
         abortRef.current = null;
       }
     }
-  }, [mode, onError]);
+  }, [mode, backend, onError]);
 
   const sendMessage = useCallback(async (payload: SendPayload) => {
     lastUserRef.current = payload;
@@ -341,6 +357,14 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
 
 function MentorPage() {
   const [mode, setMode] = useState<Mode>("simple");
+  const [backend, setBackend] = useState<Backend>(() => {
+    if (typeof window === "undefined") return "gemini";
+    const saved = localStorage.getItem("mentor_backend");
+    return saved === "ollama" || saved === "gemini" ? (saved as Backend) : "gemini";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("mentor_backend", backend);
+  }, [backend]);
   const [input, setInput] = useState("");
   const [voiceOut, setVoiceOut] = useState(false);
   const [listening, setListening] = useState(false);
@@ -394,6 +418,7 @@ function MentorPage() {
 
   const { messages, sendMessage, status, stop, error, regenerate } = useLocalMentorChat({
     mode,
+    backend,
     onError: (e) => {
       console.error("[mentor]", e);
       toast.error("Mentor error", { description: friendlyMentorError(e.message) });
@@ -562,6 +587,23 @@ function MentorPage() {
               </button>
             ))}
           </div>
+          <div className="hidden items-center gap-1 rounded-full border border-border bg-background p-1 sm:flex">
+            {(["gemini", "ollama"] as const).map((b) => (
+              <button
+                key={b}
+                type="button"
+                onClick={() => setBackend(b)}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  backend === b ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+                title={b === "gemini" ? "Cloud Gemini (always available)" : "Local Ollama via your FastAPI backend"}
+              >
+                <Cpu className="h-3 w-3" />
+                {b === "gemini" ? "Gemini" : "Ollama"}
+              </button>
+            ))}
+          </div>
           <Button
             variant={voiceOut ? "default" : "outline"}
             size="icon"
@@ -600,7 +642,21 @@ function MentorPage() {
               </button>
             ))}
           </div>
-          <span className="text-[11px] text-muted-foreground">{voiceOut ? "Voice replies on" : "Voice replies off"}</span>
+          <div className="flex items-center gap-1 rounded-full border border-border bg-background p-1">
+            {(["gemini", "ollama"] as const).map((b) => (
+              <button
+                key={b}
+                type="button"
+                onClick={() => setBackend(b)}
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  backend === b ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+                )}
+              >
+                {b === "gemini" ? "Gemini" : "Ollama"}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
