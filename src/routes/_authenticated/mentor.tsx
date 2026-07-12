@@ -22,7 +22,10 @@ import {
 import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/_authenticated/mentor")({
-  validateSearch: (s: Record<string, unknown>) => ({ seed: typeof s.seed === "string" ? s.seed : undefined }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    seed: typeof s.seed === "string" ? s.seed : undefined,
+    q: typeof s.q === "string" ? s.q : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "AI Mentor — UPSC Mitra" },
@@ -398,7 +401,9 @@ function MentorPage() {
   });
 
   // Auto-seed from /mentor?seed=... (used by Newspaper "Ask Mentor" and Related links)
-  const seed = Route.useSearch().seed;
+  const search = Route.useSearch();
+  const seed = search.seed;
+  const q = search.q;
   const seededRef = useRef(false);
   useEffect(() => {
     if (seededRef.current || !seed) return;
@@ -413,6 +418,11 @@ function MentorPage() {
       : seed;
     void sendMessage({ role: "user", parts: [{ type: "text", text }] });
   }, [seed, sendMessage]);
+
+  useEffect(() => {
+    if (!q || input) return;
+    setInput(q);
+  }, [q, input]);
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const copy = useCallback(async (id: string, text: string) => {

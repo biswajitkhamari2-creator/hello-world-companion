@@ -325,7 +325,6 @@ export function AppShell({
   children: ReactNode;
   topbarRight?: ReactNode;
 }) {
-  const pathname = useRouterState({ select: (r) => r.location.pathname });
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="relative min-h-dvh flex w-full bg-transparent">
@@ -345,7 +344,7 @@ export function AppShell({
               <ThemeToggle />
             </div>
           </div>
-          <div key={pathname} className="flex-1 min-w-0 animate-fade-in">{children}</div>
+          <div className="flex-1 min-w-0">{children}</div>
         </div>
       </div>
     </SidebarProvider>
