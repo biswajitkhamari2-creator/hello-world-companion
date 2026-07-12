@@ -359,11 +359,17 @@ function MentorPage() {
   const [mode, setMode] = useState<Mode>("simple");
   const [backend, setBackend] = useState<Backend>(() => {
     if (typeof window === "undefined") return "gemini";
-    const saved = localStorage.getItem("mentor_backend");
-    return saved === "ollama" || saved === "gemini" ? (saved as Backend) : "gemini";
+    try {
+      const saved = window.localStorage.getItem("mentor_backend");
+      return saved === "ollama" || saved === "gemini" ? (saved as Backend) : "gemini";
+    } catch {
+      return "gemini";
+    }
   });
   useEffect(() => {
-    if (typeof window !== "undefined") localStorage.setItem("mentor_backend", backend);
+    try {
+      if (typeof window !== "undefined") window.localStorage.setItem("mentor_backend", backend);
+    } catch {}
   }, [backend]);
   const [input, setInput] = useState("");
   const [voiceOut, setVoiceOut] = useState(false);
