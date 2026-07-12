@@ -261,6 +261,10 @@ function MentorPage() {
   const [input, setInput] = useState("");
   const [voiceOut, setVoiceOut] = useState(false);
   const [listening, setListening] = useState(false);
+  const [backendOpen, setBackendOpen] = useState(false);
+  const [backendDraft, setBackendDraft] = useState<string>(() =>
+    typeof window === "undefined" ? "" : getFastApiBase(),
+  );
   const recognitionRef = useRef<SR | null>(null);
   const spokenIdsRef = useRef<Set<string>>(new Set());
   const scrollerRef = useRef<HTMLDivElement>(null);
