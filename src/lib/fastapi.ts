@@ -10,8 +10,12 @@ const DEFAULT_URL = "https://python-backend-ivory-two.vercel.app";
 
 export function getFastApiBase(): string {
   if (typeof window !== "undefined") {
-    const saved = window.localStorage.getItem(LS_KEY);
-    if (saved && saved.trim()) return saved.trim().replace(/\/+$/, "");
+    try {
+      const saved = window.localStorage.getItem(LS_KEY);
+      if (saved && saved.trim()) return saved.trim().replace(/\/+$/, "");
+    } catch {
+      // Storage can be blocked in embedded previews/private modes; use the configured default.
+    }
   }
   return (ENV_URL || DEFAULT_URL).replace(/\/+$/, "");
 }
@@ -19,9 +23,13 @@ export function getFastApiBase(): string {
 export function setFastApiBase(url: string): void {
   if (typeof window === "undefined") return;
   const clean = url.trim().replace(/\/+$/, "");
-  if (clean) window.localStorage.setItem(LS_KEY, clean);
-  else window.localStorage.removeItem(LS_KEY);
-  window.dispatchEvent(new CustomEvent("fastapi-base:updated"));
+  try {
+    if (clean) window.localStorage.setItem(LS_KEY, clean);
+    else window.localStorage.removeItem(LS_KEY);
+    window.dispatchEvent(new CustomEvent("fastapi-base:updated"));
+  } catch {
+    // Ignore storage failures so the mentor page keeps loading.
+  }
 }
 
 /** @deprecated use getFastApiBase() — kept for callers that already imported it */

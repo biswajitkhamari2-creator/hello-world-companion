@@ -9,7 +9,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    const stored = (typeof window !== "undefined" && localStorage.getItem("upsc-theme")) as Theme | null;
+    let stored: Theme | null = null;
+    try {
+      stored = window.localStorage.getItem("upsc-theme") as Theme | null;
+    } catch {
+      stored = null;
+    }
     const initial: Theme = stored ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     setTheme(initial);
   }, []);
@@ -17,7 +22,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.documentElement.classList.toggle("dark", theme === "dark");
-    try { localStorage.setItem("upsc-theme", theme); } catch {}
+    try { window.localStorage.setItem("upsc-theme", theme); } catch {}
   }, [theme]);
 
   return (
