@@ -767,6 +767,46 @@ function MentorPage() {
           )}
         </form>
       </footer>
+
+      <Dialog open={backendOpen} onOpenChange={setBackendOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Backend URL</DialogTitle>
+            <DialogDescription>
+              The AI Mentor calls your local Python FastAPI server. The Lovable preview runs on
+              HTTPS, so <strong>http://localhost:8000</strong> is blocked by the browser (mixed
+              content). Expose your backend via an HTTPS tunnel (e.g. <code>ngrok http 8000</code>)
+              and paste the HTTPS URL below. Leave blank to reset to <code>http://localhost:8000</code>
+              (only works when you run the frontend locally too).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Input
+              value={backendDraft}
+              onChange={(e) => setBackendDraft(e.target.value)}
+              placeholder="https://your-tunnel.ngrok-free.app"
+              autoFocus
+            />
+            {typeof window !== "undefined" && window.location.protocol === "https:" && backendDraft.startsWith("http://") && (
+              <p className="text-xs text-amber-600">
+                Warning: this is an HTTP URL. The browser will block requests from an HTTPS preview.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBackendOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                setFastApiBase(backendDraft);
+                setBackendOpen(false);
+                toast.success("Backend URL saved", { description: getFastApiBase() });
+              }}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
