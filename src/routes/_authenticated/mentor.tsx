@@ -67,8 +67,15 @@ function friendlyMentorError(message?: string): string {
   if (!raw) return "AI Mentor could not answer right now. Please retry.";
   const lower = raw.toLowerCase();
 
+  if (lower.includes("mixed content") || lower.includes("browser is on https")) {
+    return raw;
+  }
   if (lower.includes("failed to fetch") || lower.includes("networkerror") || lower.includes("load failed")) {
-    return `AI Mentor needs your local backend running at ${FASTAPI_BASE}. Start the Python FastAPI server and retry.`;
+    const base = getFastApiBase();
+    if (typeof window !== "undefined" && window.location.protocol === "https:" && base.startsWith("http://")) {
+      return `The preview runs on HTTPS but your backend URL (${base}) is HTTP. Browsers block that. Expose your backend via an HTTPS tunnel (e.g. ngrok) and paste the HTTPS URL in the Backend URL setting.`;
+    }
+    return `AI Mentor could not reach the backend at ${base}. Make sure the Python FastAPI server is running and CORS is enabled.`;
   }
   if (lower.includes("<!doctype") || lower.includes("<html") || lower.includes("this page didn't load")) {
     return "AI Mentor service did not load correctly. Please retry.";
@@ -166,8 +173,19 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
       content: partsToText((m.parts ?? []) as SendPart[]),
     }));
 
+    const base = getFastApiBase();
+    if (isMixedContentBlocked(base)) {
+      const err = new Error(
+        `Browser is on HTTPS but backend URL is ${base} (HTTP). Use an HTTPS tunnel (e.g. ngrok) and set it via the Backend URL button in the header.`,
+      );
+      setError(err);
+      setStatus("error");
+      onError?.(err);
+      abortRef.current = null;
+      return;
+    }
     try {
-      const res = await fetch(`${FASTAPI_BASE}/mentor`, {
+      const res = await fetch(`${base}/mentor`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         signal: ctrl.signal,
