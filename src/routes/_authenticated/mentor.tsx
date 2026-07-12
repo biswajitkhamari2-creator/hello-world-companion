@@ -180,10 +180,14 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
       if (raw) language = JSON.parse(raw)?.language;
     } catch {}
 
-    const flatHistory = historyForBody.map((m) => ({
-      role: m.role,
-      content: partsToText((m.parts ?? []) as SendPart[]),
-    }));
+    const currentText = partsToText((userMsg.parts ?? []) as SendPart[]);
+    const flatHistory = [
+      ...historyForBody.map((m) => ({
+        role: m.role,
+        content: partsToText((m.parts ?? []) as SendPart[]),
+      })),
+      { role: "user" as const, content: currentText },
+    ];
 
     const base = getFastApiBase();
     if (isMixedContentBlocked(base)) {
@@ -204,7 +208,7 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
         body: JSON.stringify({
           mode,
           language,
-          message: partsToText((userMsg.parts ?? []) as SendPart[]),
+          message: currentText,
           messages: flatHistory,
         }),
       });
