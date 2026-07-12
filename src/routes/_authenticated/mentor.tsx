@@ -484,6 +484,15 @@ function MentorPage() {
           >
             {voiceOut ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => { setBackendDraft(getFastApiBase()); setBackendOpen(true); }}
+            aria-label="Backend URL"
+            title="Set backend URL"
+          >
+            <Server className="h-4 w-4" />
+          </Button>
         </div>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-2 px-4 pb-2 sm:hidden">
           <div className="flex items-center gap-1 rounded-full border border-border bg-background p-1">
