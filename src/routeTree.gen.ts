@@ -26,6 +26,7 @@ import { Route as AuthenticatedInstitutionRouteImport } from './routes/_authenti
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedDailyBriefRouteImport } from './routes/_authenticated/daily-brief'
 import { Route as AuthenticatedBookmarksRouteImport } from './routes/_authenticated/bookmarks'
 import { Route as AuthenticatedAdminAiAnalyticsRouteImport } from './routes/_authenticated/admin.ai-analytics'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
@@ -118,6 +119,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDailyBriefRoute = AuthenticatedDailyBriefRouteImport.update({
+  id: '/daily-brief',
+  path: '/daily-brief',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBookmarksRoute = AuthenticatedBookmarksRouteImport.update({
   id: '/bookmarks',
   path: '/bookmarks',
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/pcs-digest': typeof PcsDigestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/bookmarks': typeof AuthenticatedBookmarksRoute
+  '/daily-brief': typeof AuthenticatedDailyBriefRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/downloads': typeof AuthenticatedDownloadsRoute
   '/inbox': typeof AuthenticatedInboxRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByTo {
   '/pcs-digest': typeof PcsDigestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/bookmarks': typeof AuthenticatedBookmarksRoute
+  '/daily-brief': typeof AuthenticatedDailyBriefRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/downloads': typeof AuthenticatedDownloadsRoute
   '/inbox': typeof AuthenticatedInboxRoute
@@ -200,6 +208,7 @@ export interface FileRoutesById {
   '/pcs-digest': typeof PcsDigestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/bookmarks': typeof AuthenticatedBookmarksRoute
+  '/_authenticated/daily-brief': typeof AuthenticatedDailyBriefRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/downloads': typeof AuthenticatedDownloadsRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
@@ -225,6 +234,7 @@ export interface FileRouteTypes {
     | '/pcs-digest'
     | '/sitemap.xml'
     | '/bookmarks'
+    | '/daily-brief'
     | '/dashboard'
     | '/downloads'
     | '/inbox'
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | '/pcs-digest'
     | '/sitemap.xml'
     | '/bookmarks'
+    | '/daily-brief'
     | '/dashboard'
     | '/downloads'
     | '/inbox'
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/pcs-digest'
     | '/sitemap.xml'
     | '/_authenticated/bookmarks'
+    | '/_authenticated/daily-brief'
     | '/_authenticated/dashboard'
     | '/_authenticated/downloads'
     | '/_authenticated/inbox'
@@ -423,6 +435,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/daily-brief': {
+      id: '/_authenticated/daily-brief'
+      path: '/daily-brief'
+      fullPath: '/daily-brief'
+      preLoaderRoute: typeof AuthenticatedDailyBriefRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/bookmarks': {
       id: '/_authenticated/bookmarks'
       path: '/bookmarks'
@@ -463,6 +482,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBookmarksRoute: typeof AuthenticatedBookmarksRoute
+  AuthenticatedDailyBriefRoute: typeof AuthenticatedDailyBriefRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDownloadsRoute: typeof AuthenticatedDownloadsRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
@@ -479,6 +499,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBookmarksRoute: AuthenticatedBookmarksRoute,
+  AuthenticatedDailyBriefRoute: AuthenticatedDailyBriefRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDownloadsRoute: AuthenticatedDownloadsRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
