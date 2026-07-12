@@ -95,6 +95,140 @@ const STARTERS = [
   "What current affairs themes are likely in GS2 this year?",
 ];
 
+type ChatStatus = "ready" | "submitted" | "streaming" | "error";
+type SendPart = { type: "text"; text: string } | { type: "file"; mediaType: string; url: string; filename?: string };
+type SendPayload = { role: "user"; parts: SendPart[] };
+
+function makeId() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function partsToText(parts: SendPart[]): string {
+  return parts.filter((p): p is Extract<SendPart, { type: "text" }> => p.type === "text").map((p) => p.text).join("\n");
+}
+
+function extractReply(payload: unknown): string {
+  if (payload == null) return "";
+  if (typeof payload === "string") return payload;
+  if (typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    for (const key of ["reply", "response", "answer", "message", "text", "content", "output"]) {
+      const v = obj[key];
+      if (typeof v === "string" && v.trim()) return v;
+    }
+    if (Array.isArray(obj.choices) && obj.choices.length > 0) {
+      const c = obj.choices[0] as { message?: { content?: unknown }; text?: unknown };
+      if (typeof c?.message?.content === "string") return c.message.content;
+      if (typeof c?.text === "string") return c.text;
+    }
+  }
+  return "";
+}
+
+function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error) => void }) {
+  const [messages, setMessages] = useState<UIMessage[]>([]);
+  const [status, setStatus] = useState<ChatStatus>("ready");
+  const [error, setError] = useState<Error | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const lastUserRef = useRef<SendPayload | null>(null);
+
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setStatus("ready");
+  }, []);
+
+  const runRequest = useCallback(async (userMsg: UIMessage, historyForBody: UIMessage[]) => {
+    setStatus("submitted");
+    setError(null);
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    let language: string | undefined;
+    try {
+      const raw = localStorage.getItem("upsc_settings_v1");
+      if (raw) language = JSON.parse(raw)?.language;
+    } catch {}
+
+    const flatHistory = historyForBody.map((m) => ({
+      role: m.role,
+      content: partsToText((m.parts ?? []) as SendPart[]),
+    }));
+
+    try {
+      const res = await fetch(`${FASTAPI_BASE}/mentor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          mode,
+          language,
+          message: partsToText((userMsg.parts ?? []) as SendPart[]),
+          messages: flatHistory,
+        }),
+      });
+      const ctype = res.headers.get("content-type") ?? "";
+      const raw = ctype.includes("application/json") ? await res.json() : await res.text();
+      if (!res.ok) {
+        const errText = typeof raw === "string" ? raw : extractReply(raw) || `HTTP ${res.status}`;
+        throw new Error(errText);
+      }
+      const reply = extractReply(raw) || "(empty reply)";
+      const assistant: UIMessage = {
+        id: makeId(),
+        role: "assistant",
+        parts: [{ type: "text", text: reply }],
+      } as unknown as UIMessage;
+      setMessages((prev) => [...prev, assistant]);
+      setStatus("ready");
+    } catch (e) {
+      if ((e as { name?: string }).name === "AbortError") {
+        setStatus("ready");
+        return;
+      }
+      const err = e instanceof Error ? e : new Error(String(e));
+      setError(err);
+      setStatus("error");
+      onError?.(err);
+    } finally {
+      abortRef.current = null;
+    }
+  }, [mode, onError]);
+
+  const sendMessage = useCallback(async (payload: SendPayload) => {
+    lastUserRef.current = payload;
+    const userMsg: UIMessage = {
+      id: makeId(),
+      role: "user",
+      parts: payload.parts,
+    } as unknown as UIMessage;
+    let history: UIMessage[] = [];
+    setMessages((prev) => {
+      history = prev;
+      return [...prev, userMsg];
+    });
+    await runRequest(userMsg, history);
+  }, [runRequest]);
+
+  const regenerate = useCallback(async () => {
+    const last = lastUserRef.current;
+    if (!last) return;
+    const userMsg: UIMessage = { id: makeId(), role: "user", parts: last.parts } as unknown as UIMessage;
+    // Drop last assistant if present, then rerun
+    let history: UIMessage[] = [];
+    setMessages((prev) => {
+      const trimmed = prev[prev.length - 1]?.role === "assistant" ? prev.slice(0, -1) : prev;
+      history = trimmed.slice(0, -1); // exclude the user we're about to re-add? Actually keep as-is: re-add user
+      return [...trimmed];
+    });
+    await runRequest(userMsg, history);
+  }, [runRequest]);
+
+  return { messages, sendMessage, status, stop, error, regenerate };
+}
+
 function MentorPage() {
   const [mode, setMode] = useState<Mode>("simple");
   const [input, setInput] = useState("");
