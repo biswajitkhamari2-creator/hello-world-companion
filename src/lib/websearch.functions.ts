@@ -11,8 +11,8 @@ export const webSearch = createServerFn({ method: "POST" })
     return { query, limit };
   })
   .handler(async ({ data }): Promise<{ results: SearchResult[]; error?: string }> => {
-    const key = process.env.FIRECRAWL_API_KEY;
-    if (!key) return { results: [], error: "FIRECRAWL_API_KEY not configured" };
+    const key = process.env.FIRECRAWL_API_KEY || process.env.FIRECRAWAL_API_KEY;
+    if (!key) return { results: [], error: "FIRECRAWL_API_KEY or FIRECRAWAL_API_KEY not configured" };
     try {
       const res = await fetch("https://api.firecrawl.dev/v2/search", {
         method: "POST",
