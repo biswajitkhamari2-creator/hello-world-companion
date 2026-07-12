@@ -164,6 +164,15 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
     setError(null);
     const ctrl = new AbortController();
     abortRef.current = ctrl;
+    // Guard against a hanging backend (e.g. Ollama/Vercel taking too long).
+    // Without this the UI shows an endless spinner and looks like "page didn't load".
+    const TIMEOUT_MS = 60_000;
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      try { ctrl.abort(); } catch {}
+    }, TIMEOUT_MS);
+    const clearTimeoutSafe = () => clearTimeout(timeoutId);
 
     let language: string | undefined;
     try {
@@ -234,7 +243,17 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
       }
       setStatus("ready");
     } catch (e) {
+      clearTimeoutSafe();
       if ((e as { name?: string }).name === "AbortError") {
+        if (timedOut) {
+          const err = new Error(
+            `AI Mentor timed out after ${Math.round(TIMEOUT_MS / 1000)}s. The backend at ${base} did not respond in time (likely a slow Ollama generation on the Python server). Please retry, or shorten your prompt.`,
+          );
+          setError(err);
+          setStatus("error");
+          onError?.(err);
+          return;
+        }
         setStatus("ready");
         return;
       }
@@ -243,6 +262,7 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
       setStatus("error");
       onError?.(err);
     } finally {
+      clearTimeoutSafe();
       if (abortRef.current === ctrl) {
         abortRef.current = null;
       }
