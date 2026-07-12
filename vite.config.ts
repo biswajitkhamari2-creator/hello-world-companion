@@ -23,5 +23,16 @@ export default defineConfig({
   },
   nitro: {
     preset,
+    externals: {
+      inline: [
+        "tslib",
+        "@supabase/supabase-js",
+        "@supabase/functions-js",
+        "@supabase/gotrue-js",
+        "@supabase/postgrest-js",
+        "@supabase/realtime-js",
+        "@supabase/storage-js"
+      ]
+    }
   },
 });
