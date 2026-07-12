@@ -3,13 +3,22 @@ import type { UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ArrowLeft, Check, Copy, FileText, ImageIcon, Mic, MicOff, Paperclip, RefreshCw, Send, Sparkles, Square, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, Check, Copy, FileText, ImageIcon, Mic, MicOff, Paperclip, RefreshCw, Send, Server, Sparkles, Square, Volume2, VolumeX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { BrandMark } from "@/components/brand-mark";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { FASTAPI_BASE } from "@/lib/fastapi";
+import { getFastApiBase, setFastApiBase, isMixedContentBlocked } from "@/lib/fastapi";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/_authenticated/mentor")({
   validateSearch: (s: Record<string, unknown>) => ({ seed: typeof s.seed === "string" ? s.seed : undefined }),
@@ -58,8 +67,15 @@ function friendlyMentorError(message?: string): string {
   if (!raw) return "AI Mentor could not answer right now. Please retry.";
   const lower = raw.toLowerCase();
 
+  if (lower.includes("mixed content") || lower.includes("browser is on https")) {
+    return raw;
+  }
   if (lower.includes("failed to fetch") || lower.includes("networkerror") || lower.includes("load failed")) {
-    return `AI Mentor needs your local backend running at ${FASTAPI_BASE}. Start the Python FastAPI server and retry.`;
+    const base = getFastApiBase();
+    if (typeof window !== "undefined" && window.location.protocol === "https:" && base.startsWith("http://")) {
+      return `The preview runs on HTTPS but your backend URL (${base}) is HTTP. Browsers block that. Expose your backend via an HTTPS tunnel (e.g. ngrok) and paste the HTTPS URL in the Backend URL setting.`;
+    }
+    return `AI Mentor could not reach the backend at ${base}. Make sure the Python FastAPI server is running and CORS is enabled.`;
   }
   if (lower.includes("<!doctype") || lower.includes("<html") || lower.includes("this page didn't load")) {
     return "AI Mentor service did not load correctly. Please retry.";
@@ -157,8 +173,19 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
       content: partsToText((m.parts ?? []) as SendPart[]),
     }));
 
+    const base = getFastApiBase();
+    if (isMixedContentBlocked(base)) {
+      const err = new Error(
+        `Browser is on HTTPS but backend URL is ${base} (HTTP). Use an HTTPS tunnel (e.g. ngrok) and set it via the Backend URL button in the header.`,
+      );
+      setError(err);
+      setStatus("error");
+      onError?.(err);
+      abortRef.current = null;
+      return;
+    }
     try {
-      const res = await fetch(`${FASTAPI_BASE}/mentor`, {
+      const res = await fetch(`${base}/mentor`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         signal: ctrl.signal,
@@ -234,6 +261,10 @@ function MentorPage() {
   const [input, setInput] = useState("");
   const [voiceOut, setVoiceOut] = useState(false);
   const [listening, setListening] = useState(false);
+  const [backendOpen, setBackendOpen] = useState(false);
+  const [backendDraft, setBackendDraft] = useState<string>(() =>
+    typeof window === "undefined" ? "" : getFastApiBase(),
+  );
   const recognitionRef = useRef<SR | null>(null);
   const spokenIdsRef = useRef<Set<string>>(new Set());
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -452,6 +483,15 @@ function MentorPage() {
             title={voiceOut ? "Voice replies on" : "Voice replies off"}
           >
             {voiceOut ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => { setBackendDraft(getFastApiBase()); setBackendOpen(true); }}
+            aria-label="Backend URL"
+            title="Set backend URL"
+          >
+            <Server className="h-4 w-4" />
           </Button>
         </div>
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-2 px-4 pb-2 sm:hidden">
@@ -727,6 +767,46 @@ function MentorPage() {
           )}
         </form>
       </footer>
+
+      <Dialog open={backendOpen} onOpenChange={setBackendOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Backend URL</DialogTitle>
+            <DialogDescription>
+              The AI Mentor calls your local Python FastAPI server. The Lovable preview runs on
+              HTTPS, so <strong>http://localhost:8000</strong> is blocked by the browser (mixed
+              content). Expose your backend via an HTTPS tunnel (e.g. <code>ngrok http 8000</code>)
+              and paste the HTTPS URL below. Leave blank to reset to <code>http://localhost:8000</code>
+              (only works when you run the frontend locally too).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Input
+              value={backendDraft}
+              onChange={(e) => setBackendDraft(e.target.value)}
+              placeholder="https://your-tunnel.ngrok-free.app"
+              autoFocus
+            />
+            {typeof window !== "undefined" && window.location.protocol === "https:" && backendDraft.startsWith("http://") && (
+              <p className="text-xs text-amber-600">
+                Warning: this is an HTTP URL. The browser will block requests from an HTTPS preview.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBackendOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                setFastApiBase(backendDraft);
+                setBackendOpen(false);
+                toast.success("Backend URL saved", { description: getFastApiBase() });
+              }}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

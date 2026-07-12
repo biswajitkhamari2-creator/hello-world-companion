@@ -1,13 +1,45 @@
 // Client for local Python FastAPI backend.
-// Base URL overridable via VITE_FASTAPI_URL; defaults to http://localhost:8000.
+// Priority: localStorage("fastapi_base_url") > VITE_FASTAPI_URL > http://localhost:8000
 import { useQuery } from "@tanstack/react-query";
 
-export const FASTAPI_BASE =
+const LS_KEY = "fastapi_base_url";
+const ENV_URL =
   (typeof import.meta !== "undefined" && (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_FASTAPI_URL) ||
-  "http://localhost:8000";
+  "";
+const DEFAULT_URL = "http://localhost:8000";
+
+export function getFastApiBase(): string {
+  if (typeof window !== "undefined") {
+    const saved = window.localStorage.getItem(LS_KEY);
+    if (saved && saved.trim()) return saved.trim().replace(/\/+$/, "");
+  }
+  return (ENV_URL || DEFAULT_URL).replace(/\/+$/, "");
+}
+
+export function setFastApiBase(url: string): void {
+  if (typeof window === "undefined") return;
+  const clean = url.trim().replace(/\/+$/, "");
+  if (clean) window.localStorage.setItem(LS_KEY, clean);
+  else window.localStorage.removeItem(LS_KEY);
+  window.dispatchEvent(new CustomEvent("fastapi-base:updated"));
+}
+
+/** @deprecated use getFastApiBase() — kept for callers that already imported it */
+export const FASTAPI_BASE = ENV_URL || DEFAULT_URL;
+
+export function isMixedContentBlocked(url: string): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.protocol === "https:" && url.startsWith("http://");
+}
 
 async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(`${FASTAPI_BASE}${path}`, {
+  const base = getFastApiBase();
+  if (isMixedContentBlocked(base)) {
+    throw new Error(
+      `Browser is on HTTPS but backend URL is ${base} (HTTP). Use an HTTPS tunnel (e.g. ngrok) and set it in the Backend URL setting.`,
+    );
+  }
+  const res = await fetch(`${base}${path}`, {
     method: "GET",
     headers: { Accept: "application/json" },
     signal,
