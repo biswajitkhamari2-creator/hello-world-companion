@@ -77,10 +77,27 @@ export const Route = createFileRoute("/api/mentor")({
 
         try {
           const initialRunId = getLovableAiGatewayRunId(request);
-          
-          // Force local Ollama for AI Mentor
-          const gateway = createOllamaGateway(initialRunId);
-          const model = gateway(OLLAMA_MODEL_NAME);
+
+          // Prefer local Ollama when reachable; otherwise fall back to Gemini/Nvidia.
+          async function isOllamaUp(): Promise<boolean> {
+            const base = (process.env.OLLAMA_API_URL?.trim() || "http://localhost:11434/v1").replace(/\/v1\/?$/, "");
+            try {
+              const ctrl = new AbortController();
+              const t = setTimeout(() => ctrl.abort(), 1500);
+              const res = await fetch(`${base}/api/tags`, { signal: ctrl.signal });
+              clearTimeout(t);
+              return res.ok;
+            } catch {
+              return false;
+            }
+          }
+
+          const useOllama = await isOllamaUp();
+          const gateway = useOllama
+            ? createOllamaGateway(initialRunId)
+            : createGateway(initialRunId, "gemini");
+          const model = useOllama ? gateway(OLLAMA_MODEL_NAME) : gateway(DEFAULT_MODEL);
+          console.log(`[Request ID: ${requestId}] Mentor backend: ${useOllama ? "ollama" : "gemini-fallback"}`);
 
           // Get the last user query to verify via Google search
           const userMessages = messages.filter((m: any) => m.role === "user");
