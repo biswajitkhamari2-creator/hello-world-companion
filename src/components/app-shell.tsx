@@ -116,6 +116,7 @@ const NAV_GROUPS: NavGroup[] = [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "AI Mentor", url: "/mentor", icon: Sparkles },
       { title: "News Archive", url: "/news-archive", icon: CalendarClock },
+      { title: "Daily Brief", url: "/daily-brief", icon: Radio, badge: "Live" },
       { title: "Institution Engine", url: "/institution", icon: GraduationCap, badge: "New" },
     ],
   },
@@ -123,6 +124,8 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Daily Practice",
     items: [
       { title: "Mock Tests", url: "/mocks", icon: ClipboardCheck },
+      { title: "Mains Prep", url: "/mains", icon: PenSquare },
+      { title: "Interview Prep", url: "/interview", icon: MessageCircle },
     ],
   },
   {
