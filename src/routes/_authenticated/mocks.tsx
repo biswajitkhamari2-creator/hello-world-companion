@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ClipboardCheck, CheckCircle2, XCircle, RotateCcw, Trophy } from "lucide-react";
+import { ClipboardCheck, CheckCircle2, XCircle, RotateCcw, Trophy, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useFastApiMcqs, toList, type FastApiMCQ } from "@/lib/fastapi";
 
 export const Route = createFileRoute("/_authenticated/mocks")({
   head: () => ({ meta: [{ title: "Mock Tests — UPSC Genius AI" }] }),
@@ -48,9 +49,40 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+function normalizeMcq(raw: FastApiMCQ): MCQ | null {
+  const q = String(raw.question ?? raw.q ?? "").trim();
+  const optsSrc = (raw.options ?? raw.opts ?? []) as string[];
+  if (!q || !Array.isArray(optsSrc) || optsSrc.length < 4) return null;
+  const opts = optsSrc.slice(0, 4).map((o) => String(o)) as [string, string, string, string];
+  let ans: number;
+  const rawAns = raw.answer ?? raw.ans;
+  if (typeof rawAns === "number") ans = rawAns;
+  else if (typeof rawAns === "string") {
+    const asNum = parseInt(rawAns, 10);
+    if (!Number.isNaN(asNum)) ans = asNum;
+    else {
+      const idx = optsSrc.findIndex((o) => String(o).trim() === rawAns.trim());
+      ans = idx >= 0 ? idx : 0;
+    }
+  } else ans = 0;
+  if (ans < 0 || ans > 3) ans = 0;
+  return {
+    q,
+    opts,
+    ans: ans as 0 | 1 | 2 | 3,
+    expl: String(raw.explanation ?? raw.expl ?? "No explanation provided."),
+    topic: String(raw.topic ?? "General"),
+  };
+}
+
 function MocksPage() {
   const [seed, setSeed] = useState(0);
-  const questions = useMemo(() => shuffle(BANK).slice(0, 10), [seed]);
+  const { data, isLoading, isError, error, refetch, isFetching } = useFastApiMcqs();
+  const questions = useMemo(() => {
+    const list = toList<FastApiMCQ>(data).map(normalizeMcq).filter((x): x is MCQ => Boolean(x));
+    const pool = list.length > 0 ? list : BANK;
+    return shuffle(pool).slice(0, 10);
+  }, [data, seed]);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
 
@@ -69,10 +101,47 @@ function MocksPage() {
           </span>
           <div className="flex-1 min-w-0">
             <h1 className="font-serif text-2xl font-bold">Mock Test</h1>
-            <p className="text-sm text-muted-foreground">Free-tier UPSC MCQs — 10 questions, 4 options each. Submit karo aur explanation dekho.</p>
+            <p className="text-sm text-muted-foreground">
+              Live MCQs from FastAPI backend — 10 questions per set.
+              {isError ? " (Backend offline — using fallback bank.)" : null}
+            </p>
           </div>
-          <Button variant="outline" size="sm" onClick={reset}><RotateCcw className="mr-1.5 h-3.5 w-3.5" /> New Set</Button>
+          <Button variant="outline" size="sm" onClick={() => { refetch(); reset(); }} disabled={isFetching}>
+            {isFetching ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="mr-1.5 h-3.5 w-3.5" />}
+            New Set
+          </Button>
         </header>
+
+        {isLoading && (
+          <div className="mb-5 grid gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="animate-pulse rounded-xl border border-border bg-card p-4">
+                <div className="h-4 w-3/4 rounded bg-muted mb-3" />
+                <div className="space-y-2">
+                  <div className="h-8 rounded bg-muted/60" />
+                  <div className="h-8 rounded bg-muted/60" />
+                  <div className="h-8 rounded bg-muted/60" />
+                  <div className="h-8 rounded bg-muted/60" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isError && !isLoading && (
+          <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm dark:bg-amber-950/30">
+            <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" />
+            <div className="flex-1">
+              <p className="font-semibold">Could not reach FastAPI backend</p>
+              <p className="text-xs text-muted-foreground">
+                {(error as Error)?.message ?? "Unknown error"} — showing curated fallback questions.
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => refetch()}>
+              <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry
+            </Button>
+          </div>
+        )}
 
         {submitted && (
           <div className="mb-5 flex items-center gap-3 rounded-xl border-2 border-amber-300 bg-amber-50 p-4 dark:bg-amber-950/30 animate-scale-in">
