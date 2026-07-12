@@ -10,6 +10,7 @@ import { BrandMark } from "@/components/brand-mark";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getFastApiBase, setFastApiBase, isMixedContentBlocked } from "@/lib/fastapi";
+import { webSearch } from "@/lib/websearch.functions";
 import {
   Dialog,
   DialogContent,
@@ -181,12 +182,32 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
     } catch {}
 
     const currentText = partsToText((userMsg.parts ?? []) as SendPart[]);
+
+    // Verify from Google/web first via Firecrawl search, then feed context to Ollama.
+    let webContext = "";
+    if (currentText.trim()) {
+      try {
+        const { results, error } = await webSearch({ data: { query: currentText, limit: 3 } });
+        if (!error && results.length) {
+          webContext = results
+            .map((r, i) => `[${i + 1}] ${r.title ?? ""}\n${r.url ?? ""}\n${r.description ?? ""}`)
+            .join("\n\n");
+        }
+      } catch (e) {
+        console.warn("[mentor:websearch]", e);
+      }
+    }
+
+    const augmentedMessage = webContext
+      ? `${currentText}\n\n---\nVerified web sources (use these as ground truth; if they conflict with your prior knowledge, prefer the sources; if they don't cover the question, say so):\n${webContext}`
+      : currentText;
+
     const flatHistory = [
       ...historyForBody.map((m) => ({
         role: m.role,
         content: partsToText((m.parts ?? []) as SendPart[]),
       })),
-      { role: "user" as const, content: currentText },
+      { role: "user" as const, content: augmentedMessage },
     ];
 
     const base = getFastApiBase();
@@ -208,7 +229,7 @@ function useLocalMentorChat({ mode, onError }: { mode: Mode; onError?: (e: Error
         body: JSON.stringify({
           mode,
           language,
-          message: currentText,
+          message: augmentedMessage,
           messages: flatHistory,
         }),
       });
