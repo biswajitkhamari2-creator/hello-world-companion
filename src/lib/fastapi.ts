@@ -6,7 +6,7 @@ const LS_KEY = "fastapi_base_url";
 const ENV_URL =
   (typeof import.meta !== "undefined" && (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_FASTAPI_URL) ||
   "";
-const DEFAULT_URL = "http://localhost:8000";
+const DEFAULT_URL = "https://python-backend-ivory-two.vercel.app";
 
 export function getFastApiBase(): string {
   if (typeof window !== "undefined") {
