@@ -23,6 +23,7 @@ import { Route as AuthenticatedNewsArchiveRouteImport } from './routes/_authenti
 import { Route as AuthenticatedMocksRouteImport } from './routes/_authenticated/mocks'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
 import { Route as AuthenticatedMainsRouteImport } from './routes/_authenticated/mains'
+import { Route as AuthenticatedInterviewRouteImport } from './routes/_authenticated/interview'
 import { Route as AuthenticatedInstitutionRouteImport } from './routes/_authenticated/institution'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
@@ -104,6 +105,11 @@ const AuthenticatedMainsRoute = AuthenticatedMainsRouteImport.update({
   path: '/mains',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInterviewRoute = AuthenticatedInterviewRouteImport.update({
+  id: '/interview',
+  path: '/interview',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedInstitutionRoute =
   AuthenticatedInstitutionRouteImport.update({
     id: '/institution',
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/downloads': typeof AuthenticatedDownloadsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/institution': typeof AuthenticatedInstitutionRoute
+  '/interview': typeof AuthenticatedInterviewRoute
   '/mains': typeof AuthenticatedMainsRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/mocks': typeof AuthenticatedMocksRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/downloads': typeof AuthenticatedDownloadsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/institution': typeof AuthenticatedInstitutionRoute
+  '/interview': typeof AuthenticatedInterviewRoute
   '/mains': typeof AuthenticatedMainsRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/mocks': typeof AuthenticatedMocksRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/_authenticated/downloads': typeof AuthenticatedDownloadsRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/institution': typeof AuthenticatedInstitutionRoute
+  '/_authenticated/interview': typeof AuthenticatedInterviewRoute
   '/_authenticated/mains': typeof AuthenticatedMainsRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
   '/_authenticated/mocks': typeof AuthenticatedMocksRoute
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
     | '/downloads'
     | '/inbox'
     | '/institution'
+    | '/interview'
     | '/mains'
     | '/mentor'
     | '/mocks'
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/downloads'
     | '/inbox'
     | '/institution'
+    | '/interview'
     | '/mains'
     | '/mentor'
     | '/mocks'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/_authenticated/downloads'
     | '/_authenticated/inbox'
     | '/_authenticated/institution'
+    | '/_authenticated/interview'
     | '/_authenticated/mains'
     | '/_authenticated/mentor'
     | '/_authenticated/mocks'
@@ -426,6 +438,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMainsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/interview': {
+      id: '/_authenticated/interview'
+      path: '/interview'
+      fullPath: '/interview'
+      preLoaderRoute: typeof AuthenticatedInterviewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/institution': {
       id: '/_authenticated/institution'
       path: '/institution'
@@ -506,6 +525,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDownloadsRoute: typeof AuthenticatedDownloadsRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedInstitutionRoute: typeof AuthenticatedInstitutionRoute
+  AuthenticatedInterviewRoute: typeof AuthenticatedInterviewRoute
   AuthenticatedMainsRoute: typeof AuthenticatedMainsRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
   AuthenticatedMocksRoute: typeof AuthenticatedMocksRoute
@@ -524,6 +544,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDownloadsRoute: AuthenticatedDownloadsRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedInstitutionRoute: AuthenticatedInstitutionRoute,
+  AuthenticatedInterviewRoute: AuthenticatedInterviewRoute,
   AuthenticatedMainsRoute: AuthenticatedMainsRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
   AuthenticatedMocksRoute: AuthenticatedMocksRoute,
